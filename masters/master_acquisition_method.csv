@@ -1,0 +1,18 @@
+﻿獲得方法コード,表示名,カテゴリ,事業部スコープ,並び順,備考・説明
+teleapo,テレアポ,自社開拓,G-DX_COMMON,10,自社架電によるアポイント獲得
+referral,紹介等,紹介,G-DX_COMMON,20,人脈・口コミによる紹介
+glasst_existing,グラスト既存顧客,既存顧客,G-DX_COMMON,30,グラスト社の既存顧客からの展開
+partner_link,パートナーリンク紹介,パートナー,G-DX_COMMON,40,パートナーリンク経由の紹介
+apta_iz_toss_up,aptaizトスアップ,パートナー,G-DX_COMMON,50,aptaiz社からのトスアップ
+contact_ogura,小椋接触先,個人接触,G-DX_COMMON,60,小椋氏の個人ネットワーク経由
+contact_ishihara,石原接触先,個人接触,G-DX_COMMON,70,石原氏の個人ネットワーク経由
+contact_miyamoto,宮本接触先,個人接触,G-DX_COMMON,80,宮本氏の個人ネットワーク経由
+expo_202510,202510展示会リスト,展示会,G-DX_COMMON,90,2025年10月開催展示会で取得したリスト
+expo_202512,202512展示会リスト,展示会,G-DX_COMMON,100,2025年12月開催展示会で取得したリスト
+meiji_ob_miyamoto_20250726,明治大学東三河OB会_宮本_20250726,セミナー/イベント,G-DX_COMMON,110,2025/07/26 明治大学東三河OB会（宮本氏参加）
+gc_prosupport_seminar_20250724,GCプロサポセミナー_グラスト_20250724,セミナー/イベント,G-DX_COMMON,120,2025/07/24 GCプロサポセミナー（グラスト主催）
+keies_referral_miyamoto_20250829,ケイエス紹介_宮本_20250829,セミナー/イベント,G-DX_COMMON,130,2025/08/29 ケイエス経由紹介（宮本氏）
+mizukara_reboost_ishihara_20270719,ミズカラREBOOST_石原_20270719.20,セミナー/イベント,G-DX_COMMON,140,2027/07/19-20 ミズカラREBOOST（石原氏参加）
+tsr_startup_202510,創業10年未満・従業員10人以上_TSR_202510,TSRリスト,G-DX_COMMON,150,TSR購入リスト：創業10年未満かつ従業員10人以上（2025/10取得）
+tsr_food_202507,食品製造卸_TSR_202507,TSRリスト,G-DX_COMMON,160,TSR購入リスト：食品製造・卸売業（2025/07取得）
+tsr_initial_202504,初期TSR_TSR_202504,TSRリスト,G-DX_COMMON,170,TSR購入リスト：初回取得分（2025/04取得）

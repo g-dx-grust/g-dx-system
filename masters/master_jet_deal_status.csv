@@ -1,0 +1,11 @@
+﻿ステータスコード,表示名,説明,UIカラー（hex）,並び順,終了ステータス
+jet_status_before_meeting,商談前,アポ確定済みだが、まだ商談を実施していない状態,#94a3b8,10,False
+jet_status_after_meeting_wait,商談済み回答待,商談を実施し、顧客の回答・検討結果を待っている状態,#60a5fa,20,False
+jet_status_contract_scheduling,契約日程調整中,契約締結に向けて日程を調整している状態,#818cf8,30,False
+jet_status_waiting_construction,施工待,契約締結済みで、施工・設置の実施待ち,#a78bfa,40,False
+jet_status_confirm_call_wait,確認コール待,施工後、動作確認のコールを実施する前の状態,#c084fc,50,False
+jet_status_confirm_call_done,確認コール完了,施工後の確認コールが完了した状態,#4ade80,60,False
+jet_status_waiting_sign,サイン待,契約書への署名・捺印を待っている状態,#fbbf24,70,False
+jet_status_before_trial,トライアル前,トライアル導入が決定したが、まだ開始していない状態,#fb923c,80,False
+jet_status_in_trial,トライアル中,節水機器のトライアル導入を実施中,#f97316,90,False
+jet_status_lost,失注,受注に至らなかった状態（理由はメモに記載）,#f87171,99,True

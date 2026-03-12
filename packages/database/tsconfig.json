@@ -1,0 +1,25 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "rootDir": ".",
+        "outDir": "./dist",
+        "lib": [
+            "esnext"
+        ],
+        "types": [
+            "node"
+        ],
+        "noEmit": true
+    },
+    "include": [
+        "src/**/*.ts",
+        "schema/**/*.ts",
+        "scripts/**/*.ts",
+        "drizzle.config.ts"
+    ],
+    "exclude": [
+        "dist",
+        "node_modules",
+        "migrations"
+    ]
+}

@@ -1,0 +1,34 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1773141321625,
+      "tag": "0000_mixed_blur",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1773193941945,
+      "tag": "0001_flowery_galactus",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1773232594822,
+      "tag": "0002_jet_facilities",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773232656622,
+      "tag": "0003_add_jet_deal_fields",
+      "breakpoints": true
+    }
+  ]
+}

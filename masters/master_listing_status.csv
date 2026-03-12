@@ -1,0 +1,10 @@
+﻿コード,表示名,並び順
+unlisted,未上場,1
+prime,東証プライム,2
+standard,東証スタンダード,3
+growth,東証グロース,4
+pro_market,東証PRO Market,5
+nagoya_premier,名証プレミア,6
+nagoya_main,名証メイン,7
+nagoya_next,名証ネクスト,8
+other_exchange,その他取引所,9

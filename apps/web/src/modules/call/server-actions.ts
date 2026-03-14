@@ -3,8 +3,9 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { addToCallQueue, removeFromCallQueue } from '@/modules/call/application/add-to-call-queue';
 import { recordCall } from '@/modules/call/application/record-call';
+import { listCallHistoryByCompany } from '@/modules/call/application/list-call-history-by-company';
 import { isAppError } from '@/shared/server/errors';
-import type { CallResult } from '@g-dx/contracts';
+import type { CallListItem, CallResult } from '@g-dx/contracts';
 
 function readString(formData: FormData, key: string): string | undefined {
     const value = formData.get(key);
@@ -42,16 +43,20 @@ export async function removeFromCallQueueAction(formData: FormData) {
     redirect('/calls/queue');
 }
 
-export async function recordCallAction(formData: FormData) {
+export async function recordCallAction(_prev: unknown, formData: FormData): Promise<{ success: boolean; error?: string }> {
     const companyId = readString(formData, 'companyId');
     const result = readString(formData, 'result') as CallResult | undefined;
-    const calledAt = readString(formData, 'calledAt');
-    if (!companyId || !result || !calledAt) redirect('/calls/history?error=validation');
-    const durationRaw = readString(formData, 'durationSec');
-    const durationSec = durationRaw ? Number(durationRaw) : undefined;
+    if (!companyId || !result) return { success: false, error: 'validation' };
     const targetId = readString(formData, 'callTargetId');
     try {
-        await recordCall({ callTargetId: targetId, companyId, contactId: readString(formData, 'contactId'), calledAt, result, durationSec: durationSec && !isNaN(durationSec) ? durationSec : undefined, notes: readString(formData, 'notes') });
+        await recordCall({
+            callTargetId: targetId,
+            companyId,
+            contactId: readString(formData, 'contactId'),
+            result,
+            notes: readString(formData, 'notes'),
+            nextCallDatetime: readString(formData, 'nextCallDatetime'),
+        });
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
@@ -59,8 +64,30 @@ export async function recordCallAction(formData: FormData) {
     }
     revalidatePath('/calls/history');
     revalidatePath('/calls/queue');
-    if (targetId) redirect('/calls/queue?called=1');
-    redirect('/calls/history?recorded=1');
+    return { success: true };
+}
+
+export async function recordCallFromCompanyListAction(_prev: unknown, formData: FormData): Promise<{ success: boolean; companyName?: string; error?: string }> {
+    const companyId = readString(formData, 'companyId');
+    const result = readString(formData, 'result') as CallResult | undefined;
+    const companyName = readString(formData, 'companyName') ?? '';
+    if (!companyId || !result) return { success: false, error: 'validation' };
+    try {
+        await recordCall({
+            companyId,
+            contactId: readString(formData, 'contactId'),
+            result,
+            notes: readString(formData, 'notes'),
+            nextCallDatetime: readString(formData, 'nextCallDatetime'),
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+    revalidatePath('/calls/history');
+    revalidatePath('/calls/company-list');
+    return { success: true, companyName };
 }
 
 export async function addToCallQueueFromCompanyListAction(formData: FormData) {
@@ -80,22 +107,10 @@ export async function addToCallQueueFromCompanyListAction(formData: FormData) {
     redirect(`/calls/company-list?queued=${encodeURIComponent(companyName)}`);
 }
 
-export async function recordCallFromCompanyListAction(formData: FormData) {
-    const companyId = readString(formData, 'companyId');
-    const result = readString(formData, 'result') as CallResult | undefined;
-    const calledAt = readString(formData, 'calledAt');
-    const companyName = readString(formData, 'companyName') ?? '';
-    if (!companyId || !result || !calledAt) redirect('/calls/company-list?callError=validation');
-    const durationRaw = readString(formData, 'durationSec');
-    const durationSec = durationRaw ? Number(durationRaw) : undefined;
+export async function fetchCompanyCallHistory(companyId: string): Promise<CallListItem[]> {
     try {
-        await recordCall({ companyId, contactId: readString(formData, 'contactId'), calledAt, result, durationSec: durationSec && !isNaN(durationSec) ? durationSec : undefined, notes: readString(formData, 'notes') });
-    } catch (error) {
-        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
-        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
-        throw error;
+        return await listCallHistoryByCompany(companyId);
+    } catch {
+        return [];
     }
-    revalidatePath('/calls/history');
-    revalidatePath('/calls/company-list');
-    redirect(`/calls/company-list?recorded=${encodeURIComponent(companyName)}`);
 }

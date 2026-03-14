@@ -29,6 +29,13 @@
       "when": 1773232656622,
       "tag": "0003_add_jet_deal_fields",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773400000000,
+      "tag": "0004_call_status_redesign",
+      "breakpoints": true
     }
   ]
 }

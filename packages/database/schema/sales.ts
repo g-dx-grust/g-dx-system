@@ -120,6 +120,16 @@ export const contracts = pgTable('contracts', {
     gdxReferralStatus: text('gdx_referral_status'), // POSSIBLE | REFERRED | NOT_APPLICABLE
     gdxReferralDate: date('gdx_referral_date'),
     gdxReferralNote: text('gdx_referral_note'),
+    // G-DX営業管理 拡張フィールド
+    fsInChargeUserId: uuid('fs_in_charge_user_id').references(() => users.id),
+    isInChargeUserId: uuid('is_in_charge_user_id').references(() => users.id),
+    productCode: text('product_code'),
+    hasSubsidy: boolean('has_subsidy'),
+    licensePlanCode: text('license_plan_code'),
+    freeSupportMonths: integer('free_support_months'),
+    enterpriseLicenseCount: integer('enterprise_license_count'),
+    proLicenseCount: integer('pro_license_count'),
+    a2LicenseCount: integer('a2_license_count'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     createdByUserId: uuid('created_by_user_id').references(() => users.id),

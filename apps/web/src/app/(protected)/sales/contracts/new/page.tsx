@@ -6,10 +6,17 @@ import { listCompanies } from '@/modules/customer-management/company/application
 import { assertPermission } from '@/shared/server/authorization';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import { isAppError } from '@/shared/server/errors';
+import { db } from '@g-dx/database';
+import { users } from '@g-dx/database/schema';
+import { isNull } from 'drizzle-orm';
 
 interface NewContractPageProps {
     searchParams?: {
         error?: string;
+        dealId?: string;
+        companyId?: string;
+        title?: string;
+        amount?: string;
     };
 }
 
@@ -41,13 +48,31 @@ export default async function NewContractPage({ searchParams }: NewContractPageP
         throw error;
     }
 
+    const allUsers = await db
+        .select({ id: users.id, name: users.displayName })
+        .from(users)
+        .where(isNull(users.deletedAt));
+
+    const userOptions = allUsers.map((u) => ({ id: u.id, name: u.name ?? '（名前なし）' }));
+
+    const defaultValues = searchParams?.dealId
+        ? {
+              dealId: searchParams.dealId,
+              companyId: searchParams.companyId,
+              title: searchParams.title,
+              amount: searchParams.amount,
+          }
+        : undefined;
+
     return (
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
                 <div className="space-y-1">
                     <h1 className="text-2xl font-semibold text-gray-900">新規契約登録</h1>
                     <p className="text-sm text-gray-500">
-                        新しい契約を登録します。
+                        {defaultValues?.dealId
+                            ? '案件から引き継いだ情報を確認し、追加情報を入力してください。'
+                            : '新しい契約を登録します。'}
                     </p>
                 </div>
                 <Button asChild variant="outline">
@@ -56,7 +81,9 @@ export default async function NewContractPage({ searchParams }: NewContractPageP
             </div>
             <ContractCreateForm
                 companies={companies.data.map((c) => ({ id: c.id, name: c.name }))}
+                users={userOptions}
                 errorMessage={getErrorMessage(searchParams?.error)}
+                defaultValues={defaultValues}
             />
         </div>
     );

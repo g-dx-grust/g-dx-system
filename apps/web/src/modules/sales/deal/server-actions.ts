@@ -90,8 +90,9 @@ export async function changeDealStageAction(formData: FormData) {
     const toStage = readString(formData, 'toStage') as DealStageKey | undefined;
     if (!dealId || !toStage) redirect('/sales/deals');
 
+    let result;
     try {
-        await changeDealStage(dealId, { toStage });
+        result = await changeDealStage(dealId, { toStage });
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
@@ -101,6 +102,20 @@ export async function changeDealStageAction(formData: FormData) {
 
     revalidatePath('/sales/deals');
     revalidatePath(`/sales/deals/${dealId}`);
+
+    if (result.currentStage === 'CONTRACTED') {
+        const { getDealForContractRedirect } = await import('@/modules/sales/deal/application/get-deal-for-contract-redirect');
+        const dealInfo = await getDealForContractRedirect(dealId);
+        if (dealInfo) {
+            const params = new URLSearchParams();
+            params.set('dealId', dealId);
+            params.set('companyId', dealInfo.companyId);
+            if (dealInfo.title) params.set('title', dealInfo.title);
+            if (dealInfo.amount !== null) params.set('amount', String(dealInfo.amount));
+            redirect(`/sales/contracts/new?${params.toString()}`);
+        }
+    }
+
     redirect(`/sales/deals/${dealId}?staged=1`);
 }
 

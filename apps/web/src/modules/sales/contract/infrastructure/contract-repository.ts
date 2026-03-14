@@ -2,6 +2,7 @@ import { db } from '@g-dx/database';
 import { auditLogs } from '@g-dx/database/schema';
 import { businessUnits, companies, contacts, contracts, deals, users } from '@g-dx/database/schema';
 import { and, desc, eq, ilike, isNull, or } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type {
     BusinessScopeType,
     ContractDetail,
@@ -94,6 +95,9 @@ export async function listContracts(
 // ─── Detail ───────────────────────────────────────────────────────────────────
 
 export async function getContractById(contractId: string): Promise<ContractDetail | null> {
+    const fsUsers = alias(users, 'fs_users');
+    const isUsers = alias(users, 'is_users');
+
     const rows = await db
         .select({
             id: contracts.id,
@@ -108,6 +112,17 @@ export async function getContractById(contractId: string): Promise<ContractDetai
             serviceEndDate: contracts.serviceEndDate,
             dealId: contracts.dealId,
             memo: contracts.memo,
+            fsInChargeUserId: contracts.fsInChargeUserId,
+            fsInChargeUserName: fsUsers.displayName,
+            isInChargeUserId: contracts.isInChargeUserId,
+            isInChargeUserName: isUsers.displayName,
+            productCode: contracts.productCode,
+            hasSubsidy: contracts.hasSubsidy,
+            licensePlanCode: contracts.licensePlanCode,
+            freeSupportMonths: contracts.freeSupportMonths,
+            enterpriseLicenseCount: contracts.enterpriseLicenseCount,
+            proLicenseCount: contracts.proLicenseCount,
+            a2LicenseCount: contracts.a2LicenseCount,
             createdAt: contracts.createdAt,
             updatedAt: contracts.updatedAt,
             companyId: companies.id,
@@ -123,6 +138,8 @@ export async function getContractById(contractId: string): Promise<ContractDetai
         .innerJoin(users, eq(contracts.ownerUserId, users.id))
         .innerJoin(businessUnits, eq(contracts.businessUnitId, businessUnits.id))
         .leftJoin(contacts, eq(contracts.primaryContactId, contacts.id))
+        .leftJoin(fsUsers, eq(contracts.fsInChargeUserId, fsUsers.id))
+        .leftJoin(isUsers, eq(contracts.isInChargeUserId, isUsers.id))
         .where(and(eq(contracts.id, contractId), isNull(contracts.deletedAt)))
         .limit(1);
 
@@ -146,6 +163,15 @@ export async function getContractById(contractId: string): Promise<ContractDetai
         serviceEndDate: row.serviceEndDate,
         dealId: row.dealId as UUID | null,
         memo: row.memo,
+        fsInChargeUser: row.fsInChargeUserId ? { id: row.fsInChargeUserId as UUID, name: row.fsInChargeUserName ?? 'Unknown' } : null,
+        isInChargeUser: row.isInChargeUserId ? { id: row.isInChargeUserId as UUID, name: row.isInChargeUserName ?? 'Unknown' } : null,
+        productCode: row.productCode,
+        hasSubsidy: row.hasSubsidy,
+        licensePlanCode: row.licensePlanCode,
+        freeSupportMonths: row.freeSupportMonths,
+        enterpriseLicenseCount: row.enterpriseLicenseCount,
+        proLicenseCount: row.proLicenseCount,
+        a2LicenseCount: row.a2LicenseCount,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
     };
@@ -169,6 +195,15 @@ export interface CreateContractInput {
     memo?: string;
     ownerUserId: string;
     actorUserId: string;
+    fsInChargeUserId?: string;
+    isInChargeUserId?: string;
+    productCode?: string;
+    hasSubsidy?: boolean;
+    licensePlanCode?: string;
+    freeSupportMonths?: number;
+    enterpriseLicenseCount?: number;
+    proLicenseCount?: number;
+    a2LicenseCount?: number;
 }
 
 export async function createContract(input: CreateContractInput): Promise<{ id: string }> {
@@ -195,6 +230,15 @@ export async function createContract(input: CreateContractInput): Promise<{ id: 
             serviceStartDate: input.serviceStartDate ?? null,
             serviceEndDate: input.serviceEndDate ?? null,
             memo: input.memo ?? null,
+            fsInChargeUserId: input.fsInChargeUserId ?? null,
+            isInChargeUserId: input.isInChargeUserId ?? null,
+            productCode: input.productCode ?? null,
+            hasSubsidy: input.hasSubsidy ?? null,
+            licensePlanCode: input.licensePlanCode ?? null,
+            freeSupportMonths: input.freeSupportMonths ?? null,
+            enterpriseLicenseCount: input.enterpriseLicenseCount ?? null,
+            proLicenseCount: input.proLicenseCount ?? null,
+            a2LicenseCount: input.a2LicenseCount ?? null,
             createdAt: now,
             updatedAt: now,
             createdByUserId: input.actorUserId,
@@ -229,6 +273,15 @@ export interface UpdateContractInput {
     serviceStartDate?: string | null;
     serviceEndDate?: string | null;
     memo?: string | null;
+    fsInChargeUserId?: string | null;
+    isInChargeUserId?: string | null;
+    productCode?: string | null;
+    hasSubsidy?: boolean | null;
+    licensePlanCode?: string | null;
+    freeSupportMonths?: number | null;
+    enterpriseLicenseCount?: number | null;
+    proLicenseCount?: number | null;
+    a2LicenseCount?: number | null;
     actorUserId: string;
 }
 
@@ -251,6 +304,15 @@ export async function updateContract(input: UpdateContractInput): Promise<void> 
             ...(input.serviceStartDate !== undefined && { serviceStartDate: input.serviceStartDate }),
             ...(input.serviceEndDate !== undefined && { serviceEndDate: input.serviceEndDate }),
             ...(input.memo !== undefined && { memo: input.memo }),
+            ...(input.fsInChargeUserId !== undefined && { fsInChargeUserId: input.fsInChargeUserId }),
+            ...(input.isInChargeUserId !== undefined && { isInChargeUserId: input.isInChargeUserId }),
+            ...(input.productCode !== undefined && { productCode: input.productCode }),
+            ...(input.hasSubsidy !== undefined && { hasSubsidy: input.hasSubsidy }),
+            ...(input.licensePlanCode !== undefined && { licensePlanCode: input.licensePlanCode }),
+            ...(input.freeSupportMonths !== undefined && { freeSupportMonths: input.freeSupportMonths }),
+            ...(input.enterpriseLicenseCount !== undefined && { enterpriseLicenseCount: input.enterpriseLicenseCount }),
+            ...(input.proLicenseCount !== undefined && { proLicenseCount: input.proLicenseCount }),
+            ...(input.a2LicenseCount !== undefined && { a2LicenseCount: input.a2LicenseCount }),
             updatedAt,
             updatedByUserId: input.actorUserId,
         })

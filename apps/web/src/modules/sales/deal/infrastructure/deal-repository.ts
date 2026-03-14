@@ -4,6 +4,7 @@ import {
     businessUnits,
     companies,
     contacts,
+    dealActivities,
     dealStageHistory,
     deals,
     pipelineStages,
@@ -701,6 +702,7 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
             nextActionContent: deals.nextActionContent,
             acquisitionMethod: deals.acquisitionMethod,
             stageId: deals.currentStageId,
+            ownerUserId: deals.ownerUserId,
             ownerName: users.displayName,
             companyName: companies.displayName,
         })
@@ -715,8 +717,26 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
             gte(deals.nextActionDate, todayStr),
         ));
 
+    // 前回アクション情報を各案件について取得
+    const dealIds = nextActionDeals.map((d) => d.id);
+    const lastActivitiesMap = new Map<string, { summary: string | null; date: string | null }>();
+    if (dealIds.length > 0) {
+        for (const did of dealIds) {
+            const [lastActivity] = await db
+                .select({ summary: dealActivities.summary, activityDate: dealActivities.activityDate })
+                .from(dealActivities)
+                .where(eq(dealActivities.dealId, did))
+                .orderBy(desc(dealActivities.activityDate))
+                .limit(1);
+            if (lastActivity) {
+                lastActivitiesMap.set(did, { summary: lastActivity.summary, date: lastActivity.activityDate });
+            }
+        }
+    }
+
     const toNextActionItem = (row: typeof nextActionDeals[0]): DealNextActionItem => {
         const stage = stageMap.get(row.stageId);
+        const lastActivity = lastActivitiesMap.get(row.id);
         return {
             dealId: row.id,
             dealName: row.title,
@@ -725,9 +745,12 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
             stageName: stage?.name ?? '-',
             amount: row.amount !== null ? Number(row.amount) : null,
             ownerName: row.ownerName ?? '-',
+            ownerUserId: row.ownerUserId ?? '',
             acquisitionMethod: row.acquisitionMethod ?? null,
             nextActionDate: row.nextActionDate ?? '',
             nextActionContent: row.nextActionContent ?? null,
+            lastActivitySummary: lastActivity?.summary ?? null,
+            lastActivityDate: lastActivity?.date ?? null,
         };
     };
 

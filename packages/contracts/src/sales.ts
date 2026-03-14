@@ -141,9 +141,12 @@ export interface DealNextActionItem {
     stageName: string;
     amount: number | null;
     ownerName: string;
+    ownerUserId: string;
     acquisitionMethod: string | null;
     nextActionDate: string;
     nextActionContent: string | null;
+    lastActivitySummary: string | null;
+    lastActivityDate: string | null;
 }
 
 export interface DealOwnerStat {
@@ -228,6 +231,15 @@ export interface ContractDetail extends ContractListItem {
     invoiceDate: string | null;
     paymentDate: string | null;
     memo: string | null;
+    fsInChargeUser: { id: UUID; name: string } | null;
+    isInChargeUser: { id: UUID; name: string } | null;
+    productCode: string | null;
+    hasSubsidy: boolean | null;
+    licensePlanCode: string | null;
+    freeSupportMonths: number | null;
+    enterpriseLicenseCount: number | null;
+    proLicenseCount: number | null;
+    a2LicenseCount: number | null;
     updatedAt: ISODateString;
 }
 
@@ -245,6 +257,15 @@ export interface CreateContractRequest {
     serviceEndDate?: string;
     memo?: string;
     ownerUserId: UUID;
+    fsInChargeUserId?: UUID;
+    isInChargeUserId?: UUID;
+    productCode?: string;
+    hasSubsidy?: boolean;
+    licensePlanCode?: string;
+    freeSupportMonths?: number;
+    enterpriseLicenseCount?: number;
+    proLicenseCount?: number;
+    a2LicenseCount?: number;
 }
 
 export interface UpdateContractRequest {
@@ -258,6 +279,15 @@ export interface UpdateContractRequest {
     serviceStartDate?: string | null;
     serviceEndDate?: string | null;
     memo?: string | null;
+    fsInChargeUserId?: string | null;
+    isInChargeUserId?: string | null;
+    productCode?: string | null;
+    hasSubsidy?: boolean | null;
+    licensePlanCode?: string | null;
+    freeSupportMonths?: number | null;
+    enterpriseLicenseCount?: number | null;
+    proLicenseCount?: number | null;
+    a2LicenseCount?: number | null;
 }
 
 export interface ContractDashboardSummary {

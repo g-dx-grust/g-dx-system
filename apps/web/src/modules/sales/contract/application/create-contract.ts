@@ -24,5 +24,14 @@ export async function createContract(input: CreateContractRequest) {
         memo: input.memo,
         ownerUserId: input.ownerUserId,
         actorUserId: session.user.id,
+        fsInChargeUserId: input.fsInChargeUserId,
+        isInChargeUserId: input.isInChargeUserId,
+        productCode: input.productCode,
+        hasSubsidy: input.hasSubsidy,
+        licensePlanCode: input.licensePlanCode,
+        freeSupportMonths: input.freeSupportMonths,
+        enterpriseLicenseCount: input.enterpriseLicenseCount,
+        proLicenseCount: input.proLicenseCount,
+        a2LicenseCount: input.a2LicenseCount,
     });
 }

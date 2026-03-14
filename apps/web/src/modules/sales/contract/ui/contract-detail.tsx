@@ -5,8 +5,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { updateContractAction } from '@/modules/sales/contract/server-actions';
 
+interface UserOption {
+    id: string;
+    name: string;
+}
+
 interface ContractDetailViewProps {
     contract: ContractDetail;
+    users?: UserOption[];
     created?: boolean;
     updated?: boolean;
 }
@@ -35,11 +41,39 @@ const STATUS_OPTIONS: { key: ContractStatus; label: string }[] = [
     { key: 'SERVICE_ENDED', label: 'サービス終了' },
 ];
 
+const PRODUCT_LABELS: Record<string, string> = {
+    'G-DX': 'G-DX',
+    'PRO_SUPPORT_X': 'プロサポートX',
+    'LICENSE_ONLY': 'ライセンスのみ',
+};
+
+const LICENSE_PLAN_LABELS: Record<string, string> = {
+    'ENTERPRISE': 'エンタープライズ',
+    'PRO': 'プロ',
+    'A2': 'A2',
+};
+
+const PRODUCT_OPTIONS = [
+    { value: '', label: '-- 選択してください --' },
+    { value: 'G-DX', label: 'G-DX' },
+    { value: 'PRO_SUPPORT_X', label: 'プロサポートX' },
+    { value: 'LICENSE_ONLY', label: 'ライセンスのみ' },
+];
+
+const LICENSE_PLAN_OPTIONS = [
+    { value: '', label: '-- 選択してください --' },
+    { value: 'ENTERPRISE', label: 'エンタープライズ' },
+    { value: 'PRO', label: 'プロ' },
+    { value: 'A2', label: 'A2' },
+];
+
+const selectClass = 'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+
 function formatAmount(amount: number): string {
     return `¥${amount.toLocaleString()}`;
 }
 
-export function ContractDetailView({ contract, created = false, updated = false }: ContractDetailViewProps) {
+export function ContractDetailView({ contract, users = [], created = false, updated = false }: ContractDetailViewProps) {
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -130,6 +164,24 @@ export function ContractDetailView({ contract, created = false, updated = false 
                 </Card>
             </div>
 
+            {/* Extended contract info */}
+            <Card className="shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-base text-gray-900">契約詳細情報</CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <InfoItem label="FS担当者" value={contract.fsInChargeUser?.name ?? '-'} />
+                    <InfoItem label="IS担当者" value={contract.isInChargeUser?.name ?? '-'} />
+                    <InfoItem label="獲得商材" value={contract.productCode ? (PRODUCT_LABELS[contract.productCode] ?? contract.productCode) : '-'} />
+                    <InfoItem label="ライセンスプラン" value={contract.licensePlanCode ? (LICENSE_PLAN_LABELS[contract.licensePlanCode] ?? contract.licensePlanCode) : '-'} />
+                    <InfoItem label="助成金申請" value={contract.hasSubsidy === true ? 'あり' : contract.hasSubsidy === false ? 'なし' : '-'} />
+                    <InfoItem label="無料伴走期間" value={contract.freeSupportMonths !== null ? `${contract.freeSupportMonths}ヶ月` : '-'} />
+                    <InfoItem label="エンタープライズID数" value={contract.enterpriseLicenseCount !== null ? String(contract.enterpriseLicenseCount) : '-'} />
+                    <InfoItem label="プロID数" value={contract.proLicenseCount !== null ? String(contract.proLicenseCount) : '-'} />
+                    <InfoItem label="A2 ID数" value={contract.a2LicenseCount !== null ? String(contract.a2LicenseCount) : '-'} />
+                </CardContent>
+            </Card>
+
             {contract.memo && (
                 <Card className="shadow-sm">
                     <CardHeader>
@@ -158,11 +210,7 @@ export function ContractDetailView({ contract, created = false, updated = false 
 
                         <label className="grid gap-2 text-sm font-medium text-gray-700">
                             ステータス
-                            <select
-                                name="contractStatus"
-                                defaultValue={contract.contractStatus}
-                                className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            >
+                            <select name="contractStatus" defaultValue={contract.contractStatus} className={selectClass}>
                                 {STATUS_OPTIONS.map((s) => (
                                     <option key={s.key} value={s.key}>{s.label}</option>
                                 ))}
@@ -177,6 +225,73 @@ export function ContractDetailView({ contract, created = false, updated = false 
                         <label className="grid gap-2 text-sm font-medium text-gray-700">
                             金額（円）
                             <Input name="amount" type="number" min="0" defaultValue={contract.amount ?? ''} />
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            FS担当者
+                            <select name="fsInChargeUserId" defaultValue={contract.fsInChargeUser?.id ?? ''} className={selectClass}>
+                                <option value="">-- 選択してください --</option>
+                                {users.map((u) => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            IS担当者
+                            <select name="isInChargeUserId" defaultValue={contract.isInChargeUser?.id ?? ''} className={selectClass}>
+                                <option value="">-- 選択してください --</option>
+                                {users.map((u) => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            獲得商材
+                            <select name="productCode" defaultValue={contract.productCode ?? ''} className={selectClass}>
+                                {PRODUCT_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            ライセンスプラン
+                            <select name="licensePlanCode" defaultValue={contract.licensePlanCode ?? ''} className={selectClass}>
+                                {LICENSE_PLAN_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            助成金申請
+                            <select name="hasSubsidy" defaultValue={contract.hasSubsidy === true ? 'true' : contract.hasSubsidy === false ? 'false' : ''} className={selectClass}>
+                                <option value="">-- 選択してください --</option>
+                                <option value="true">あり</option>
+                                <option value="false">なし</option>
+                            </select>
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            無料伴走期間（月）
+                            <Input name="freeSupportMonths" type="number" min="1" max="13" defaultValue={contract.freeSupportMonths ?? ''} />
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            エンタープライズID数
+                            <Input name="enterpriseLicenseCount" type="number" min="0" defaultValue={contract.enterpriseLicenseCount ?? ''} />
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            プロID数
+                            <Input name="proLicenseCount" type="number" min="0" defaultValue={contract.proLicenseCount ?? ''} />
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            A2 ID数
+                            <Input name="a2LicenseCount" type="number" min="0" defaultValue={contract.a2LicenseCount ?? ''} />
                         </label>
 
                         <label className="grid gap-2 text-sm font-medium text-gray-700">

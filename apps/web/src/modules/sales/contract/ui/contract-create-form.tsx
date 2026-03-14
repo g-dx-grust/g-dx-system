@@ -10,9 +10,21 @@ interface CompanyOption {
     name: string;
 }
 
+interface UserOption {
+    id: string;
+    name: string;
+}
+
 interface ContractCreateFormProps {
     companies: CompanyOption[];
+    users?: UserOption[];
     errorMessage?: string;
+    defaultValues?: {
+        dealId?: string;
+        companyId?: string;
+        title?: string;
+        amount?: string;
+    };
 }
 
 const STATUS_OPTIONS: { key: ContractStatus; label: string }[] = [
@@ -23,7 +35,23 @@ const STATUS_OPTIONS: { key: ContractStatus; label: string }[] = [
     { key: 'SERVICE_ENDED', label: 'サービス終了' },
 ];
 
-export function ContractCreateForm({ companies, errorMessage }: ContractCreateFormProps) {
+const PRODUCT_OPTIONS = [
+    { value: '', label: '-- 選択してください --' },
+    { value: 'G-DX', label: 'G-DX' },
+    { value: 'PRO_SUPPORT_X', label: 'プロサポートX' },
+    { value: 'LICENSE_ONLY', label: 'ライセンスのみ' },
+];
+
+const LICENSE_PLAN_OPTIONS = [
+    { value: '', label: '-- 選択してください --' },
+    { value: 'ENTERPRISE', label: 'エンタープライズ' },
+    { value: 'PRO', label: 'プロ' },
+    { value: 'A2', label: 'A2' },
+];
+
+const selectClass = 'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+
+export function ContractCreateForm({ companies, users = [], errorMessage, defaultValues }: ContractCreateFormProps) {
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
@@ -37,18 +65,18 @@ export function ContractCreateForm({ companies, errorMessage }: ContractCreateFo
                 )}
 
                 <form action={createContractAction} className="grid gap-4 md:grid-cols-2">
+                    {defaultValues?.dealId && (
+                        <input type="hidden" name="dealId" value={defaultValues.dealId} />
+                    )}
+
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                         契約タイトル <span className="text-red-500">*</span>
-                        <Input name="title" required placeholder="〇〇社 Lark導入サポート契約" />
+                        <Input name="title" required placeholder="〇〇社 Lark導入サポート契約" defaultValue={defaultValues?.title ?? ''} />
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         会社 <span className="text-red-500">*</span>
-                        <select
-                            name="companyId"
-                            required
-                            className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
+                        <select name="companyId" required className={selectClass} defaultValue={defaultValues?.companyId ?? ''}>
                             <option value="">-- 会社を選択 --</option>
                             {companies.map((c) => (
                                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -58,11 +86,7 @@ export function ContractCreateForm({ companies, errorMessage }: ContractCreateFo
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         ステータス
-                        <select
-                            name="contractStatus"
-                            defaultValue="CONTRACTED"
-                            className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
+                        <select name="contractStatus" defaultValue="CONTRACTED" className={selectClass}>
                             {STATUS_OPTIONS.map((s) => (
                                 <option key={s.key} value={s.key}>{s.label}</option>
                             ))}
@@ -76,9 +100,80 @@ export function ContractCreateForm({ companies, errorMessage }: ContractCreateFo
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         金額（円）
-                        <Input name="amount" type="number" min="0" placeholder="1000000" />
+                        <Input name="amount" type="number" min="0" placeholder="1000000" defaultValue={defaultValues?.amount ?? ''} />
                     </label>
 
+                    {/* 担当者セクション */}
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        FS担当者
+                        <select name="fsInChargeUserId" className={selectClass}>
+                            <option value="">-- 選択してください --</option>
+                            {users.map((u) => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        IS担当者
+                        <select name="isInChargeUserId" className={selectClass}>
+                            <option value="">-- 選択してください --</option>
+                            {users.map((u) => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    {/* 商材・プランセクション */}
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        獲得商材
+                        <select name="productCode" className={selectClass}>
+                            {PRODUCT_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        ライセンスプラン
+                        <select name="licensePlanCode" className={selectClass}>
+                            {LICENSE_PLAN_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                        </select>
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        助成金申請
+                        <select name="hasSubsidy" className={selectClass}>
+                            <option value="">-- 選択してください --</option>
+                            <option value="true">あり</option>
+                            <option value="false">なし</option>
+                        </select>
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        無料伴走期間（月）
+                        <Input name="freeSupportMonths" type="number" min="1" max="13" placeholder="3" />
+                    </label>
+
+                    {/* ライセンス数 */}
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        エンタープライズID数
+                        <Input name="enterpriseLicenseCount" type="number" min="0" placeholder="0" />
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        プロID数
+                        <Input name="proLicenseCount" type="number" min="0" placeholder="0" />
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        A2 ID数
+                        <Input name="a2LicenseCount" type="number" min="0" placeholder="0" />
+                    </label>
+
+                    {/* 日程セクション */}
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         契約日
                         <Input name="contractDate" type="date" />

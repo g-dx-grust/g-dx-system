@@ -107,7 +107,8 @@ export async function listCallHistory(businessScope: BusinessScopeType, filters:
     const rows = await db
         .select({
             id: callLogs.id, calledAt: callLogs.startedAt, durationSec: callLogs.durationSec,
-            resultCode: callLogs.resultCode, companyId: companies.id, companyName: companies.displayName,
+            resultCode: callLogs.resultCode, summary: callLogs.summary,
+            companyId: companies.id, companyName: companies.displayName,
             contactId: contacts.id, contactName: contacts.fullName, userId: users.id, userName: users.displayName,
         })
         .from(callLogs)
@@ -129,6 +130,7 @@ export async function listCallHistory(businessScope: BusinessScopeType, filters:
             contact: row.contactId ? { id: row.contactId, name: row.contactName ?? '' } : null,
             assignedUser: { id: row.userId, name: row.userName ?? 'Unknown' },
             result: row.resultCode as CallResult, durationSec: row.durationSec,
+            summary: row.summary ?? null,
         })),
         total: rows.length,
     };
@@ -136,19 +138,64 @@ export async function listCallHistory(businessScope: BusinessScopeType, filters:
 
 export async function recordCall(businessScope: BusinessScopeType, input: {
     callTargetId?: string; companyId: string; contactId?: string; dealId?: string;
-    calledAt: string; result: CallResult; durationSec?: number; notes?: string; actorUserId: string;
+    result: CallResult; notes?: string; nextCallDatetime?: string; actorUserId: string;
 }): Promise<{ id: string }> {
     const businessUnit = await findBusinessUnitByScope(businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
     const id = crypto.randomUUID();
-    const startedAt = new Date(input.calledAt);
+    const targetId = input.callTargetId || null;
+    const contactId = input.contactId || null;
+    const dealId = input.dealId || null;
+    const summary = input.notes || null;
+    const nextCallDt = input.nextCallDatetime ? new Date(input.nextCallDatetime) : null;
     await db.insert(callLogs).values({
-        id, businessUnitId: businessUnit.id, callTargetId: input.callTargetId ?? null,
-        companyId: input.companyId, contactId: input.contactId ?? null, dealId: input.dealId ?? null,
-        userId: input.actorUserId, direction: 'outbound', startedAt,
-        endedAt: input.durationSec ? new Date(startedAt.getTime() + input.durationSec * 1000) : null,
-        durationSec: input.durationSec ?? null, resultCode: input.result, summary: input.notes ?? null,
+        id, businessUnitId: businessUnit.id, callTargetId: targetId,
+        companyId: input.companyId, contactId, dealId,
+        userId: input.actorUserId, direction: 'outbound',
+        resultCode: input.result, summary,
+        nextCallDatetime: nextCallDt,
     });
-    if (input.callTargetId) await completeCallTarget(input.callTargetId);
+    if (targetId) {
+        await completeCallTarget(targetId);
+        if (nextCallDt) {
+            await db.update(callTargets)
+                .set({ nextCallbackAt: nextCallDt, updatedAt: new Date() })
+                .where(eq(callTargets.id, targetId));
+        }
+    }
     return { id };
+}
+
+export async function listCallHistoryByCompany(businessScope: BusinessScopeType, companyId: string): Promise<CallListItem[]> {
+    const businessUnit = await findBusinessUnitByScope(businessScope);
+    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+
+    const rows = await db
+        .select({
+            id: callLogs.id, calledAt: callLogs.startedAt, durationSec: callLogs.durationSec,
+            resultCode: callLogs.resultCode, summary: callLogs.summary,
+            companyId: companies.id, companyName: companies.displayName,
+            contactId: contacts.id, contactName: contacts.fullName,
+            userId: users.id, userName: users.displayName,
+        })
+        .from(callLogs)
+        .innerJoin(companies, eq(callLogs.companyId, companies.id))
+        .leftJoin(contacts, eq(callLogs.contactId, contacts.id))
+        .innerJoin(users, eq(callLogs.userId, users.id))
+        .where(and(
+            eq(callLogs.businessUnitId, businessUnit.id),
+            eq(callLogs.companyId, companyId),
+        ))
+        .orderBy(desc(callLogs.startedAt))
+        .limit(20);
+
+    return rows.map((row) => ({
+        id: row.id, businessScope: businessScope as BusinessScopeType,
+        calledAt: row.calledAt.toISOString(),
+        company: { id: row.companyId, name: row.companyName },
+        contact: row.contactId ? { id: row.contactId, name: row.contactName ?? '' } : null,
+        assignedUser: { id: row.userId, name: row.userName ?? 'Unknown' },
+        result: row.resultCode as CallResult, durationSec: row.durationSec,
+        summary: row.summary ?? null,
+    }));
 }

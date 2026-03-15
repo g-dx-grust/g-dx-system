@@ -61,6 +61,7 @@ export interface CompanyContactSummary {
     department: string | null;
     title: string | null;
     email: string | null;
+    phone: string | null;
 }
 
 export interface CompanyRelatedDeal {

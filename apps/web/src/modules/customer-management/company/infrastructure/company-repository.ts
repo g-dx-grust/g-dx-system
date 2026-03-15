@@ -178,6 +178,7 @@ export async function getCompanyDetail(
             department: contacts.department,
             jobTitle: contacts.jobTitle,
             email: contacts.email,
+            phone: contacts.mobilePhone,
         })
         .from(companyContactLinks)
         .innerJoin(contacts, eq(companyContactLinks.contactId, contacts.id))
@@ -265,6 +266,7 @@ export async function getCompanyDetail(
             department: contact.department ?? null,
             title: contact.jobTitle ?? null,
             email: contact.email ?? null,
+            phone: contact.phone ?? null,
         })),
         openDealsSummary,
         relatedDeals: relatedDealRows.map((d) => ({

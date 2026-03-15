@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { assertLarkAuthConfigured, getLarkAuthUrl, OAUTH_STATE_COOKIE_NAME, OAUTH_STATE_MAX_AGE_SECONDS } from '@/server/auth/lark';
 import { errorResponse } from '@/shared/server/http';
 
@@ -14,15 +13,17 @@ export async function GET() {
     const state = crypto.randomUUID();
     const authUrl = getLarkAuthUrl(state);
 
-    // Store state in a short-lived cookie so the callback can verify it (CSRF protection).
-    // State validation against this cookie is completed in GDX-003.
-    const cookieStore = cookies();
-    cookieStore.set(OAUTH_STATE_COOKIE_NAME, state, {
+    // Set state cookie directly on the redirect response.
+    // cookies().set() does not apply to a separately created NextResponse,
+    // so we must use response.cookies.set() to ensure the Set-Cookie header
+    // is included in the redirect response.
+    const response = NextResponse.redirect(authUrl);
+    response.cookies.set(OAUTH_STATE_COOKIE_NAME, state, {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
         maxAge: OAUTH_STATE_MAX_AGE_SECONDS,
     });
 
-    return NextResponse.redirect(authUrl);
+    return response;
 }

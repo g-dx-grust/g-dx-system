@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, uuid, integer, numeric, date, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, uuid, integer, numeric, date, jsonb, unique } from 'drizzle-orm/pg-core';
 import { businessUnits } from './business-units';
 import { users } from './users';
 import { companies } from './companies';
@@ -159,3 +159,22 @@ export const dealActivities = pgTable('deal_activities', {
     summary: text('summary'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
+
+// ─── 個人 KPI 目標 ───────────────────────────────────────────────────────────
+export const userKpiTargets = pgTable('user_kpi_targets', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id').notNull().references(() => users.id),
+    businessUnitId: uuid('business_unit_id').notNull().references(() => businessUnits.id),
+    targetMonth: text('target_month').notNull(), // format: 'YYYY-MM'
+    callTarget: integer('call_target').default(0).notNull(),
+    visitTarget: integer('visit_target').default(0).notNull(),
+    appointmentTarget: integer('appointment_target').default(0).notNull(),
+    negotiationTarget: integer('negotiation_target').default(0).notNull(),
+    contractTarget: integer('contract_target').default(0).notNull(),
+    revenueTarget: numeric('revenue_target', { precision: 18, scale: 2 }).default('0').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+    uniqueUserMonthScope: unique('user_kpi_targets_user_id_business_unit_id_target_month_unique')
+        .on(table.userId, table.businessUnitId, table.targetMonth),
+}));

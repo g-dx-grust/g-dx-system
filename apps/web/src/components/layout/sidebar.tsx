@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Users, Building2, Briefcase, PhoneCall, ScrollText, TrendingUp, Banknote, Activity, History, ChevronLeft, ChevronRight, MapPin, FileText as JetContractIcon } from 'lucide-react';
+import { Building2, Briefcase, PhoneCall, ScrollText, TrendingUp, Banknote, Activity, History, ChevronLeft, ChevronRight, MapPin, FileText as JetContractIcon, User, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const commonNavigation = [
@@ -12,12 +12,13 @@ const commonNavigation = [
             { name: '案件ダッシュボード', href: '/dashboard/deals', icon: TrendingUp },
             { name: '入金ダッシュボード', href: '/dashboard/payments', icon: Banknote },
             { name: '活動ダッシュボード', href: '/dashboard/activity', icon: Activity },
+            { name: '個人ダッシュボード', href: '/dashboard/personal', icon: User },
+            { name: 'KPI目標設定', href: '/dashboard/settings/kpi', icon: Target },
         ],
     },
     {
         name: '顧客管理',
         items: [
-            { name: 'コンタクト', href: '/customers/contacts', icon: Users },
             { name: '会社', href: '/customers/companies', icon: Building2 },
         ],
     },

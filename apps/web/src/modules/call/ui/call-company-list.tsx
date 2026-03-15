@@ -46,6 +46,7 @@ export function CallCompanyList({ companies, total, keyword, queued, recorded }:
     const router = useRouter();
     const [searchValue, setSearchValue] = useState(keyword ?? '');
     const [callingCompany, setCallingCompany] = useState<CompanyListItem | null>(null);
+    const [activeTab, setActiveTab] = useState<'call' | 'info'>('call');
     const [selectedResult, setSelectedResult] = useState<CallResult | null>(null);
     const [isPending, startTransition] = useTransition();
     const [companyHistory, setCompanyHistory] = useState<CallListItem[]>([]);
@@ -83,6 +84,7 @@ export function CallCompanyList({ companies, total, keyword, queued, recorded }:
 
     function startCalling(company: CompanyListItem) {
         setCallingCompany(company);
+        setActiveTab('call');
         setSelectedResult(null);
         setCompanyHistory([]);
         loadCompanyHistory(company.id);
@@ -156,136 +158,191 @@ export function CallCompanyList({ companies, total, keyword, queued, recorded }:
                 <div className="grid gap-6 lg:grid-cols-3">
                     <div className="lg:col-span-2">
                         <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="text-base text-gray-900">
-                                    コール結果を記録 — {callingCompany.name}
-                                </CardTitle>
-                                <CardDescription>
-                                    {callingCompany.phone}
-                                    {callingCompany.industry ? ` / ${callingCompany.industry}` : ''}
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-5">
-                                {/* Company info + Zoom Phone */}
-                                <div className="flex flex-col gap-4 rounded-md border border-gray-200 bg-gray-50 p-4 sm:flex-row sm:items-start sm:justify-between">
-                                    <div className="space-y-1 text-sm text-gray-700">
-                                        <p className="font-mono text-lg font-semibold tracking-wide text-gray-900">
-                                            {callingCompany.phone}
-                                        </p>
-                                        {callingCompany.website && (
-                                            <p className="text-gray-500">{callingCompany.website}</p>
-                                        )}
-                                        {callingCompany.address && (
-                                            <p className="text-gray-500">{callingCompany.address}</p>
-                                        )}
-                                        {callingCompany.ownerUser && (
-                                            <p className="text-gray-500">担当: {callingCompany.ownerUser.name}</p>
-                                        )}
-                                        {callingCompany.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1 pt-1">
-                                                {callingCompany.tags.map((tag) => (
-                                                    <span key={tag} className="inline-flex rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-600">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                    <div className="flex shrink-0 flex-col gap-2">
-                                        <a
-                                            href={`tel:${stripPhoneForTel(callingCompany.phone ?? '')}`}
-                                            className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
-                                        >
-                                            <Phone className="h-4 w-4" />
-                                            Zoom Phone で発信
-                                            <ExternalLink className="h-3 w-3 opacity-60" />
-                                        </a>
-                                        <Link
-                                            href={`/customers/companies/${callingCompany.id}`}
-                                            className="text-center text-xs text-gray-500 hover:text-gray-700 hover:underline"
-                                        >
-                                            会社詳細を見る
-                                        </Link>
-                                    </div>
+                            {/* Tab header */}
+                            <div className="flex items-center justify-between border-b border-gray-200 px-6 pt-4">
+                                <div className="flex gap-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('call')}
+                                        className={`-mb-px border-b-2 px-4 pb-3 text-sm font-medium transition-colors ${
+                                            activeTab === 'call'
+                                                ? 'border-blue-600 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            <Phone className="h-3.5 w-3.5" />
+                                            コール記録
+                                        </span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('info')}
+                                        className={`-mb-px border-b-2 px-4 pb-3 text-sm font-medium transition-colors ${
+                                            activeTab === 'info'
+                                                ? 'border-blue-600 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                        }`}
+                                    >
+                                        <span className="flex items-center gap-1.5">
+                                            <FileText className="h-3.5 w-3.5" />
+                                            会社情報
+                                        </span>
+                                    </button>
                                 </div>
+                                <p className="pb-3 text-sm font-medium text-gray-900">{callingCompany.name}</p>
+                            </div>
 
-                                {/* Status buttons */}
-                                <div>
-                                    <p className="mb-3 text-sm font-medium text-gray-700">
-                                        結果を選択 <span className="text-red-500">*</span>
-                                    </p>
-                                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
-                                        {CALL_RESULT_OPTIONS.map((o) => {
-                                            const isQuick = QUICK_COMPLETE_STATUSES.includes(o.value);
-                                            return (
-                                                <button
-                                                    key={o.value}
-                                                    type="button"
-                                                    disabled={isPending}
-                                                    onClick={() => handleResultSelect(o.value)}
-                                                    className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-all ${
-                                                        selectedResult === o.value
-                                                            ? CALL_RESULT_STYLES[o.value] + ' border-transparent ring-2 ring-blue-400 ring-offset-1'
-                                                            : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
-                                                    } ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                >
-                                                    <span className="block">{o.label}</span>
-                                                    {isQuick && (
-                                                        <span className="mt-0.5 block text-[10px] opacity-60">ワンクリック</span>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    {isPending && (
-                                        <p className="mt-2 text-xs text-gray-500">記録中...</p>
-                                    )}
-                                </div>
-
-                                {/* Detail form */}
-                                {showDetailForm && (
-                                    <form action={handleFormSubmit} className="space-y-4 rounded-md border border-gray-200 bg-white p-4">
-                                        <input type="hidden" name="companyId" value={callingCompany.id} />
-                                        <input type="hidden" name="companyName" value={callingCompany.name} />
-                                        <input type="hidden" name="result" value={selectedResult} />
-
-                                        {showNextCallDatetime && (
-                                            <label className="grid gap-2 text-sm font-medium text-gray-700">
-                                                <span className="flex items-center gap-1.5">
-                                                    <Clock className="h-3.5 w-3.5 text-blue-500" />
-                                                    次回コール日時
-                                                </span>
-                                                <Input name="nextCallDatetime" type="datetime-local" />
-                                            </label>
-                                        )}
-
-                                        <label className="grid gap-2 text-sm font-medium text-gray-700">
-                                            <span className="flex items-center gap-1.5">
-                                                <FileText className="h-3.5 w-3.5 text-gray-400" />
-                                                メモ
-                                            </span>
-                                            <textarea
-                                                name="notes"
-                                                placeholder="通話内容・次のアクションなど"
-                                                rows={2}
-                                                className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                            />
-                                        </label>
-
-                                        <div className="flex gap-2">
-                                            <Button
-                                                type="submit"
-                                                disabled={isPending}
-                                                className="gap-1.5 bg-blue-600 px-6 text-white hover:bg-blue-700"
+                            <CardContent className="space-y-5 pt-5">
+                                {/* ─── Tab: コール記録 ─── */}
+                                {activeTab === 'call' && (
+                                    <>
+                                        {/* Phone + dial button */}
+                                        <div className="flex items-center justify-between rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
+                                            <p className="font-mono text-lg font-semibold tracking-wide text-gray-900">
+                                                {callingCompany.phone}
+                                            </p>
+                                            <a
+                                                href={`tel:${stripPhoneForTel(callingCompany.phone ?? '')}`}
+                                                className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
                                             >
-                                                {isPending ? '記録中...' : '記録して完了'}
-                                                {!isPending && <ChevronRight className="h-4 w-4" />}
-                                            </Button>
-                                            <Button type="button" variant="outline" onClick={() => { setCallingCompany(null); setSelectedResult(null); }} className="px-5">
-                                                キャンセル
-                                            </Button>
+                                                <Phone className="h-4 w-4" />
+                                                Zoom Phone で発信
+                                                <ExternalLink className="h-3 w-3 opacity-60" />
+                                            </a>
                                         </div>
-                                    </form>
+
+                                        {/* Status buttons */}
+                                        <div>
+                                            <p className="mb-3 text-sm font-medium text-gray-700">
+                                                結果を選択 <span className="text-red-500">*</span>
+                                            </p>
+                                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+                                                {CALL_RESULT_OPTIONS.map((o) => {
+                                                    const isQuick = QUICK_COMPLETE_STATUSES.includes(o.value);
+                                                    return (
+                                                        <button
+                                                            key={o.value}
+                                                            type="button"
+                                                            disabled={isPending}
+                                                            onClick={() => handleResultSelect(o.value)}
+                                                            className={`rounded-lg border px-3 py-2.5 text-sm font-medium transition-all ${
+                                                                selectedResult === o.value
+                                                                    ? CALL_RESULT_STYLES[o.value] + ' border-transparent ring-2 ring-blue-400 ring-offset-1'
+                                                                    : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                                                            } ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        >
+                                                            <span className="block">{o.label}</span>
+                                                            {isQuick && (
+                                                                <span className="mt-0.5 block text-[10px] opacity-60">ワンクリック</span>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                            {isPending && (
+                                                <p className="mt-2 text-xs text-gray-500">記録中...</p>
+                                            )}
+                                        </div>
+
+                                        {/* Detail form */}
+                                        {showDetailForm && (
+                                            <form action={handleFormSubmit} className="space-y-4 rounded-md border border-gray-200 bg-white p-4">
+                                                <input type="hidden" name="companyId" value={callingCompany.id} />
+                                                <input type="hidden" name="companyName" value={callingCompany.name} />
+                                                <input type="hidden" name="result" value={selectedResult} />
+
+                                                {showNextCallDatetime && (
+                                                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <Clock className="h-3.5 w-3.5 text-blue-500" />
+                                                            次回コール日時
+                                                        </span>
+                                                        <Input name="nextCallDatetime" type="datetime-local" />
+                                                    </label>
+                                                )}
+
+                                                <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <FileText className="h-3.5 w-3.5 text-gray-400" />
+                                                        メモ
+                                                    </span>
+                                                    <textarea
+                                                        name="notes"
+                                                        placeholder="通話内容・次のアクションなど"
+                                                        rows={2}
+                                                        className="rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                    />
+                                                </label>
+
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        type="submit"
+                                                        disabled={isPending}
+                                                        className="gap-1.5 bg-blue-600 px-6 text-white hover:bg-blue-700"
+                                                    >
+                                                        {isPending ? '記録中...' : '記録して完了'}
+                                                        {!isPending && <ChevronRight className="h-4 w-4" />}
+                                                    </Button>
+                                                    <Button type="button" variant="outline" onClick={() => { setCallingCompany(null); setSelectedResult(null); }} className="px-5">
+                                                        キャンセル
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        )}
+                                    </>
+                                )}
+
+                                {/* ─── Tab: 会社情報 ─── */}
+                                {activeTab === 'info' && (
+                                    <div className="space-y-4">
+                                        <dl className="grid gap-3 sm:grid-cols-2">
+                                            <div>
+                                                <dt className="text-xs font-medium text-gray-500">電話番号</dt>
+                                                <dd className="mt-0.5 font-mono text-sm font-semibold text-gray-900">{callingCompany.phone ?? '-'}</dd>
+                                            </div>
+                                            <div>
+                                                <dt className="text-xs font-medium text-gray-500">業種</dt>
+                                                <dd className="mt-0.5 text-sm text-gray-700">{callingCompany.industry ?? '-'}</dd>
+                                            </div>
+                                            <div className="sm:col-span-2">
+                                                <dt className="text-xs font-medium text-gray-500">住所</dt>
+                                                <dd className="mt-0.5 text-sm text-gray-700">{callingCompany.address ?? '-'}</dd>
+                                            </div>
+                                            {callingCompany.website && (
+                                                <div className="sm:col-span-2">
+                                                    <dt className="text-xs font-medium text-gray-500">ウェブサイト</dt>
+                                                    <dd className="mt-0.5 text-sm text-gray-700">{callingCompany.website}</dd>
+                                                </div>
+                                            )}
+                                            <div>
+                                                <dt className="text-xs font-medium text-gray-500">担当者</dt>
+                                                <dd className="mt-0.5 text-sm text-gray-700">{callingCompany.ownerUser?.name ?? '-'}</dd>
+                                            </div>
+                                            {callingCompany.tags.length > 0 && (
+                                                <div>
+                                                    <dt className="text-xs font-medium text-gray-500">タグ</dt>
+                                                    <dd className="mt-1 flex flex-wrap gap-1">
+                                                        {callingCompany.tags.map((tag) => (
+                                                            <span key={tag} className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                                                                {tag}
+                                                            </span>
+                                                        ))}
+                                                    </dd>
+                                                </div>
+                                            )}
+                                        </dl>
+                                        <div className="border-t border-gray-100 pt-3">
+                                            <Link
+                                                href={`/customers/companies/${callingCompany.id}`}
+                                                target="_blank"
+                                                className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 hover:underline"
+                                            >
+                                                <ExternalLink className="h-3 w-3" />
+                                                会社詳細ページを別タブで開く
+                                            </Link>
+                                        </div>
+                                    </div>
                                 )}
                             </CardContent>
                         </Card>

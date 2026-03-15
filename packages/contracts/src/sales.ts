@@ -376,3 +376,58 @@ export interface JetContractListItem {
     createdAt: ISODateString;
 }
 
+// ─── 個人 KPI 目標・ダッシュボード ───────────────────────────────────────────
+
+export interface UserKpiTarget {
+    userId: string;
+    businessUnitId: string;
+    targetMonth: string;
+    callTarget: number;
+    visitTarget: number;
+    appointmentTarget: number;
+    negotiationTarget: number;
+    contractTarget: number;
+    revenueTarget: number;
+}
+
+export interface PersonalKpiItem {
+    key: 'callCount' | 'visitCount' | 'appointmentCount' | 'negotiationCount' | 'contractCount';
+    label: string;
+    actual: number;
+    target: number;
+    achievementPct: number;
+}
+
+export interface PersonalDashboardData {
+    targetMonth: string;
+    periodLabel: string;
+    kpiItems: PersonalKpiItem[];
+    revenueActual: number;
+    revenueTarget: number;
+    revenueAchievementPct: number;
+    hasTargets: boolean;
+}
+
+export type NextActionUrgency = 'OVERDUE' | 'TODAY' | 'THIS_WEEK';
+
+export interface PersonalNextActionItem {
+    dealId: string;
+    dealName: string;
+    companyName: string;
+    stageKey: string;
+    stageName: string;
+    amount: number | null;
+    nextActionDate: string;
+    nextActionContent: string | null;
+    urgency: NextActionUrgency;
+}
+
+export interface SaveKpiTargetInput {
+    targetMonth: string;
+    callTarget: number;
+    visitTarget: number;
+    appointmentTarget: number;
+    negotiationTarget: number;
+    contractTarget: number;
+    revenueTarget: number;
+}

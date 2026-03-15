@@ -1,11 +1,12 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { DealActivityItem, DealDetail, DealStageKey, PipelineStageDefinition } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { updateDealAction, changeDealStageAction } from '@/modules/sales/deal/server-actions';
-import { DealActivityLog } from './deal-activity-log';
+import { DealActivityLog, DealActivitySidebarForm } from './deal-activity-log';
 import type { DealStageHistoryItem } from '../infrastructure/deal-repository';
 
 interface DealDetailViewProps {
@@ -93,179 +94,193 @@ export function DealDetailView({ deal, stages, activities, stageHistory = [], up
                 </div>
             ) : null}
 
-            <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
-                <Card className="shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="text-lg text-gray-900">案件情報</CardTitle>
-                        <CardDescription>案件の基本情報。</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-4 sm:grid-cols-2">
-                        <InfoItem label="会社">
-                            <Link href={`/customers/companies/${deal.company.id}`} className="hover:underline text-gray-900">
-                                {deal.company.name}
-                            </Link>
-                        </InfoItem>
-                        <InfoItem label="担当者" value={deal.ownerUser.name} />
-                        <InfoItem label="ステージ" value={STAGE_LABELS[deal.stage]} />
-                        <InfoItem label="ステータス" value={deal.status === 'open' ? '進行中' : deal.status === 'won' ? '受注済' : '失注'} />
-                        <InfoItem label="金額" value={deal.amount !== null ? `¥${deal.amount.toLocaleString()}` : '-'} />
-                        <InfoItem label="クローズ予定" value={deal.expectedCloseDate ?? '-'} />
-                        <InfoItem label="ソース" value={deal.source ?? '-'} />
-                        <InfoItem label="獲得方法" value={deal.acquisitionMethod ?? '-'} />
-                        <InfoItem label="次回アクション日" value={deal.nextActionDate ?? '-'} />
-                        {deal.nextActionContent ? (
-                            <InfoItem label="次回アクション内容" value={deal.nextActionContent} className="sm:col-span-2" />
-                        ) : null}
-                        <InfoItem label="担当コンタクト" value={deal.primaryContact?.name ?? '-'} />
-                        {deal.memo ? (
-                            <InfoItem label="メモ" value={deal.memo} className="sm:col-span-2" />
-                        ) : null}
-                        <InfoItem label="作成日時" value={new Date(deal.createdAt).toLocaleString('ja-JP')} />
-                        <InfoItem label="更新日時" value={new Date(deal.updatedAt).toLocaleString('ja-JP')} />
-                    </CardContent>
-                </Card>
+            {/* 2カラムレイアウト: メインコンテンツ + 活動ログサイドバー */}
+            <div className="xl:grid xl:grid-cols-[1fr_300px] xl:items-start xl:gap-6">
+                {/* 左カラム */}
+                <div className="space-y-6">
+                    <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
+                        <Card className="shadow-sm">
+                            <CardHeader>
+                                <CardTitle className="text-lg text-gray-900">案件情報</CardTitle>
+                                <CardDescription>案件の基本情報。</CardDescription>
+                            </CardHeader>
+                            <CardContent className="grid gap-4 sm:grid-cols-2">
+                                <InfoItem label="会社">
+                                    <Link href={`/customers/companies/${deal.company.id}`} className="hover:underline text-gray-900">
+                                        {deal.company.name}
+                                    </Link>
+                                </InfoItem>
+                                <InfoItem label="担当者" value={deal.ownerUser.name} />
+                                <InfoItem label="ステージ" value={STAGE_LABELS[deal.stage]} />
+                                <InfoItem label="ステータス" value={deal.status === 'open' ? '進行中' : deal.status === 'won' ? '受注済' : '失注'} />
+                                <InfoItem label="金額" value={deal.amount !== null ? `¥${deal.amount.toLocaleString()}` : '-'} />
+                                <InfoItem label="クローズ予定" value={deal.expectedCloseDate ?? '-'} />
+                                <InfoItem label="ソース" value={deal.source ?? '-'} />
+                                <InfoItem label="獲得方法" value={deal.acquisitionMethod ?? '-'} />
+                                <InfoItem label="次回アクション日" value={deal.nextActionDate ?? '-'} />
+                                {deal.nextActionContent ? (
+                                    <InfoItem label="次回アクション内容" value={deal.nextActionContent} className="sm:col-span-2" />
+                                ) : null}
+                                <InfoItem label="担当コンタクト" value={deal.primaryContact?.name ?? '-'} />
+                                {deal.memo ? (
+                                    <InfoItem label="メモ" value={deal.memo} className="sm:col-span-2" />
+                                ) : null}
+                                <InfoItem label="作成日時" value={new Date(deal.createdAt).toLocaleString('ja-JP')} />
+                                <InfoItem label="更新日時" value={new Date(deal.updatedAt).toLocaleString('ja-JP')} />
+                            </CardContent>
+                        </Card>
 
-                {isOpen && otherStages.length > 0 ? (
+                        {isOpen && otherStages.length > 0 ? (
+                            <Card className="shadow-sm">
+                                <CardHeader>
+                                    <CardTitle className="text-lg text-gray-900">ステージ変更</CardTitle>
+                                    <CardDescription>ステージを移動します。</CardDescription>
+                                </CardHeader>
+                                <CardContent className="flex flex-col gap-2">
+                                    {otherStages.map((stage) => (
+                                        <form key={stage.key} action={changeDealStageAction}>
+                                            <input type="hidden" name="dealId" value={deal.id} />
+                                            <input type="hidden" name="toStage" value={stage.key} />
+                                            <Button
+                                                type="submit"
+                                                variant="outline"
+                                                className={`w-full justify-between transition-colors ${STAGE_BUTTON_STYLES[stage.key]}`}
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <span className={`h-2 w-2 flex-shrink-0 rounded-full ${STAGE_DOT_COLORS[stage.key]}`} />
+                                                    {STAGE_LABELS[stage.key]}
+                                                </span>
+                                                <span className="text-xs opacity-60">→</span>
+                                            </Button>
+                                        </form>
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        ) : null}
+                    </div>
+
+                    <details className="group rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <summary className="flex cursor-pointer select-none list-none items-center justify-between px-6 py-4 [&::-webkit-details-marker]:hidden">
+                            <div>
+                                <p className="text-lg font-semibold text-gray-900">案件を編集</p>
+                                <p className="mt-0.5 text-sm text-gray-500">クリックして基本情報を編集</p>
+                            </div>
+                            <ChevronDown className="h-5 w-5 text-gray-400 transition-transform duration-200 group-open:rotate-180" />
+                        </summary>
+                        <div className="border-t border-gray-100 px-6 pb-6 pt-5">
+                            <form action={updateDealAction} className="grid gap-4 md:grid-cols-2">
+                                <input type="hidden" name="dealId" value={deal.id} />
+
+                                <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
+                                    案件名
+                                    <Input name="name" defaultValue={deal.name} />
+                                </label>
+
+                                <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                    金額（円）
+                                    <Input
+                                        name="amount"
+                                        type="number"
+                                        min="0"
+                                        defaultValue={deal.amount !== null ? String(deal.amount) : ''}
+                                    />
+                                </label>
+
+                                <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                    クローズ予定日
+                                    <Input
+                                        name="expectedCloseDate"
+                                        type="date"
+                                        defaultValue={deal.expectedCloseDate ?? ''}
+                                    />
+                                </label>
+
+                                <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
+                                    ソース
+                                    <Input name="source" defaultValue={deal.source ?? ''} />
+                                </label>
+
+                                <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                    獲得方法
+                                    <Input name="acquisitionMethod" defaultValue={deal.acquisitionMethod ?? ''} placeholder="インバウンド・展示会など" />
+                                </label>
+
+                                <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                    次回アクション日
+                                    <Input name="nextActionDate" type="date" defaultValue={deal.nextActionDate ?? ''} />
+                                </label>
+
+                                <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
+                                    次回アクション内容
+                                    <Input name="nextActionContent" defaultValue={deal.nextActionContent ?? ''} placeholder="提案書を送付・訪問など" />
+                                </label>
+
+                                <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
+                                    メモ
+                                    <textarea
+                                        name="memo"
+                                        rows={4}
+                                        defaultValue={deal.memo ?? ''}
+                                        className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    />
+                                </label>
+
+                                <div className="flex items-center justify-end md:col-span-2">
+                                    <Button type="submit" className="bg-blue-600 px-8 text-white hover:bg-blue-700">
+                                        保存
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </details>
+
+                    <DealActivityLog dealId={deal.id} activities={activities} activityAdded={activityAdded} hideForm />
+
+                    {/* Stage History */}
                     <Card className="shadow-sm">
                         <CardHeader>
-                            <CardTitle className="text-lg text-gray-900">ステージ変更</CardTitle>
-                            <CardDescription>ステージを移動します。</CardDescription>
+                            <CardTitle className="text-lg text-gray-900">ステージ変更履歴</CardTitle>
+                            <CardDescription>案件のステージ移動の記録</CardDescription>
                         </CardHeader>
-                        <CardContent className="flex flex-col gap-2">
-                            {otherStages.map((stage) => (
-                                <form key={stage.key} action={changeDealStageAction}>
-                                    <input type="hidden" name="dealId" value={deal.id} />
-                                    <input type="hidden" name="toStage" value={stage.key} />
-                                    <Button
-                                        type="submit"
-                                        variant="outline"
-                                        className={`w-full justify-between transition-colors ${STAGE_BUTTON_STYLES[stage.key]}`}
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <span className={`h-2 w-2 flex-shrink-0 rounded-full ${STAGE_DOT_COLORS[stage.key]}`} />
-                                            {STAGE_LABELS[stage.key]}
-                                        </span>
-                                        <span className="text-xs opacity-60">→</span>
-                                    </Button>
-                                </form>
-                            ))}
+                        <CardContent className="p-0">
+                            {stageHistory.length === 0 ? (
+                                <div className="px-6 py-8 text-center text-sm text-gray-500">履歴がありません</div>
+                            ) : (
+                                <ol className="relative ml-6 border-l border-gray-200">
+                                    {stageHistory.map((item, idx) => (
+                                        <li key={item.id} className={`pb-5 pl-5 ${idx === 0 ? 'pt-4' : 'pt-0'}`}>
+                                            <span className="absolute -left-1.5 h-3 w-3 rounded-full border-2 border-white bg-gray-400" />
+                                            <div className="flex flex-col gap-0.5">
+                                                <p className="text-sm font-medium text-gray-900">
+                                                    {item.fromStageName
+                                                        ? <>{item.fromStageName} <span className="text-gray-400">→</span> {item.toStageName}</>
+                                                        : <span>登録: {item.toStageName}</span>
+                                                    }
+                                                </p>
+                                                <div className="flex items-center gap-3 text-xs text-gray-500">
+                                                    <span>{new Date(item.changedAt).toLocaleString('ja-JP')}</span>
+                                                    {item.changedByName && <span>· {item.changedByName}</span>}
+                                                    {item.snapshotAmount !== null && (
+                                                        <span>· ¥{item.snapshotAmount.toLocaleString()}</span>
+                                                    )}
+                                                </div>
+                                                {item.changeNote && (
+                                                    <p className="mt-1 text-xs text-gray-600">{item.changeNote}</p>
+                                                )}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ol>
+                            )}
                         </CardContent>
                     </Card>
-                ) : null}
+                </div>
+
+                {/* 右カラム: 活動ログサイドバー（xl以上でスティッキー） */}
+                <div className="mt-6 xl:mt-0 xl:sticky xl:top-6 xl:self-start">
+                    <DealActivitySidebarForm dealId={deal.id} recentActivities={activities} activityAdded={activityAdded} />
+                </div>
             </div>
-
-            <Card className="shadow-sm">
-                <CardHeader>
-                    <CardTitle className="text-lg text-gray-900">案件を編集</CardTitle>
-                    <CardDescription>基本情報を更新します。</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <form action={updateDealAction} className="grid gap-4 md:grid-cols-2">
-                        <input type="hidden" name="dealId" value={deal.id} />
-
-                        <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
-                            案件名
-                            <Input name="name" defaultValue={deal.name} />
-                        </label>
-
-                        <label className="grid gap-2 text-sm font-medium text-gray-700">
-                            金額（円）
-                            <Input
-                                name="amount"
-                                type="number"
-                                min="0"
-                                defaultValue={deal.amount !== null ? String(deal.amount) : ''}
-                            />
-                        </label>
-
-                        <label className="grid gap-2 text-sm font-medium text-gray-700">
-                            クローズ予定日
-                            <Input
-                                name="expectedCloseDate"
-                                type="date"
-                                defaultValue={deal.expectedCloseDate ?? ''}
-                            />
-                        </label>
-
-                        <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
-                            ソース
-                            <Input name="source" defaultValue={deal.source ?? ''} />
-                        </label>
-
-                        <label className="grid gap-2 text-sm font-medium text-gray-700">
-                            獲得方法
-                            <Input name="acquisitionMethod" defaultValue={deal.acquisitionMethod ?? ''} placeholder="インバウンド・展示会など" />
-                        </label>
-
-                        <label className="grid gap-2 text-sm font-medium text-gray-700">
-                            次回アクション日
-                            <Input name="nextActionDate" type="date" defaultValue={deal.nextActionDate ?? ''} />
-                        </label>
-
-                        <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
-                            次回アクション内容
-                            <Input name="nextActionContent" defaultValue={deal.nextActionContent ?? ''} placeholder="提案書を送付・訪問など" />
-                        </label>
-
-                        <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
-                            メモ
-                            <textarea
-                                name="memo"
-                                rows={4}
-                                defaultValue={deal.memo ?? ''}
-                                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            />
-                        </label>
-
-                        <div className="flex items-center justify-end md:col-span-2">
-                            <Button type="submit" className="bg-blue-600 px-8 text-white hover:bg-blue-700">
-                                保存
-                            </Button>
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
-
-            <DealActivityLog dealId={deal.id} activities={activities} activityAdded={activityAdded} />
-
-            {/* Stage History */}
-            <Card className="shadow-sm">
-                <CardHeader>
-                    <CardTitle className="text-lg text-gray-900">ステージ変更履歴</CardTitle>
-                    <CardDescription>案件のステージ移動の記録</CardDescription>
-                </CardHeader>
-                <CardContent className="p-0">
-                    {stageHistory.length === 0 ? (
-                        <div className="px-6 py-8 text-center text-sm text-gray-500">履歴がありません</div>
-                    ) : (
-                        <ol className="relative ml-6 border-l border-gray-200">
-                            {stageHistory.map((item, idx) => (
-                                <li key={item.id} className={`pb-5 pl-5 ${idx === 0 ? 'pt-4' : 'pt-0'}`}>
-                                    <span className="absolute -left-1.5 h-3 w-3 rounded-full border-2 border-white bg-gray-400" />
-                                    <div className="flex flex-col gap-0.5">
-                                        <p className="text-sm font-medium text-gray-900">
-                                            {item.fromStageName
-                                                ? <>{item.fromStageName} <span className="text-gray-400">→</span> {item.toStageName}</>
-                                                : <span>登録: {item.toStageName}</span>
-                                            }
-                                        </p>
-                                        <div className="flex items-center gap-3 text-xs text-gray-500">
-                                            <span>{new Date(item.changedAt).toLocaleString('ja-JP')}</span>
-                                            {item.changedByName && <span>· {item.changedByName}</span>}
-                                            {item.snapshotAmount !== null && (
-                                                <span>· ¥{item.snapshotAmount.toLocaleString()}</span>
-                                            )}
-                                        </div>
-                                        {item.changeNote && (
-                                            <p className="mt-1 text-xs text-gray-600">{item.changeNote}</p>
-                                        )}
-                                    </div>
-                                </li>
-                            ))}
-                        </ol>
-                    )}
-                </CardContent>
-            </Card>
         </div>
     );
 }

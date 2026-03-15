@@ -59,6 +59,37 @@ export async function createContactAction(formData: FormData) {
     }
 }
 
+// 会社詳細ページのインラインフォームから登録（成功後に会社詳細へリダイレクト）
+export async function createContactFromCompanyAction(formData: FormData) {
+    const companyId = readOptionalString(formData, 'companyId');
+    const name = readOptionalString(formData, 'name');
+
+    if (!companyId || !name) {
+        redirect(`/customers/companies/${companyId ?? ''}?contactError=validation`);
+    }
+
+    try {
+        await createContact({
+            companyId,
+            name,
+            department: readOptionalString(formData, 'department'),
+            title: readOptionalString(formData, 'title'),
+            email: readOptionalString(formData, 'email'),
+            phone: readOptionalString(formData, 'phone'),
+            isPrimary: readBoolean(formData, 'isPrimary'),
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (isAppError(error, 'NOT_FOUND')) redirect(`/customers/companies/${companyId}?contactError=company`);
+        throw error;
+    }
+
+    revalidatePath(`/customers/companies/${companyId}`);
+    revalidatePath('/customers/contacts');
+    redirect(`/customers/companies/${companyId}?contactAdded=1`);
+}
+
 export async function updateContactAction(formData: FormData) {
     const contactId = readOptionalString(formData, 'contactId');
     if (!contactId) {

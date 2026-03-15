@@ -9,6 +9,8 @@ interface CompanyDetailPageProps {
     };
     searchParams?: {
         updated?: string;
+        contactAdded?: string;
+        contactError?: string;
     };
 }
 
@@ -32,5 +34,12 @@ export default async function CompanyDetailPage({ params, searchParams }: Compan
         throw error;
     }
 
-    return <CompanyDetailView company={company} updated={searchParams?.updated === '1'} />;
+    return (
+        <CompanyDetailView
+            company={company}
+            updated={searchParams?.updated === '1'}
+            contactAdded={searchParams?.contactAdded === '1'}
+            contactError={searchParams?.contactError}
+        />
+    );
 }

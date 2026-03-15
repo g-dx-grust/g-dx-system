@@ -34,7 +34,8 @@ export type PermissionKey =
     | 'export.summary'
     | 'export.detail'
     | 'import.customer'
-    | 'import.sales';
+    | 'import.sales'
+    | 'dashboard.personal.kpi_write';
 
 export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, PermissionLevelType>> = {
     [Role.SUPER_ADMIN]: {
@@ -72,6 +73,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'export.detail': 'Y',
         'import.customer': 'Y',
         'import.sales': 'Y',
+        'dashboard.personal.kpi_write': 'Y',
     },
     [Role.ADMIN]: {
         'auth.user.manage': 'Y',
@@ -108,6 +110,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'export.detail': 'C',
         'import.customer': 'Y',
         'import.sales': 'Y',
+        'dashboard.personal.kpi_write': 'Y',
     },
     [Role.MANAGER]: {
         'auth.user.manage': 'N',
@@ -144,6 +147,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'export.detail': 'C',
         'import.customer': 'N',
         'import.sales': 'N',
+        'dashboard.personal.kpi_write': 'Y',
     },
     [Role.OPERATOR]: {
         'auth.user.manage': 'N',
@@ -180,6 +184,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'export.detail': 'N',
         'import.customer': 'N',
         'import.sales': 'N',
+        'dashboard.personal.kpi_write': 'Y',
     },
     [Role.VIEWER]: {
         'auth.user.manage': 'N',
@@ -216,5 +221,6 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'export.detail': 'N',
         'import.customer': 'N',
         'import.sales': 'N',
+        'dashboard.personal.kpi_write': 'N',
     },
 };

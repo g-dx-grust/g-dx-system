@@ -110,8 +110,18 @@ function buildAppConfig(): AppConfig {
     };
 }
 
-export const appConfig = buildAppConfig();
+let _appConfig: AppConfig | null = null;
 
 export function getAppConfig(): AppConfig {
-    return appConfig;
+    if (!_appConfig) {
+        _appConfig = buildAppConfig();
+    }
+    return _appConfig;
 }
+
+/** @deprecated Use getAppConfig() instead */
+export const appConfig = new Proxy({} as AppConfig, {
+    get(_target, prop) {
+        return getAppConfig()[prop as keyof AppConfig];
+    },
+});

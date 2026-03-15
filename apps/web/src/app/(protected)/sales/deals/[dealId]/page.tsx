@@ -12,6 +12,7 @@ interface DealDetailPageProps {
         created?: string;
         staged?: string;
         activityAdded?: string;
+        larkSaved?: string;
     };
 }
 
@@ -43,6 +44,7 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
             updated={searchParams?.updated === '1' || searchParams?.created === '1'}
             staged={searchParams?.staged === '1'}
             activityAdded={searchParams?.activityAdded === '1'}
+            larkSaved={searchParams?.larkSaved === '1'}
         />
     );
 }

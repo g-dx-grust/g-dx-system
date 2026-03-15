@@ -90,6 +90,8 @@ export interface DealDetail {
     acquisitionMethod: string | null;
     nextActionDate: string | null;
     nextActionContent: string | null;
+    larkChatId: string | null;
+    larkCalendarId: string | null;
     createdAt: ISODateString;
     updatedAt: ISODateString;
 }

@@ -72,6 +72,8 @@ export const deals = pgTable('deals', {
     jetStatus2: text('jet_status2').references(() => masterJetStatus2.status2Code),
     nextActionDate: date('next_action_date'),
     nextActionContent: text('next_action_content'),
+    larkChatId: text('lark_chat_id'),
+    larkCalendarId: text('lark_calendar_id'),
     dealAttributes: jsonb('deal_attributes'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),

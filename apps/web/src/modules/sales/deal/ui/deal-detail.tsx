@@ -5,7 +5,7 @@ import type { DealActivityItem, DealDetail, DealStageKey, PipelineStageDefinitio
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { updateDealAction, changeDealStageAction } from '@/modules/sales/deal/server-actions';
+import { updateDealAction, changeDealStageAction, saveLarkSettingsAction } from '@/modules/sales/deal/server-actions';
 import { DealActivityLog, DealActivitySidebarForm } from './deal-activity-log';
 import type { DealStageHistoryItem } from '../infrastructure/deal-repository';
 
@@ -17,6 +17,7 @@ interface DealDetailViewProps {
     updated?: boolean;
     staged?: boolean;
     activityAdded?: boolean;
+    larkSaved?: boolean;
 }
 
 const STAGE_LABELS: Record<DealStageKey, string> = {
@@ -59,7 +60,7 @@ const STAGE_BUTTON_STYLES: Record<DealStageKey, string> = {
     CONTRACTED: 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700',
 };
 
-export function DealDetailView({ deal, stages, activities, stageHistory = [], updated = false, staged = false, activityAdded = false }: DealDetailViewProps) {
+export function DealDetailView({ deal, stages, activities, stageHistory = [], updated = false, staged = false, activityAdded = false, larkSaved = false }: DealDetailViewProps) {
     const isOpen = deal.status === 'open';
     const otherStages = stages.filter((s) => s.key !== deal.stage);
 
@@ -91,6 +92,12 @@ export function DealDetailView({ deal, stages, activities, stageHistory = [], up
             {staged ? (
                 <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                     ステージを変更しました。
+                </div>
+            ) : null}
+
+            {larkSaved ? (
+                <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    Lark連携設定を保存しました。
                 </div>
             ) : null}
 
@@ -228,6 +235,51 @@ export function DealDetailView({ deal, stages, activities, stageHistory = [], up
                                 <div className="flex items-center justify-end md:col-span-2">
                                     <Button type="submit" className="bg-blue-600 px-8 text-white hover:bg-blue-700">
                                         保存
+                                    </Button>
+                                </div>
+                            </form>
+                        </div>
+                    </details>
+
+                    {/* Lark連携設定 */}
+                    <details className="group rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <summary className="flex cursor-pointer select-none list-none items-center justify-between px-6 py-4 [&::-webkit-details-marker]:hidden">
+                            <div>
+                                <p className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                                    Lark連携設定
+                                    {deal.larkChatId ? (
+                                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                                            接続済み
+                                        </span>
+                                    ) : null}
+                                </p>
+                                <p className="mt-0.5 text-sm text-gray-500">LarkグループチャットIDとカレンダーIDを設定</p>
+                            </div>
+                            <ChevronDown className="h-5 w-5 text-gray-400 transition-transform duration-200 group-open:rotate-180" />
+                        </summary>
+                        <div className="border-t border-gray-100 px-6 pb-6 pt-5">
+                            <form action={saveLarkSettingsAction} className="grid gap-4 md:grid-cols-2">
+                                <input type="hidden" name="dealId" value={deal.id} />
+                                <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                    グループチャットID
+                                    <Input
+                                        name="larkChatId"
+                                        defaultValue={deal.larkChatId ?? ''}
+                                        placeholder="oc_xxxxxxxxxx"
+                                    />
+                                </label>
+                                <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                    カレンダーID
+                                    <Input
+                                        name="larkCalendarId"
+                                        defaultValue={deal.larkCalendarId ?? ''}
+                                        placeholder="primary またはカレンダーID"
+                                    />
+                                </label>
+                                <div className="flex items-center justify-end md:col-span-2">
+                                    <Button type="submit" className="bg-blue-600 px-8 text-white hover:bg-blue-700">
+                                        Lark設定を保存
                                     </Button>
                                 </div>
                             </form>

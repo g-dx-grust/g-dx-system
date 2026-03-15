@@ -13,6 +13,8 @@ import {
 } from '@g-dx/database/schema';
 import { and, count, desc, eq, gte, isNotNull, isNull, lte, sql, sum } from 'drizzle-orm';
 import type { BusinessScopeType, DealCompanyStat, DealDashboardSummary, DealDetail, DealListItem, DealNextActionItem, DealOwnerStat, DealStageSummary, DealStageKey, DealStatus } from '@g-dx/contracts';
+import { sendGroupMessage, buildStageChangeMessage } from '@/lib/lark/larkMessaging';
+import { createCalendarEvent, buildNextActionCalendarParams } from '@/lib/lark/larkCalendar';
 import type {
     ChangeDealStageInput,
     ChangedDealStage,
@@ -111,6 +113,8 @@ export async function getDealDetail(dealId: string, businessScope: BusinessScope
             acquisitionMethod: deals.acquisitionMethod,
             nextActionDate: deals.nextActionDate,
             nextActionContent: deals.nextActionContent,
+            larkChatId: deals.larkChatId,
+            larkCalendarId: deals.larkCalendarId,
             dealAttributes: deals.dealAttributes,
             companyId: companies.id,
             companyName: companies.displayName,
@@ -157,6 +161,8 @@ export async function getDealDetail(dealId: string, businessScope: BusinessScope
         acquisitionMethod: row.acquisitionMethod ?? null,
         nextActionDate: row.nextActionDate ?? null,
         nextActionContent: row.nextActionContent ?? null,
+        larkChatId: row.larkChatId ?? null,
+        larkCalendarId: row.larkCalendarId ?? null,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
     };
@@ -330,6 +336,24 @@ export async function updateDeal(input: UpdateDealInput): Promise<UpdatedDeal> {
         return { id: input.dealId, updatedAt };
     });
 
+    // Larkカレンダー: 次回アクション日/内容が更新された場合にイベントを作成 (fire-and-forget)
+    const nextActionUpdated = input.nextActionDate !== undefined || input.nextActionContent !== undefined;
+    if (nextActionUpdated) {
+        getDealLarkContext(result.id).then((dealCtx) => {
+            if (!dealCtx?.nextActionDate || !dealCtx.nextActionContent) return;
+            const calendarId = dealCtx.larkCalendarId ?? 'primary';
+            const params = buildNextActionCalendarParams({
+                calendarId,
+                companyName: dealCtx.companyName,
+                dealName: dealCtx.title,
+                nextActionContent: dealCtx.nextActionContent,
+                nextActionDate: dealCtx.nextActionDate,
+                assigneeName: dealCtx.ownerName,
+            });
+            return createCalendarEvent(params);
+        }).catch((err) => console.error('[Lark] calendar event (update deal) failed:', err));
+    }
+
     return { id: result.id, updatedAt: result.updatedAt.toISOString() };
 }
 
@@ -423,6 +447,28 @@ export async function changeDealStage(input: ChangeDealStageInput): Promise<Chan
             updatedAt,
         };
     });
+
+    // Lark通知: ステージ変更 (fire-and-forget)
+    getDealLarkContext(input.dealId).then((dealCtx) => {
+        if (!dealCtx?.larkChatId) return;
+        const STAGE_LABELS: Record<string, string> = {
+            APO_ACQUIRED: 'アポ獲得',
+            NEGOTIATING: '商談中・見積提示',
+            ALLIANCE: 'アライアンス',
+            PENDING: 'ペンディング',
+            APO_CANCELLED: 'アポキャン',
+            LOST: '失注・不明',
+            CONTRACTED: '契約済み',
+        };
+        const message = buildStageChangeMessage({
+            dealName: dealCtx.title,
+            oldStage: STAGE_LABELS[result.previousStage] ?? result.previousStage,
+            newStage: STAGE_LABELS[result.currentStage] ?? result.currentStage,
+            assigneeName: dealCtx.ownerName,
+            updatedAt: result.updatedAt.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }),
+        });
+        return sendGroupMessage(dealCtx.larkChatId, message);
+    }).catch((err) => console.error('[Lark] stage change notification failed:', err));
 
     return {
         id: result.id,
@@ -770,4 +816,113 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
         byOwner,
         byCompany,
     };
+}
+
+// ─── Lark 設定 ────────────────────────────────────────────────────────────────
+
+export async function updateDealLarkSettings(input: {
+    dealId: string;
+    larkChatId: string | null;
+    larkCalendarId: string | null;
+    actorUserId: string;
+}): Promise<void> {
+    await db
+        .update(deals)
+        .set({
+            larkChatId: input.larkChatId,
+            larkCalendarId: input.larkCalendarId,
+            updatedAt: new Date(),
+            updatedByUserId: input.actorUserId,
+        })
+        .where(and(eq(deals.id, input.dealId), isNull(deals.deletedAt)));
+}
+
+// ─── Lark 通知用 コンテキスト取得 ─────────────────────────────────────────────
+
+export interface DealLarkContext {
+    id: string;
+    title: string;
+    larkChatId: string | null;
+    larkCalendarId: string | null;
+    nextActionDate: string | null;
+    nextActionContent: string | null;
+    companyName: string;
+    ownerName: string;
+    stageName: string;
+}
+
+export async function getDealLarkContext(dealId: string): Promise<DealLarkContext | null> {
+    const [row] = await db
+        .select({
+            id: deals.id,
+            title: deals.title,
+            larkChatId: deals.larkChatId,
+            larkCalendarId: deals.larkCalendarId,
+            nextActionDate: deals.nextActionDate,
+            nextActionContent: deals.nextActionContent,
+            companyName: companies.displayName,
+            ownerName: users.displayName,
+            stageName: pipelineStages.name,
+        })
+        .from(deals)
+        .innerJoin(companies, eq(deals.companyId, companies.id))
+        .leftJoin(users, eq(deals.ownerUserId, users.id))
+        .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+        .where(and(eq(deals.id, dealId), isNull(deals.deletedAt)))
+        .limit(1);
+
+    if (!row) return null;
+    return {
+        id: row.id,
+        title: row.title,
+        larkChatId: row.larkChatId ?? null,
+        larkCalendarId: row.larkCalendarId ?? null,
+        nextActionDate: row.nextActionDate ?? null,
+        nextActionContent: row.nextActionContent ?? null,
+        companyName: row.companyName,
+        ownerName: row.ownerName ?? 'Unknown',
+        stageName: row.stageName,
+    };
+}
+
+// ─── Cron: 本日の次回アクション案件一覧 ──────────────────────────────────────
+
+export interface DealDailyAlert {
+    id: string;
+    title: string;
+    larkChatId: string;
+    nextActionContent: string | null;
+    companyName: string;
+    ownerName: string;
+}
+
+export async function getDealsWithTodayNextAction(todayStr: string): Promise<DealDailyAlert[]> {
+    const rows = await db
+        .select({
+            id: deals.id,
+            title: deals.title,
+            larkChatId: deals.larkChatId,
+            nextActionContent: deals.nextActionContent,
+            companyName: companies.displayName,
+            ownerName: users.displayName,
+        })
+        .from(deals)
+        .innerJoin(companies, eq(deals.companyId, companies.id))
+        .leftJoin(users, eq(deals.ownerUserId, users.id))
+        .where(and(
+            isNull(deals.deletedAt),
+            eq(deals.nextActionDate, todayStr),
+            isNotNull(deals.larkChatId),
+        ));
+
+    return rows
+        .filter((r) => r.larkChatId !== null)
+        .map((r) => ({
+            id: r.id,
+            title: r.title,
+            larkChatId: r.larkChatId!,
+            nextActionContent: r.nextActionContent ?? null,
+            companyName: r.companyName,
+            ownerName: r.ownerName ?? 'Unknown',
+        }));
 }

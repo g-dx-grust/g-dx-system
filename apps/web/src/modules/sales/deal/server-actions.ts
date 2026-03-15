@@ -6,6 +6,7 @@ import { createDeal } from '@/modules/sales/deal/application/create-deal';
 import { updateDeal } from '@/modules/sales/deal/application/update-deal';
 import { changeDealStage } from '@/modules/sales/deal/application/change-deal-stage';
 import { createDealActivity } from '@/modules/sales/deal/application/create-deal-activity';
+import { saveLarkSettings } from '@/modules/sales/deal/application/save-lark-settings';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import type { DealActivityType, DealStageKey } from '@g-dx/contracts';
@@ -135,4 +136,23 @@ export async function createDealActivityAction(formData: FormData) {
 
     revalidatePath(`/sales/deals/${dealId}`);
     redirect(`/sales/deals/${dealId}?activityAdded=1`);
+}
+
+export async function saveLarkSettingsAction(formData: FormData) {
+    const dealId = readString(formData, 'dealId');
+    if (!dealId) redirect('/sales/deals');
+
+    const larkChatId = readString(formData, 'larkChatId') ?? null;
+    const larkCalendarId = readString(formData, 'larkCalendarId') ?? null;
+
+    try {
+        await saveLarkSettings({ dealId, larkChatId, larkCalendarId });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+
+    revalidatePath(`/sales/deals/${dealId}`);
+    redirect(`/sales/deals/${dealId}?larkSaved=1`);
 }

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Building2, Briefcase, PhoneCall, ScrollText, TrendingUp, Banknote, Activity, History, ChevronLeft, ChevronRight, MapPin, FileText as JetContractIcon, User, Target } from 'lucide-react';
@@ -69,11 +70,12 @@ export function Sidebar({ isCollapsed = false, onToggle, activeBusinessScope }: 
             {/* ロゴ + トグルボタン */}
             <div className="flex h-14 shrink-0 items-center border-b px-3 gap-2">
                 {isCollapsed ? (
-                    <Link href="/dashboard/deals" className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-blue-600" title="G-DX System" />
+                    <Link href="/dashboard/deals" className="flex shrink-0 items-center justify-center" title="G-DX System">
+                        <Image src="/gdxlogo__1_.png" alt="G-DX" width={32} height={32} className="object-contain" />
+                    </Link>
                 ) : (
-                    <Link href="/dashboard/deals" className="flex flex-1 items-center gap-2 font-semibold text-gray-900 overflow-hidden">
-                        <div className="h-6 w-6 shrink-0 rounded bg-blue-600" />
-                        <span className="truncate">G-DX System</span>
+                    <Link href="/dashboard/deals" className="flex flex-1 items-center overflow-hidden">
+                        <Image src="/gdxlogo__1_.png" alt="G-DX System" width={120} height={36} className="object-contain" />
                     </Link>
                 )}
                 <button

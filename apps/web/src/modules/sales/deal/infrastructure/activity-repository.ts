@@ -4,6 +4,9 @@ import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { BusinessScopeType, DealActivityItem, DealActivityType } from '@g-dx/contracts';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
 import { AppError } from '@/shared/server/errors';
+import { sendGroupMessage, buildActivityMessage } from '@/lib/lark/larkMessaging';
+import { createCalendarEvent, buildNextActionCalendarParams } from '@/lib/lark/larkCalendar';
+import { getDealLarkContext } from './deal-repository';
 
 export async function listDealActivities(dealId: string): Promise<DealActivityItem[]> {
     const rows = await db
@@ -31,11 +34,51 @@ export async function createDealActivity(input: {
 }): Promise<void> {
     const businessUnit = await findBusinessUnitByScope(input.businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+
+    // Get user name and deal context before insert
+    const [actorRow] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, input.userId)).limit(1);
+    const actorName = actorRow?.name ?? 'Unknown';
+
     await db.insert(dealActivities).values({
         id: crypto.randomUUID(), dealId: input.dealId, businessUnitId: businessUnit.id,
         userId: input.userId, activityType: input.activityType, activityDate: input.activityDate,
         summary: input.summary ?? null,
     });
+
+    // Lark通知＋カレンダー: 活動ログ記録 (fire-and-forget)
+    getDealLarkContext(input.dealId).then(async (dealCtx) => {
+        if (!dealCtx) return;
+
+        // 通知送信
+        if (dealCtx.larkChatId) {
+            const message = buildActivityMessage({
+                dealName: dealCtx.title,
+                activityType: input.activityType,
+                activityDate: input.activityDate,
+                content: input.summary ?? null,
+                assigneeName: actorName,
+            });
+            await sendGroupMessage(dealCtx.larkChatId, message).catch((err) =>
+                console.error('[Lark] activity notification failed:', err)
+            );
+        }
+
+        // カレンダー登録: 活動種別が「訪問」で次回アクション日/内容が設定されている場合
+        if (input.activityType === 'VISIT' && dealCtx.nextActionDate && dealCtx.nextActionContent) {
+            const calendarId = dealCtx.larkCalendarId ?? 'primary';
+            const params = buildNextActionCalendarParams({
+                calendarId,
+                companyName: dealCtx.companyName,
+                dealName: dealCtx.title,
+                nextActionContent: dealCtx.nextActionContent,
+                nextActionDate: dealCtx.nextActionDate,
+                assigneeName: actorName,
+            });
+            await createCalendarEvent(params).catch((err) =>
+                console.error('[Lark] calendar event (VISIT activity) failed:', err)
+            );
+        }
+    }).catch((err) => console.error('[Lark] getDealLarkContext failed:', err));
 }
 
 export interface MonthlyActivityStat {

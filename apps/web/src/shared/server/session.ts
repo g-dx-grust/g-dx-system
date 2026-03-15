@@ -117,21 +117,46 @@ function mapPermissionKeysToModules(permissionKeys: PermissionKey[]): SessionPer
     };
 }
 
-export async function issueSession(userId: string, activeBusinessScope: BusinessScopeType): Promise<void> {
-    const cookieStore = cookies();
-    const cookieBase = {
-        httpOnly: true as const,
+export interface SessionCookieConfig {
+    name: string;
+    value: string;
+    httpOnly: boolean;
+    sameSite: 'lax';
+    secure: boolean;
+    path: string;
+    maxAge: number;
+}
+
+/**
+ * Returns the cookie configs needed to establish a session.
+ * Use this when you need to set cookies on a NextResponse directly
+ * (e.g. in route handlers that return NextResponse.redirect()).
+ */
+export function getSessionCookieConfigs(userId: string, activeBusinessScope: BusinessScopeType): SessionCookieConfig[] {
+    const base = {
         sameSite: 'lax' as const,
         secure: appConfig.app.env === 'production',
         path: '/',
         maxAge: getSessionMaxAge(),
     };
 
-    cookieStore.set(getSessionCookieName(), userId, cookieBase);
-    cookieStore.set(getActiveScopeCookieName(), activeBusinessScope, {
-        ...cookieBase,
-        httpOnly: false,
-    });
+    return [
+        { name: getSessionCookieName(), value: userId, httpOnly: true, ...base },
+        { name: getActiveScopeCookieName(), value: activeBusinessScope, httpOnly: false, ...base },
+    ];
+}
+
+export async function issueSession(userId: string, activeBusinessScope: BusinessScopeType): Promise<void> {
+    const cookieStore = cookies();
+    for (const config of getSessionCookieConfigs(userId, activeBusinessScope)) {
+        cookieStore.set(config.name, config.value, {
+            httpOnly: config.httpOnly,
+            sameSite: config.sameSite,
+            secure: config.secure,
+            path: config.path,
+            maxAge: config.maxAge,
+        });
+    }
 }
 
 export async function clearSession(): Promise<void> {

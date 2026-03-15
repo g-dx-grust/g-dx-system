@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { assertLarkAuthConfigured, OAUTH_STATE_COOKIE_NAME } from '@/server/auth/lark';
 import { appConfig } from '@g-dx/config';
 import { bootstrapUser } from '@/modules/auth/application/bootstrap-user';
+import { getSessionCookieConfigs } from '@/shared/server/session';
 
 // ─── Lark API response types ─────────────────────────────────────────────────
 // Lark authen/v2/oauth/token returns token fields at the ROOT level (no nested `data`)
@@ -103,7 +104,7 @@ export async function GET(req: NextRequest) {
         console.warn('[GDX Auth] State mismatch. received:', state?.slice(0, 8), 'expected:', expectedState?.slice(0, 8));
         return NextResponse.redirect(`${baseUrl}/login?error=state_mismatch`);
     }
-    cookieStore.delete(OAUTH_STATE_COOKIE_NAME);
+    // OAuth state cookie is cleared on the redirect response at the end of this handler.
 
     // ─── Token exchange ───────────────────────────────────────────────────────
     let tokenData: LarkV2TokenResponse;
@@ -144,8 +145,9 @@ export async function GET(req: NextRequest) {
     console.log('[GDX Auth] Bootstrapping user:', larkUser.open_id, '|', displayName);
 
     // ─── Bootstrap user & issue session ──────────────────────────────────────
+    let bootstrapResult: Awaited<ReturnType<typeof bootstrapUser>>;
     try {
-        await bootstrapUser({
+        bootstrapResult = await bootstrapUser({
             openId: larkUser.open_id,
             name: displayName,
             email,
@@ -157,5 +159,25 @@ export async function GET(req: NextRequest) {
     }
 
     console.log('[GDX Auth] Login success → /dashboard/deals');
-    return NextResponse.redirect(`${baseUrl}/dashboard/deals`);
+
+    // cookies().set() does not apply to a separately created NextResponse,
+    // so we must set session cookies directly on the redirect response.
+    const response = NextResponse.redirect(`${baseUrl}/dashboard/deals`);
+    const sessionCookies = getSessionCookieConfigs(
+        bootstrapResult.user.id,
+        bootstrapResult.activeBusinessScope,
+    );
+    for (const cookie of sessionCookies) {
+        response.cookies.set(cookie.name, cookie.value, {
+            httpOnly: cookie.httpOnly,
+            sameSite: cookie.sameSite,
+            secure: cookie.secure,
+            path: cookie.path,
+            maxAge: cookie.maxAge,
+        });
+    }
+    // Clear the OAuth state cookie
+    response.cookies.delete(OAUTH_STATE_COOKIE_NAME);
+
+    return response;
 }

@@ -8,6 +8,12 @@ interface LoginCardProps {
 const ERROR_MESSAGES: Record<string, string> = {
     local_login_failed: 'ログインに失敗しました。PostgreSQLが起動しているか、スキーマが適用されているか確認してください。',
     bootstrap_failed: 'ログインに失敗しました。しばらくしてから再度お試しください。',
+    auth_not_configured: 'Lark認証が設定されていません。環境変数を確認してください。',
+    lark_auth_denied: 'Lark認証が拒否されました。再度お試しください。',
+    missing_code: 'Lark認証コードが取得できませんでした。再度お試しください。',
+    state_mismatch: '認証セッションが無効です。再度お試しください。',
+    token_exchange_failed: 'Lark認証トークンの取得に失敗しました。再度お試しください。',
+    userinfo_failed: 'Larkユーザー情報の取得に失敗しました。再度お試しください。',
 };
 
 export function LoginCard({ errorMessage }: LoginCardProps) {

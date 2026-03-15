@@ -1,5 +1,4 @@
 import Image from 'next/image';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
 interface LoginCardProps {
@@ -51,12 +50,12 @@ export function LoginCard({ errorMessage }: LoginCardProps) {
                     className="h-12 w-full rounded-xl bg-[#1B4F72] text-white hover:bg-[#154060] font-medium text-sm tracking-wide shadow-sm transition-all hover:shadow-md"
                     size="lg"
                 >
-                    <Link href="/api/v1/auth/lark/start">
+                    <a href="/api/v1/auth/lark/start">
                         <svg className="mr-2.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.5 14.5h-2.25v-4.25H9.75v4.25H7.5v-9h2.25v3.25h4.5V7.5H16.5v9z" />
                         </svg>
                         Larkでログイン
-                    </Link>
+                    </a>
                 </Button>
             </div>
 

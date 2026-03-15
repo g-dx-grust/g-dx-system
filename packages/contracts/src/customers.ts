@@ -59,6 +59,7 @@ export interface CompanyContactSummary {
     id: UUID;
     name: string;
     department: string | null;
+    title: string | null;
     email: string | null;
 }
 

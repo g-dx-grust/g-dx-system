@@ -176,6 +176,7 @@ export async function getCompanyDetail(
             id: contacts.id,
             name: contacts.fullName,
             department: contacts.department,
+            jobTitle: contacts.jobTitle,
             email: contacts.email,
         })
         .from(companyContactLinks)
@@ -262,6 +263,7 @@ export async function getCompanyDetail(
             id: contact.id,
             name: contact.name,
             department: contact.department ?? null,
+            title: contact.jobTitle ?? null,
             email: contact.email ?? null,
         })),
         openDealsSummary,

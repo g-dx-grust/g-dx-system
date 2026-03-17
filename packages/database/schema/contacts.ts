@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, boolean, jsonb, date } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, boolean, jsonb, date, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { businessUnits } from './business-units';
 import { companies } from './companies';
@@ -17,7 +17,10 @@ export const contacts = pgTable('contacts', {
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
     updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
-});
+}, (table) => ({
+    fullNameIdx: index('contacts_full_name_idx').on(table.fullName),
+    emailIdx: index('contacts_email_idx').on(table.email),
+}));
 
 export const contactBusinessProfiles = pgTable('contact_business_profiles', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -32,7 +35,11 @@ export const contactBusinessProfiles = pgTable('contact_business_profiles', {
     profileAttributes: jsonb('profile_attributes'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    contactIdx: index('cbpr_contact_idx').on(table.contactId),
+    businessUnitIdx: index('cbpr_business_unit_idx').on(table.businessUnitId),
+    contactBusinessUnitIdx: uniqueIndex('cbpr_contact_business_unit_idx').on(table.contactId, table.businessUnitId),
+}));
 
 export const companyContactLinks = pgTable('company_contact_links', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -44,4 +51,8 @@ export const companyContactLinks = pgTable('company_contact_links', {
     startDate: date('start_date'),
     endDate: date('end_date'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    companyIdx: index('ccl_company_idx').on(table.companyId),
+    contactIdx: index('ccl_contact_idx').on(table.contactId),
+    companyContactIdx: uniqueIndex('ccl_company_contact_idx').on(table.companyId, table.contactId),
+}));

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, jsonb, bigint } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, jsonb, bigint, index } from 'drizzle-orm/pg-core';
 import { businessUnits } from './business-units';
 import { users } from './users';
 
@@ -14,4 +14,8 @@ export const auditLogs = pgTable('audit_logs', {
     beforeData: jsonb('before_data'),
     afterData: jsonb('after_data'),
     occurredAt: timestamp('occurred_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    tableRecordIdx: index('audit_logs_table_record_idx').on(table.tableName, table.recordPk),
+    occurredAtIdx: index('audit_logs_occurred_at_idx').on(table.occurredAt),
+    actorUserIdx: index('audit_logs_actor_user_idx').on(table.actorUserId),
+}));

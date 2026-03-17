@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, uuid, integer, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, uuid, integer, jsonb, index } from 'drizzle-orm/pg-core';
 import { businessUnits } from './business-units';
 import { users } from './users';
 import { companies } from './companies';
@@ -19,7 +19,9 @@ export const callCampaigns = pgTable('call_campaigns', {
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
     updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
-});
+}, (table) => ({
+    businessUnitIdx: index('call_campaigns_business_unit_idx').on(table.businessUnitId),
+}));
 
 export const callTargets = pgTable('call_targets', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -37,7 +39,12 @@ export const callTargets = pgTable('call_targets', {
     targetAttributes: jsonb('target_attributes'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    campaignIdx: index('call_targets_campaign_idx').on(table.campaignId),
+    businessUnitIdx: index('call_targets_business_unit_idx').on(table.businessUnitId),
+    companyIdx: index('call_targets_company_idx').on(table.companyId),
+    assignedUserIdx: index('call_targets_assigned_user_idx').on(table.assignedUserId),
+}));
 
 export const callLogs = pgTable('call_logs', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -60,4 +67,10 @@ export const callLogs = pgTable('call_logs', {
     providerPayload: jsonb('provider_payload'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    businessUnitIdx: index('call_logs_business_unit_idx').on(table.businessUnitId),
+    userIdx: index('call_logs_user_idx').on(table.userId),
+    companyIdx: index('call_logs_company_idx').on(table.companyId),
+    startedAtIdx: index('call_logs_started_at_idx').on(table.startedAt),
+    dealIdx: index('call_logs_deal_idx').on(table.dealId),
+}));

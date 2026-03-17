@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, numeric, date, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, numeric, date, jsonb, index } from 'drizzle-orm/pg-core';
 import { businessUnits } from './business-units';
 import { users } from './users';
 import { pipelines, pipelineStages } from './sales';
@@ -17,4 +17,7 @@ export const dashboardDailyMetrics = pgTable('dashboard_daily_metrics', {
     metricValue: numeric('metric_value', { precision: 18, scale: 2 }).notNull(),
     dimensions: jsonb('dimensions'),
     aggregatedAt: timestamp('aggregated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    businessUnitDateIdx: index('ddm_business_unit_date_idx').on(table.businessUnitId, table.metricDate),
+    metricKeyIdx: index('ddm_metric_key_idx').on(table.metricKey),
+}));

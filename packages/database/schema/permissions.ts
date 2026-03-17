@@ -1,4 +1,4 @@
-import { pgTable, varchar, timestamp, primaryKey, uuid, text, boolean, integer } from 'drizzle-orm/pg-core';
+import { pgTable, varchar, timestamp, primaryKey, uuid, text, boolean, integer, index } from 'drizzle-orm/pg-core';
 import { users } from './users';
 import { businessUnits } from './business-units';
 
@@ -22,7 +22,11 @@ export const userRoleAssignments = pgTable('user_role_assignments', {
     grantedByUserId: uuid('granted_by_user_id').references(() => users.id),
     grantedAt: timestamp('granted_at', { withTimezone: true }).defaultNow().notNull(),
     expiresAt: timestamp('expires_at', { withTimezone: true }),
-});
+}, (table) => ({
+    userIdx: index('ura_user_idx').on(table.userId),
+    roleIdx: index('ura_role_idx').on(table.roleId),
+    userRoleIdx: index('ura_user_role_idx').on(table.userId, table.roleId),
+}));
 
 export const userBusinessMemberships = pgTable('user_business_memberships', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -31,4 +35,8 @@ export const userBusinessMemberships = pgTable('user_business_memberships', {
     membershipStatus: text('membership_status').notNull(),
     isDefault: boolean('is_default').default(false).notNull(),
     joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    userIdx: index('ubm_user_idx').on(table.userId),
+    businessUnitIdx: index('ubm_business_unit_idx').on(table.businessUnitId),
+    userBusinessUnitIdx: index('ubm_user_business_unit_idx').on(table.userId, table.businessUnitId),
+}));

@@ -171,31 +171,32 @@ export async function getCompanyDetail(
 
     const attributes = (row.profileAttributes ?? {}) as CompanyProfileAttributes;
 
-    const contactRows = await db
-        .select({
-            id: contacts.id,
-            name: contacts.fullName,
-            department: contacts.department,
-            jobTitle: contacts.jobTitle,
-            email: contacts.email,
-            phone: contacts.mobilePhone,
-        })
-        .from(companyContactLinks)
-        .innerJoin(contacts, eq(companyContactLinks.contactId, contacts.id))
-        .innerJoin(
-            contactBusinessProfiles,
-            and(
-                eq(contactBusinessProfiles.contactId, contacts.id),
-                eq(contactBusinessProfiles.businessUnitId, businessUnit.id)
+    // Run independent queries in parallel for faster response
+    const [contactRows, openDealRows, relatedDealRows] = await Promise.all([
+        db
+            .select({
+                id: contacts.id,
+                name: contacts.fullName,
+                department: contacts.department,
+                jobTitle: contacts.jobTitle,
+                email: contacts.email,
+                phone: contacts.mobilePhone,
+            })
+            .from(companyContactLinks)
+            .innerJoin(contacts, eq(companyContactLinks.contactId, contacts.id))
+            .innerJoin(
+                contactBusinessProfiles,
+                and(
+                    eq(contactBusinessProfiles.contactId, contacts.id),
+                    eq(contactBusinessProfiles.businessUnitId, businessUnit.id)
+                )
             )
-        )
-        .where(eq(companyContactLinks.companyId, companyId))
-        .orderBy(desc(companyContactLinks.isPrimary), contacts.fullName);
+            .where(eq(companyContactLinks.companyId, companyId))
+            .orderBy(desc(companyContactLinks.isPrimary), contacts.fullName),
 
-    const openDealRows =
         visibleBusinessScopes.length === 0
-            ? []
-            : await db
+            ? Promise.resolve([])
+            : db
                 .select({
                     businessScope: businessUnits.code,
                     total: count(),
@@ -211,41 +212,41 @@ export async function getCompanyDetail(
                         isNull(deals.lostAt)
                     )
                 )
-                .groupBy(businessUnits.code);
+                .groupBy(businessUnits.code),
+
+        db
+            .select({
+                id: deals.id,
+                title: deals.title,
+                stageKey: pipelineStages.stageKey,
+                stageName: pipelineStages.name,
+                amount: deals.amount,
+                ownerName: users.displayName,
+                dealStatus: deals.dealStatus,
+                expectedCloseDate: deals.expectedCloseDate,
+                businessScopeCode: businessUnits.code,
+            })
+            .from(deals)
+            .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+            .innerJoin(businessUnits, eq(deals.businessUnitId, businessUnits.id))
+            .leftJoin(users, eq(deals.ownerUserId, users.id))
+            .where(
+                and(
+                    eq(deals.companyId, companyId),
+                    isNull(deals.deletedAt),
+                    visibleBusinessScopes.length > 0
+                        ? inArray(businessUnits.code, visibleBusinessScopes)
+                        : undefined
+                )
+            )
+            .orderBy(desc(deals.updatedAt))
+            .limit(10),
+    ]);
 
     const openDealsSummary: Partial<Record<BusinessScopeType, number>> = {};
     for (const summary of openDealRows) {
         openDealsSummary[summary.businessScope as BusinessScopeType] = Number(summary.total);
     }
-
-    // Get related deals list (up to 10, current business scope first)
-    const relatedDealRows = await db
-        .select({
-            id: deals.id,
-            title: deals.title,
-            stageKey: pipelineStages.stageKey,
-            stageName: pipelineStages.name,
-            amount: deals.amount,
-            ownerName: users.displayName,
-            dealStatus: deals.dealStatus,
-            expectedCloseDate: deals.expectedCloseDate,
-            businessScopeCode: businessUnits.code,
-        })
-        .from(deals)
-        .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
-        .innerJoin(businessUnits, eq(deals.businessUnitId, businessUnits.id))
-        .leftJoin(users, eq(deals.ownerUserId, users.id))
-        .where(
-            and(
-                eq(deals.companyId, companyId),
-                isNull(deals.deletedAt),
-                visibleBusinessScopes.length > 0
-                    ? inArray(businessUnits.code, visibleBusinessScopes)
-                    : undefined
-            )
-        )
-        .orderBy(desc(deals.updatedAt))
-        .limit(10);
 
     return {
         id: row.id,
@@ -418,6 +419,162 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreatedC
         sharedAcrossBusinesses: result.sharedAcrossBusinesses,
         createdAt: result.createdAt.toISOString(),
     };
+}
+
+export interface BulkCreateCompanyRow {
+    name: string;
+    normalizedName: string;
+    industry?: string;
+    phone?: string;
+    website?: string;
+    address?: string;
+}
+
+export interface BulkCreateCompanyResult {
+    companyId: string;
+    companyName: string;
+    sharedAcrossBusinesses: boolean;
+}
+
+export async function bulkCreateCompanies(
+    rows: BulkCreateCompanyRow[],
+    businessScope: string,
+    actorUserId: string,
+): Promise<Map<string, BulkCreateCompanyResult | { error: string }>> {
+    const businessUnit = await findBusinessUnitByScope(businessScope as any);
+    if (!businessUnit) {
+        throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+    }
+
+    const results = new Map<string, BulkCreateCompanyResult | { error: string }>();
+
+    if (rows.length === 0) return results;
+
+    await db.transaction(async (tx) => {
+        for (const row of rows) {
+            try {
+                const [existingCompany] = await tx
+                    .select({
+                        id: companies.id,
+                        name: companies.displayName,
+                    })
+                    .from(companies)
+                    .where(eq(companies.normalizedName, row.normalizedName))
+                    .limit(1);
+
+                if (existingCompany) {
+                    const [existingProfile] = await tx
+                        .select({ id: companyBusinessProfiles.id })
+                        .from(companyBusinessProfiles)
+                        .where(
+                            and(
+                                eq(companyBusinessProfiles.companyId, existingCompany.id),
+                                eq(companyBusinessProfiles.businessUnitId, businessUnit.id)
+                            )
+                        )
+                        .limit(1);
+
+                    if (existingProfile) {
+                        results.set(row.normalizedName, {
+                            error: '同名の会社が現在の事業部に既に存在します。',
+                        });
+                        continue;
+                    }
+
+                    await tx.insert(companyBusinessProfiles).values({
+                        companyId: existingCompany.id,
+                        businessUnitId: businessUnit.id,
+                        ownerUserId: null,
+                        customerStatus: 'active',
+                        profileAttributes: {
+                            industry: row.industry?.trim() || undefined,
+                            tags: [],
+                        },
+                    });
+
+                    await tx.insert(auditLogs).values({
+                        id: nextAuditId(),
+                        tableName: 'company_business_profiles',
+                        recordPk: existingCompany.id,
+                        action: 'create',
+                        businessUnitId: businessUnit.id,
+                        actorUserId,
+                        sourceType: 'csv_import',
+                        afterData: {
+                            companyId: existingCompany.id,
+                            name: existingCompany.name,
+                            businessScope,
+                            sharedAcrossBusinesses: true,
+                        },
+                    });
+
+                    results.set(row.normalizedName, {
+                        companyId: existingCompany.id,
+                        companyName: existingCompany.name,
+                        sharedAcrossBusinesses: true,
+                    });
+                    continue;
+                }
+
+                const [createdCompany] = await tx
+                    .insert(companies)
+                    .values({
+                        legalName: row.name.trim(),
+                        displayName: row.name.trim(),
+                        normalizedName: row.normalizedName,
+                        website: row.website?.trim() || null,
+                        mainPhone: row.phone?.trim() || null,
+                        addressLine1: row.address?.trim() || null,
+                        createdByUserId: actorUserId,
+                        updatedByUserId: actorUserId,
+                    })
+                    .returning({
+                        id: companies.id,
+                        name: companies.displayName,
+                    });
+
+                await tx.insert(companyBusinessProfiles).values({
+                    companyId: createdCompany.id,
+                    businessUnitId: businessUnit.id,
+                    ownerUserId: null,
+                    customerStatus: 'active',
+                    profileAttributes: {
+                        industry: row.industry?.trim() || undefined,
+                        tags: [],
+                    },
+                });
+
+                await tx.insert(auditLogs).values({
+                    id: nextAuditId(),
+                    tableName: 'companies',
+                    recordPk: createdCompany.id,
+                    action: 'create',
+                    businessUnitId: businessUnit.id,
+                    actorUserId,
+                    sourceType: 'csv_import',
+                    afterData: {
+                        name: createdCompany.name,
+                        website: row.website ?? null,
+                        phone: row.phone ?? null,
+                        businessScope,
+                        sharedAcrossBusinesses: false,
+                    },
+                });
+
+                results.set(row.normalizedName, {
+                    companyId: createdCompany.id,
+                    companyName: createdCompany.name,
+                    sharedAcrossBusinesses: false,
+                });
+            } catch {
+                results.set(row.normalizedName, {
+                    error: '登録中にエラーが発生しました。',
+                });
+            }
+        }
+    });
+
+    return results;
 }
 
 export async function updateCompany(input: UpdateCompanyInput): Promise<UpdatedCompany> {

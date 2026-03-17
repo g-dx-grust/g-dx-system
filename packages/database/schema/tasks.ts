@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, index } from 'drizzle-orm/pg-core';
 import { businessUnits } from './business-units';
 import { users } from './users';
 import { companies } from './companies';
@@ -24,4 +24,11 @@ export const tasks = pgTable('tasks', {
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
-});
+}, (table) => ({
+    assignedUserIdx: index('tasks_assigned_user_idx').on(table.assignedUserId),
+    businessUnitIdx: index('tasks_business_unit_idx').on(table.businessUnitId),
+    dealIdx: index('tasks_deal_idx').on(table.dealId),
+    companyIdx: index('tasks_company_idx').on(table.companyId),
+    statusIdx: index('tasks_status_idx').on(table.status),
+    dueAtIdx: index('tasks_due_at_idx').on(table.dueAt),
+}));

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, uuid, integer, numeric, date, jsonb, unique } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, uuid, integer, numeric, date, jsonb, unique, index } from 'drizzle-orm/pg-core';
 import { businessUnits } from './business-units';
 import { users } from './users';
 import { companies } from './companies';
@@ -21,7 +21,9 @@ export const facilities = pgTable('facilities', {
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
-});
+}, (table) => ({
+    companyIdx: index('facilities_company_idx').on(table.companyId),
+}));
 
 export const pipelines = pgTable('pipelines', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -32,7 +34,9 @@ export const pipelines = pgTable('pipelines', {
     isActive: boolean('is_active').default(true).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    businessUnitIdx: index('pipelines_business_unit_idx').on(table.businessUnitId),
+}));
 
 export const pipelineStages = pgTable('pipeline_stages', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -46,7 +50,9 @@ export const pipelineStages = pgTable('pipeline_stages', {
     slaDays: integer('sla_days'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    pipelineIdx: index('pipeline_stages_pipeline_idx').on(table.pipelineId),
+}));
 
 export const deals = pgTable('deals', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -80,7 +86,15 @@ export const deals = pgTable('deals', {
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
     updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
-});
+}, (table) => ({
+    businessUnitIdx: index('deals_business_unit_idx').on(table.businessUnitId),
+    companyIdx: index('deals_company_idx').on(table.companyId),
+    ownerUserIdx: index('deals_owner_user_idx').on(table.ownerUserId),
+    pipelineIdx: index('deals_pipeline_idx').on(table.pipelineId),
+    currentStageIdx: index('deals_current_stage_idx').on(table.currentStageId),
+    updatedAtIdx: index('deals_updated_at_idx').on(table.updatedAt),
+    companyDeletedIdx: index('deals_company_deleted_idx').on(table.companyId, table.deletedAt),
+}));
 
 export const dealStageHistory = pgTable('deal_stage_history', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -91,7 +105,10 @@ export const dealStageHistory = pgTable('deal_stage_history', {
     changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow().notNull(),
     changeNote: text('change_note'),
     snapshotAmount: numeric('snapshot_amount', { precision: 18, scale: 2 }),
-});
+}, (table) => ({
+    dealIdx: index('deal_stage_history_deal_idx').on(table.dealId),
+    changedAtIdx: index('deal_stage_history_changed_at_idx').on(table.changedAt),
+}));
 
 export const contracts = pgTable('contracts', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -137,7 +154,12 @@ export const contracts = pgTable('contracts', {
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
     updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
-});
+}, (table) => ({
+    businessUnitIdx: index('contracts_business_unit_idx').on(table.businessUnitId),
+    companyIdx: index('contracts_company_idx').on(table.companyId),
+    dealIdx: index('contracts_deal_idx').on(table.dealId),
+    ownerUserIdx: index('contracts_owner_user_idx').on(table.ownerUserId),
+}));
 
 // ─── JET（節水事業）: 契約活動記録 ───────────────────────────────────────────
 export const contractActivities = pgTable('contract_activities', {
@@ -149,7 +171,10 @@ export const contractActivities = pgTable('contract_activities', {
     activityDate: date('activity_date').notNull(),
     summary: text('summary'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    contractIdx: index('contract_activities_contract_idx').on(table.contractId),
+    businessUnitIdx: index('contract_activities_business_unit_idx').on(table.businessUnitId),
+}));
 
 export const dealActivities = pgTable('deal_activities', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -160,7 +185,10 @@ export const dealActivities = pgTable('deal_activities', {
     activityDate: date('activity_date').notNull(),
     summary: text('summary'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    dealIdx: index('deal_activities_deal_idx').on(table.dealId),
+    businessUnitIdx: index('deal_activities_business_unit_idx').on(table.businessUnitId),
+}));
 
 // ─── 個人 KPI 目標 ───────────────────────────────────────────────────────────
 export const userKpiTargets = pgTable('user_kpi_targets', {

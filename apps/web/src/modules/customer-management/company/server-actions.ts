@@ -6,8 +6,12 @@ import type { ApiErrorCode } from '@g-dx/contracts';
 import { prepareTsrCompanyImport } from '@/modules/customer-management/company/application/company-import';
 import { createCompany } from '@/modules/customer-management/company/application/create-company';
 import { updateCompany } from '@/modules/customer-management/company/application/update-company';
+import { bulkCreateCompanies } from '@/modules/customer-management/company/infrastructure/company-repository';
+import { normalizeCompanyName } from '@/modules/customer-management/company/domain/normalize-company-name';
 import type { CompanyImportLogItem, CompanyImportPreview, CompanyImportResult } from '@/modules/customer-management/company/domain/company-import';
-import { isAppError } from '@/shared/server/errors';
+import { assertPermission } from '@/shared/server/authorization';
+import { AppError, isAppError } from '@/shared/server/errors';
+import { getAuthenticatedAppSession } from '@/shared/server/session';
 
 interface CompanyCreateValues {
     name: string;
@@ -154,6 +158,12 @@ export async function previewTsrCompanyImportAction(formData: FormData): Promise
 }
 
 export async function executeTsrCompanyImportAction(formData: FormData): Promise<CompanyImportResult> {
+    const session = await getAuthenticatedAppSession();
+    if (!session) {
+        throw new AppError('UNAUTHORIZED');
+    }
+    assertPermission(session, 'customer.company.create');
+
     const file = readCsvFile(formData);
     const prepared = await prepareTsrCompanyImport(file);
 
@@ -163,6 +173,8 @@ export async function executeTsrCompanyImportAction(formData: FormData): Promise
     let duplicateCount = 0;
     let skipCount = 0;
 
+    // Separate rows by status
+    const newRows = [];
     for (const row of prepared.rows) {
         const displayName = row.name ?? '(会社名なし)';
 
@@ -188,36 +200,52 @@ export async function executeTsrCompanyImportAction(formData: FormData): Promise
             continue;
         }
 
-        const result = await executeCompanyCreate({
+        newRows.push(row);
+    }
+
+    // Bulk create all new rows in a single transaction
+    if (newRows.length > 0) {
+        const bulkRows = newRows.map((row) => ({
             name: row.name!,
+            normalizedName: normalizeCompanyName(row.name!),
             industry: row.industry ?? undefined,
             phone: row.phone ?? undefined,
             website: row.website ?? undefined,
             address: row.address ?? undefined,
-            tags: [],
-        });
+        }));
 
-        if (result.ok) {
-            successCount += 1;
-            logs.push({
-                rowNumber: row.rowNumber,
-                name: result.company.name,
-                status: 'success',
-                companyId: result.company.id,
-                message: result.company.sharedAcrossBusinesses
-                    ? '既存会社へ現在の事業部プロフィールを追加しました。'
-                    : '新規会社を登録しました。',
-            });
-            continue;
+        const bulkResults = await bulkCreateCompanies(
+            bulkRows,
+            session.activeBusinessScope,
+            session.user.id,
+        );
+
+        for (const row of newRows) {
+            const displayName = row.name ?? '(会社名なし)';
+            const normalizedName = normalizeCompanyName(row.name!);
+            const result = bulkResults.get(normalizedName);
+
+            if (result && 'companyId' in result) {
+                successCount += 1;
+                logs.push({
+                    rowNumber: row.rowNumber,
+                    name: result.companyName,
+                    status: 'success',
+                    companyId: result.companyId,
+                    message: result.sharedAcrossBusinesses
+                        ? '既存会社へ現在の事業部プロフィールを追加しました。'
+                        : '新規会社を登録しました。',
+                });
+            } else {
+                failureCount += 1;
+                logs.push({
+                    rowNumber: row.rowNumber,
+                    name: displayName,
+                    status: 'failure',
+                    message: result && 'error' in result ? result.error : '登録中にエラーが発生しました。',
+                });
+            }
         }
-
-        failureCount += 1;
-        logs.push({
-            rowNumber: row.rowNumber,
-            name: displayName,
-            status: 'failure',
-            message: getCompanyCreateFailureMessage(result.code, result.message),
-        });
     }
 
     revalidatePath('/customers/companies');

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, jsonb, integer } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, uuid, jsonb, integer, index } from 'drizzle-orm/pg-core';
 
 export const externalRecordLinks = pgTable('external_record_links', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -12,7 +12,10 @@ export const externalRecordLinks = pgTable('external_record_links', {
     lastSyncHash: text('last_sync_hash'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    entityIdx: index('erl_entity_idx').on(table.entityType, table.entityId),
+    externalRecordIdx: index('erl_external_record_idx').on(table.externalSystem, table.externalRecordId),
+}));
 
 export const larkSyncJobs = pgTable('lark_sync_jobs', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -29,4 +32,7 @@ export const larkSyncJobs = pgTable('lark_sync_jobs', {
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => ({
+    statusIdx: index('lark_sync_jobs_status_idx').on(table.status),
+    runAfterIdx: index('lark_sync_jobs_run_after_idx').on(table.runAfter),
+}));

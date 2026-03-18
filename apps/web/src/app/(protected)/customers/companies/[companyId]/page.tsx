@@ -1,5 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { getCompanyDetail } from '@/modules/customer-management/company/application/get-company-detail';
+import { listLeadSourceOptions } from '@/modules/master/infrastructure/form-master-repository';
 import { CompanyDetailView } from '@/modules/customer-management/company/ui/company-detail';
 import { isAppError } from '@/shared/server/errors';
 
@@ -16,6 +17,7 @@ interface CompanyDetailPageProps {
 
 export default async function CompanyDetailPage({ params, searchParams }: CompanyDetailPageProps) {
     let company;
+    const leadSourcesPromise = listLeadSourceOptions();
     try {
         company = await getCompanyDetail(params.companyId);
     } catch (error) {
@@ -34,9 +36,12 @@ export default async function CompanyDetailPage({ params, searchParams }: Compan
         throw error;
     }
 
+    const leadSources = await leadSourcesPromise;
+
     return (
         <CompanyDetailView
             company={company}
+            leadSources={leadSources}
             updated={searchParams?.updated === '1'}
             contactAdded={searchParams?.contactAdded === '1'}
             contactError={searchParams?.contactError}

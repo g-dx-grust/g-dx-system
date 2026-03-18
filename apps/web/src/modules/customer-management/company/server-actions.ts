@@ -21,6 +21,7 @@ interface CompanyCreateValues {
     postalCode?: string;
     address?: string;
     tags?: string[];
+    leadSource?: string;
 }
 
 type CompanyCreateExecutionResult =
@@ -69,6 +70,7 @@ function buildCompanyCreateValues(formData: FormData): CompanyCreateValues | nul
         postalCode: readOptionalString(formData, 'postalCode'),
         address: readOptionalString(formData, 'address'),
         tags,
+        leadSource: readOptionalString(formData, 'leadSource'),
     };
 }
 
@@ -82,6 +84,7 @@ async function executeCompanyCreate(values: CompanyCreateValues): Promise<Compan
             postalCode: values.postalCode,
             address: values.address,
             tags: values.tags ?? [],
+            leadSource: values.leadSource,
         });
 
         return {
@@ -278,6 +281,7 @@ export async function updateCompanyAction(formData: FormData) {
             industry: readOptionalString(formData, 'industry'),
             phone: readOptionalString(formData, 'phone'),
             tags,
+            leadSource: readOptionalString(formData, 'leadSource'),
         });
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) {

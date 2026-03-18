@@ -29,6 +29,7 @@ export interface CompanyListItem {
     phone: string | null;
     website: string | null;
     address: string | null;
+    leadSource: string | null;
     sharedAcrossBusinesses: boolean;
     tags: string[];
     ownerUser: CompanyOwnerSummary | null;
@@ -45,6 +46,7 @@ export interface CreateCompanyRequest {
     address?: string;
     ownerUserId?: UUID;
     tags?: string[];
+    leadSource?: string;
     sharedAcrossBusinesses?: boolean;
 }
 
@@ -83,6 +85,7 @@ export interface CompanyDetail {
     phone: string | null;
     website: string | null;
     address: string | null;
+    leadSource: string | null;
     ownerUser: CompanyOwnerSummary | null;
     contacts: CompanyContactSummary[];
     openDealsSummary: Partial<Record<BusinessScopeType, number>>;
@@ -96,6 +99,7 @@ export interface UpdateCompanyRequest {
     phone?: string;
     ownerUserId?: UUID;
     tags?: string[];
+    leadSource?: string;
 }
 
 export type UpdateCompanyResponse = ApiSuccessResponse<{

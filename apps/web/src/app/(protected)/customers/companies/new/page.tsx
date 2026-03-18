@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { listIndustryOptions } from '@/modules/master/infrastructure/form-master-repository';
+import { listIndustryOptions, listLeadSourceOptions } from '@/modules/master/infrastructure/form-master-repository';
 import { CompanyCreateForm } from '@/modules/customer-management/company/ui/company-create-form';
 import { assertPermission } from '@/shared/server/authorization';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
@@ -35,7 +35,10 @@ export default async function NewCompanyPage({ searchParams }: NewCompanyPagePro
         redirect('/unauthorized');
     }
 
-    const industries = await listIndustryOptions();
+    const [industries, leadSources] = await Promise.all([
+        listIndustryOptions(),
+        listLeadSourceOptions(),
+    ]);
 
     return (
         <div className="space-y-6">
@@ -52,6 +55,7 @@ export default async function NewCompanyPage({ searchParams }: NewCompanyPagePro
             </div>
             <CompanyCreateForm
                 industries={industries}
+                leadSources={leadSources}
                 errorMessage={getErrorMessage(searchParams?.error)}
             />
         </div>

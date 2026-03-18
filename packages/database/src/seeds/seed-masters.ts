@@ -23,6 +23,7 @@ const {
     masterJetStatus2,
     masterCallResult,
     masterPipelineStage,
+    masterLeadSource,
 } = schema;
 
 type MasterIndustryRow = typeof masterIndustry.$inferInsert;
@@ -32,6 +33,7 @@ type MasterJetCreditStatusRow = typeof masterJetCreditStatus.$inferInsert;
 type MasterJetStatus2Row = typeof masterJetStatus2.$inferInsert;
 type MasterCallResultRow = typeof masterCallResult.$inferInsert;
 type MasterPipelineStageRow = typeof masterPipelineStage.$inferInsert;
+type MasterLeadSourceRow = typeof masterLeadSource.$inferInsert;
 
 const pool = new Pool({ connectionString: getRequiredEnv('DATABASE_URL') });
 const db = drizzle(pool, { schema });
@@ -42,6 +44,7 @@ const masterJetDealStatusHeaders = ['ステータスコード', '表示名', '�
 const masterJetCreditStatusHeaders = ['与信進捗コード', '表示名', '説明', 'UIカラー（hex）', '並び順'] as const;
 const masterJetStatus2Headers = ['ステータス2コード', '表示名', 'カテゴリ', '説明', 'UIカラー（hex）', '並び順'] as const;
 const masterCallResultHeaders = ['結果コード', '表示名', 'カテゴリ', '次アクション推奨', 'UIカラー（hex）', '並び順', '備考・運用説明'] as const;
+const masterLeadSourceHeaders = ['流入経路コード', '表示名', 'カテゴリ', '並び順'] as const;
 const masterPipelineStageHeaders = ['パイプラインコード', 'ステージキー', 'ステージ名', '説明', 'UIカラー（hex）', '並び順', '終了ステージ（受注/失注）'] as const;
 
 type CsvHeaders = readonly string[];
@@ -263,6 +266,16 @@ async function loadMasterCallResultRows(): Promise<MasterCallResultRow[]> {
     }));
 }
 
+async function loadMasterLeadSourceRows(): Promise<MasterLeadSourceRow[]> {
+    const records = await readCsvRecords('master_lead_source.csv', masterLeadSourceHeaders);
+    return records.map((record, index) => ({
+        leadSourceCode: record['流入経路コード'],
+        displayName: record['表示名'],
+        category: record['カテゴリ'],
+        sortOrder: parseInteger(record['並び順'], `master_lead_source.csv row ${index + 2} 並び順`),
+    }));
+}
+
 async function loadMasterPipelineStageRows(): Promise<MasterPipelineStageRow[]> {
     const records = await readCsvRecords('master_pipeline_stage.csv', masterPipelineStageHeaders);
     return records.map((record, index) => ({
@@ -286,6 +299,7 @@ async function main() {
         jetCreditStatusRows,
         jetStatus2Rows,
         callResultRows,
+        leadSourceRows,
         pipelineStageRows,
     ] = await Promise.all([
         loadMasterIndustryRows(),
@@ -294,6 +308,7 @@ async function main() {
         loadMasterJetCreditStatusRows(),
         loadMasterJetStatus2Rows(),
         loadMasterCallResultRows(),
+        loadMasterLeadSourceRows(),
         loadMasterPipelineStageRows(),
     ]);
 
@@ -308,6 +323,7 @@ async function main() {
                     master_jet_credit_status,
                     master_jet_status2,
                     master_call_result,
+                    master_lead_source,
                     master_pipeline_stage
                 CASCADE
             `),
@@ -343,6 +359,11 @@ async function main() {
             await tx.insert(masterCallResult).values(callResultRows);
         }
 
+        console.log('Inserting master_lead_source...');
+        if (leadSourceRows.length > 0) {
+            await tx.insert(masterLeadSource).values(leadSourceRows);
+        }
+
         console.log('Inserting master_pipeline_stage...');
         if (pipelineStageRows.length > 0) {
             await tx.insert(masterPipelineStage).values(pipelineStageRows);
@@ -357,6 +378,7 @@ async function main() {
             `master_jet_credit_status=${jetCreditStatusRows.length}`,
             `master_jet_status2=${jetStatus2Rows.length}`,
             `master_call_result=${callResultRows.length}`,
+            `master_lead_source=${leadSourceRows.length}`,
             `master_pipeline_stage=${pipelineStageRows.length}`,
         ].join(', '),
     );

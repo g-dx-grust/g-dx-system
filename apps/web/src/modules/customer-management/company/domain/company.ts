@@ -25,6 +25,7 @@ export interface CreateCompanyInput {
     address?: string;
     ownerUserId?: UUID;
     tags?: string[];
+    leadSource?: string;
     businessScope: BusinessScopeType;
     actorUserId: UUID;
 }
@@ -44,6 +45,7 @@ export interface UpdateCompanyInput {
     phone?: string;
     ownerUserId?: UUID;
     tags?: string[];
+    leadSource?: string;
     businessScope: BusinessScopeType;
     actorUserId: UUID;
 }

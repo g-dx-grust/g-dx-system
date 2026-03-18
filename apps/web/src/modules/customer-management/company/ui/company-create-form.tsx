@@ -11,12 +11,18 @@ interface IndustryOption {
     minorCategory: string;
 }
 
+interface LeadSourceOption {
+    value: string;
+    label: string;
+}
+
 interface CompanyCreateFormProps {
     industries: IndustryOption[];
+    leadSources: LeadSourceOption[];
     errorMessage?: string;
 }
 
-export function CompanyCreateForm({ industries, errorMessage }: CompanyCreateFormProps) {
+export function CompanyCreateForm({ industries, leadSources, errorMessage }: CompanyCreateFormProps) {
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
@@ -54,6 +60,21 @@ export function CompanyCreateForm({ industries, errorMessage }: CompanyCreateFor
                                 />
                             ))}
                         </datalist>
+                    </label>
+
+                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                        流入経路
+                        <select
+                            name="leadSource"
+                            className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        >
+                            <option value="">選択してください</option>
+                            {leadSources.map((source) => (
+                                <option key={source.value} value={source.value}>
+                                    {source.label}
+                                </option>
+                            ))}
+                        </select>
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">

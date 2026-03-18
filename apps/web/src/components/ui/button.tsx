@@ -12,10 +12,10 @@ const buttonVariants = {
 } as const;
 
 const buttonSizes = {
-    default: "h-10 px-4 py-2",
-    sm: "h-9 rounded-md px-3",
-    lg: "h-11 rounded-md px-8",
-    icon: "h-10 w-10",
+    default: "h-10 min-h-[44px] md:min-h-0 px-4 py-2",
+    sm: "h-9 min-h-[44px] md:min-h-0 rounded-md px-3",
+    lg: "h-11 min-h-[44px] md:min-h-0 rounded-md px-8",
+    icon: "h-10 w-10 min-h-[44px] min-w-[44px] md:min-h-0 md:min-w-0",
 } as const;
 
 export interface ButtonProps

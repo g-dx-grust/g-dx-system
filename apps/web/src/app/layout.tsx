@@ -1,8 +1,15 @@
+import type { Viewport } from 'next';
 import './globals.css';
 
 export const metadata = {
     title: 'G-DX UI',
     description: 'G-DX Application',
+};
+
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
 };
 
 export default function RootLayout({

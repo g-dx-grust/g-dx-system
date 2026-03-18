@@ -31,6 +31,7 @@ export async function createCompany(input: CreateCompanyRequest) {
         address: input.address,
         ownerUserId: input.ownerUserId,
         tags: normalizeTags(input.tags),
+        leadSource: input.leadSource,
         businessScope: session.activeBusinessScope,
         actorUserId: session.user.id,
     });

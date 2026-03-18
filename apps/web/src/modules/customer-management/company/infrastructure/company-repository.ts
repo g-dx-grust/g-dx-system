@@ -67,6 +67,7 @@ export async function listCompanies(filters: CompanyListFilters): Promise<Compan
             addressLine1: companies.addressLine1,
             addressLine2: companies.addressLine2,
             profileAttributes: companyBusinessProfiles.profileAttributes,
+            leadSourceCode: companyBusinessProfiles.leadSourceCode,
             ownerUserId: users.id,
             ownerUserName: users.displayName,
         })
@@ -111,6 +112,7 @@ export async function listCompanies(filters: CompanyListFilters): Promise<Compan
                 phone: row.phone ?? null,
                 website: row.website ?? null,
                 address: formatAddress([row.postalCode, row.prefecture, row.city, row.addressLine1, row.addressLine2]),
+                leadSource: row.leadSourceCode ?? null,
                 sharedAcrossBusinesses: sharedMap.get(row.id) ?? false,
                 tags: Array.isArray(attributes.tags) ? attributes.tags : [],
                 ownerUser: row.ownerUserId
@@ -151,6 +153,7 @@ export async function getCompanyDetail(
             addressLine1: companies.addressLine1,
             addressLine2: companies.addressLine2,
             profileAttributes: companyBusinessProfiles.profileAttributes,
+            leadSourceCode: companyBusinessProfiles.leadSourceCode,
             ownerUserId: users.id,
             ownerUserName: users.displayName,
         })
@@ -255,6 +258,7 @@ export async function getCompanyDetail(
         phone: row.phone ?? null,
         website: row.website ?? null,
         address: formatAddress([row.postalCode, row.prefecture, row.city, row.addressLine1, row.addressLine2]),
+        leadSource: row.leadSourceCode ?? null,
         ownerUser: row.ownerUserId
             ? {
                 id: row.ownerUserId,
@@ -327,6 +331,7 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreatedC
                     businessUnitId: businessUnit.id,
                     ownerUserId: input.ownerUserId ?? null,
                     customerStatus: 'active',
+                    leadSourceCode: input.leadSource?.trim() || null,
                     profileAttributes: {
                         industry: input.industry?.trim() || undefined,
                         tags: input.tags ?? [],
@@ -384,6 +389,7 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreatedC
             businessUnitId: businessUnit.id,
             ownerUserId: input.ownerUserId ?? null,
             customerStatus: 'active',
+            leadSourceCode: input.leadSource?.trim() || null,
             profileAttributes: {
                 industry: input.industry?.trim() || undefined,
                 tags: input.tags ?? [],
@@ -591,6 +597,7 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdatedC
                 id: companies.id,
                 phone: companies.mainPhone,
                 ownerUserId: companyBusinessProfiles.ownerUserId,
+                leadSourceCode: companyBusinessProfiles.leadSourceCode,
                 profileAttributes: companyBusinessProfiles.profileAttributes,
             })
             .from(companyBusinessProfiles)
@@ -625,11 +632,12 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdatedC
                 .where(eq(companies.id, input.companyId));
         }
 
-        if (input.industry !== undefined || input.ownerUserId !== undefined || input.tags !== undefined) {
+        if (input.industry !== undefined || input.ownerUserId !== undefined || input.tags !== undefined || input.leadSource !== undefined) {
             await tx
                 .update(companyBusinessProfiles)
                 .set({
                     ownerUserId: input.ownerUserId ?? existing.ownerUserId ?? null,
+                    leadSourceCode: input.leadSource !== undefined ? (input.leadSource.trim() || null) : existing.leadSourceCode ?? null,
                     profileAttributes: nextAttributes,
                     updatedAt,
                 })

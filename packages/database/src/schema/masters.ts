@@ -53,6 +53,13 @@ export const masterCallResult = pgTable('master_call_result', {
     operationDescription: text('備考・運用説明').notNull(),
 });
 
+export const masterLeadSource = pgTable('master_lead_source', {
+    leadSourceCode: text('流入経路コード').primaryKey(),
+    displayName: text('表示名').notNull(),
+    category: text('カテゴリ').notNull(),
+    sortOrder: integer('並び順').notNull(),
+});
+
 export const masterPipelineStage = pgTable(
     'master_pipeline_stage',
     {

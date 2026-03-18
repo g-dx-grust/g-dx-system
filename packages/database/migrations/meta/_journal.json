@@ -43,6 +43,13 @@
       "when": 1773500000000,
       "tag": "0005_user_kpi_targets",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773831678626,
+      "tag": "0006_flippant_golden_guardian",
+      "breakpoints": true
     }
   ]
 }

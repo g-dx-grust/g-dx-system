@@ -7,14 +7,20 @@ import { Input } from '@/components/ui/input';
 import { updateCompanyAction } from '@/modules/customer-management/company/server-actions';
 import { createContactFromCompanyAction } from '@/modules/customer-management/contact/server-actions';
 
+interface LeadSourceOption {
+    value: string;
+    label: string;
+}
+
 interface CompanyDetailProps {
     company: CompanyDetail;
+    leadSources: LeadSourceOption[];
     updated?: boolean;
     contactAdded?: boolean;
     contactError?: string;
 }
 
-export function CompanyDetailView({ company, updated = false, contactAdded = false, contactError }: CompanyDetailProps) {
+export function CompanyDetailView({ company, leadSources, updated = false, contactAdded = false, contactError }: CompanyDetailProps) {
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -42,6 +48,7 @@ export function CompanyDetailView({ company, updated = false, contactAdded = fal
                     </CardHeader>
                     <CardContent className="grid gap-4 sm:grid-cols-2">
                         <OverviewItem label="業種" value={company.industry ?? '-'} />
+                        <OverviewItem label="流入経路" value={company.leadSource ?? '-'} />
                         <OverviewItem label="電話番号" value={company.phone ?? '-'} />
                         <OverviewItem label="ウェブサイト" value={company.website ?? '-'} />
                         <OverviewItem label="担当者" value={company.ownerUser?.name ?? '-'} />
@@ -212,6 +219,21 @@ export function CompanyDetailView({ company, updated = false, contactAdded = fal
                         <label className="grid gap-2 text-sm font-medium text-gray-700">
                             業種
                             <Input name="industry" defaultValue={company.industry ?? ''} placeholder="SaaS" />
+                        </label>
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            流入経路
+                            <select
+                                name="leadSource"
+                                defaultValue={company.leadSource ?? ''}
+                                className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                <option value="">選択してください</option>
+                                {leadSources.map((source) => (
+                                    <option key={source.value} value={source.value}>
+                                        {source.label}
+                                    </option>
+                                ))}
+                            </select>
                         </label>
                         <label className="grid gap-2 text-sm font-medium text-gray-700">
                             電話番号

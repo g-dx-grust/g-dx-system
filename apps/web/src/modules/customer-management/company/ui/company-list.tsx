@@ -3,6 +3,7 @@ import { Plus, Upload } from 'lucide-react';
 import type { CompanyListItem } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
 
 interface CompanyListProps {
     companies: CompanyListItem[];
@@ -22,7 +23,7 @@ export function CompanyList({ companies, total, created = false, keyword }: Comp
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button asChild variant="outline" className="gap-1.5 px-4">
+                    <Button asChild variant="outline" className="hidden sm:inline-flex gap-1.5 px-4">
                         <Link href="/customers/companies/import">
                             <Upload className="h-4 w-4" />
                             CSV取り込み
@@ -42,7 +43,7 @@ export function CompanyList({ companies, total, created = false, keyword }: Comp
                             name="keyword"
                             defaultValue={keyword ?? ''}
                             placeholder="会社名で検索"
-                            className="h-10 flex-1 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            className="h-10 min-h-[44px] md:min-h-0 flex-1 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                         />
                         <div className="flex gap-2">
                             <Button type="submit" className="bg-blue-600 px-6 text-white hover:bg-blue-700">
@@ -79,42 +80,77 @@ export function CompanyList({ companies, total, created = false, keyword }: Comp
                                 : 'このビジネスにはまだ会社が登録されていません。'}
                         </div>
                     ) : (
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead className="bg-gray-50 text-left text-gray-500">
-                                <tr>
-                                    <th className="px-6 py-3 font-medium">会社名</th>
-                                    <th className="px-6 py-3 font-medium">業種</th>
-                                    <th className="px-6 py-3 font-medium">電話番号</th>
-                                    <th className="px-6 py-3 font-medium">担当者</th>
-                                    <th className="px-6 py-3 font-medium">タグ</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 bg-white text-gray-700">
-                                {companies.map((company) => (
-                                    <tr key={company.id}>
-                                        <td className="px-6 py-4 font-medium text-gray-900">
-                                            <div className="flex flex-col gap-1">
-                                                <Link
-                                                    href={`/customers/companies/${company.id}`}
-                                                    className="hover:text-gray-700 hover:underline"
-                                                >
-                                                    {company.name}
-                                                </Link>
-                                                {company.website ? (
-                                                    <span className="text-xs text-gray-500">{company.website}</span>
-                                                ) : null}
+                        <ResponsiveTable
+                            mobileCards={
+                                <div className="divide-y divide-gray-200">
+                                    {companies.map((company) => (
+                                        <Link
+                                            key={company.id}
+                                            href={`/customers/companies/${company.id}`}
+                                            className="block px-4 py-4 hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                                        >
+                                            <div className="flex items-start justify-between gap-2">
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="font-medium text-gray-900 truncate">{company.name}</p>
+                                                    {company.industry && (
+                                                        <p className="mt-0.5 text-xs text-gray-500">{company.industry}</p>
+                                                    )}
+                                                </div>
+                                                {company.leadSource && (
+                                                    <span className="shrink-0 inline-flex rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                                        {company.leadSource}
+                                                    </span>
+                                                )}
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4">{company.industry ?? '-'}</td>
-                                        <td className="px-6 py-4">{company.phone ?? '-'}</td>
-                                        <td className="px-6 py-4">{company.ownerUser?.name ?? '-'}</td>
-                                        <td className="px-6 py-4">
-                                            {company.tags.length > 0 ? company.tags.join(', ') : '-'}
-                                        </td>
+                                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                                                {company.phone && <span>{company.phone}</span>}
+                                                {company.ownerUser && <span>担当: {company.ownerUser.name}</span>}
+                                                {company.tags.length > 0 && <span>{company.tags.join(', ')}</span>}
+                                            </div>
+                                        </Link>
+                                    ))}
+                                </div>
+                            }
+                        >
+                            <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                <thead className="bg-gray-50 text-left text-gray-500">
+                                    <tr>
+                                        <th className="px-6 py-3 font-medium">会社名</th>
+                                        <th className="px-6 py-3 font-medium">業種</th>
+                                        <th className="px-6 py-3 font-medium">電話番号</th>
+                                        <th className="px-6 py-3 font-medium">流入経路</th>
+                                        <th className="px-6 py-3 font-medium">担当者</th>
+                                        <th className="px-6 py-3 font-medium">タグ</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 bg-white text-gray-700">
+                                    {companies.map((company) => (
+                                        <tr key={company.id}>
+                                            <td className="px-6 py-4 font-medium text-gray-900">
+                                                <div className="flex flex-col gap-1">
+                                                    <Link
+                                                        href={`/customers/companies/${company.id}`}
+                                                        className="hover:text-gray-700 hover:underline"
+                                                    >
+                                                        {company.name}
+                                                    </Link>
+                                                    {company.website ? (
+                                                        <span className="text-xs text-gray-500">{company.website}</span>
+                                                    ) : null}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">{company.industry ?? '-'}</td>
+                                            <td className="px-6 py-4">{company.phone ?? '-'}</td>
+                                            <td className="px-6 py-4">{company.leadSource ?? '-'}</td>
+                                            <td className="px-6 py-4">{company.ownerUser?.name ?? '-'}</td>
+                                            <td className="px-6 py-4">
+                                                {company.tags.length > 0 ? company.tags.join(', ') : '-'}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </ResponsiveTable>
                     )}
                 </CardContent>
             </Card>

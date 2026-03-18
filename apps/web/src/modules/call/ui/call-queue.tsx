@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useTransition, useCallback, useEffect } from 'react';
+import { useState, useTransition, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Phone, Trash2, Plus, ExternalLink, Clock, FileText, ChevronRight } from 'lucide-react';
+import { Phone, Trash2, Plus, ExternalLink, Clock, FileText, ChevronRight, Play, Pause, Square, PhoneOff } from 'lucide-react';
 import type { CallQueueItem, CallResult, CallListItem } from '@g-dx/contracts';
 import { CALL_RESULT_OPTIONS, CALL_RESULT_STYLES, CALL_RESULT_LABELS, QUICK_COMPLETE_STATUSES, NEXT_CALL_DATETIME_STATUSES } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { ResponsiveTable } from '@/components/ui/responsive-table';
+import { CallTimer } from '@/modules/call/ui/call-timer';
 import { addToCallQueueAction, removeFromCallQueueAction, recordCallAction, fetchCompanyCallHistory } from '@/modules/call/server-actions';
 
 function stripPhoneForTel(phone: string): string {
@@ -29,6 +31,8 @@ function formatRelativeTime(iso: string): string {
     return `${days}日前`;
 }
 
+type CallStatus = 'idle' | 'calling' | 'ended';
+
 interface CallQueueViewProps {
     queue: CallQueueItem[];
     companies: { id: string; name: string; phone: string }[];
@@ -40,6 +44,7 @@ export function CallQueueView({ queue, companies, added = false, called = false 
     const router = useRouter();
     const [showAddForm, setShowAddForm] = useState(false);
     const [callingTarget, setCallingTarget] = useState<CallQueueItem | null>(null);
+    const [callStatus, setCallStatus] = useState<CallStatus>('idle');
     const [selectedResult, setSelectedResult] = useState<CallResult | null>(null);
     const [phoneValue, setPhoneValue] = useState('');
     const [isPending, startTransition] = useTransition();
@@ -48,6 +53,10 @@ export function CallQueueView({ queue, companies, added = false, called = false 
     const [successMessage, setSuccessMessage] = useState<string | null>(
         added ? '架電先を追加しました。' : called ? 'コール結果を記録しました。' : null
     );
+    const [autoCallMode, setAutoCallMode] = useState(false);
+    const [autoCallPaused, setAutoCallPaused] = useState(false);
+    const [completedCount, setCompletedCount] = useState(0);
+    const elapsedRef = useRef(0);
 
     useEffect(() => {
         if (successMessage) {
@@ -75,22 +84,48 @@ export function CallQueueView({ queue, companies, added = false, called = false 
 
     function startRecording(item: CallQueueItem) {
         setCallingTarget(item);
+        setCallStatus('idle');
         setSelectedResult(null);
         setCompanyHistory([]);
+        elapsedRef.current = 0;
         loadCompanyHistory(item.companyId);
         window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function handleCallStart() {
+        setCallStatus('calling');
+    }
+
+    function handleCallEnd() {
+        setCallStatus('ended');
     }
 
     function advanceToNext() {
         if (!callingTarget) return;
         const currentIndex = queue.findIndex((q) => q.id === callingTarget.id);
         const remaining = queue.filter((q, i) => i !== currentIndex);
-        if (remaining.length > 0) {
+
+        if (autoCallMode && !autoCallPaused && remaining.length > 0) {
+            setCompletedCount((c) => c + 1);
+            const nextIndex = Math.min(currentIndex, remaining.length - 1);
+            const nextItem = remaining[nextIndex];
+            startRecording(nextItem);
+            // Auto-dial next target
+            setTimeout(() => {
+                window.location.href = `tel:${stripPhoneForTel(nextItem.phoneNumber)}`;
+                setCallStatus('calling');
+            }, 500);
+        } else if (remaining.length > 0) {
             const nextIndex = Math.min(currentIndex, remaining.length - 1);
             startRecording(remaining[nextIndex]);
         } else {
             setCallingTarget(null);
             setSelectedResult(null);
+            setCallStatus('idle');
+            if (autoCallMode) {
+                setAutoCallMode(false);
+                setSuccessMessage('全ての架電が完了しました。');
+            }
         }
     }
 
@@ -101,6 +136,7 @@ export function CallQueueView({ queue, companies, added = false, called = false 
         formData.set('companyId', callingTarget.companyId);
         if (callingTarget.contactId) formData.set('contactId', callingTarget.contactId);
         formData.set('result', result);
+        if (elapsedRef.current > 0) formData.set('durationSec', String(elapsedRef.current));
 
         startTransition(async () => {
             const res = await recordCallAction(null, formData);
@@ -120,6 +156,7 @@ export function CallQueueView({ queue, companies, added = false, called = false 
     }
 
     function handleFormSubmit(formData: FormData) {
+        if (elapsedRef.current > 0) formData.set('durationSec', String(elapsedRef.current));
         startTransition(async () => {
             const res = await recordCallAction(null, formData);
             if (res.success) {
@@ -129,6 +166,25 @@ export function CallQueueView({ queue, companies, added = false, called = false 
                 advanceToNext();
             }
         });
+    }
+
+    function startAutoCall() {
+        setAutoCallMode(true);
+        setAutoCallPaused(false);
+        setCompletedCount(0);
+        if (queue.length > 0) {
+            const first = queue[0];
+            startRecording(first);
+            setTimeout(() => {
+                window.location.href = `tel:${stripPhoneForTel(first.phoneNumber)}`;
+                setCallStatus('calling');
+            }, 300);
+        }
+    }
+
+    function stopAutoCall() {
+        setAutoCallMode(false);
+        setAutoCallPaused(false);
     }
 
     const showDetailForm = selectedResult && !QUICK_COMPLETE_STATUSES.includes(selectedResult);
@@ -142,15 +198,62 @@ export function CallQueueView({ queue, companies, added = false, called = false 
                     <h1 className="text-2xl font-semibold text-gray-900">コールキュー</h1>
                     <p className="text-sm text-gray-500">架電待ち {queue.length}件</p>
                 </div>
-                <Button
-                    onClick={() => setShowAddForm(!showAddForm)}
-                    size="icon"
-                    className="h-10 w-10 rounded-full bg-blue-600 text-white hover:bg-blue-700"
-                    title="架電先を追加"
-                >
-                    <Plus className="h-5 w-5" />
-                </Button>
+                <div className="flex items-center gap-2">
+                    {!autoCallMode && queue.length > 0 && (
+                        <Button
+                            onClick={startAutoCall}
+                            variant="outline"
+                            className="gap-1.5"
+                        >
+                            <Play className="h-4 w-4" />
+                            オートコール
+                        </Button>
+                    )}
+                    <Button
+                        onClick={() => setShowAddForm(!showAddForm)}
+                        size="icon"
+                        className="h-10 w-10 rounded-full bg-blue-600 text-white hover:bg-blue-700"
+                        title="架電先を追加"
+                    >
+                        <Plus className="h-5 w-5" />
+                    </Button>
+                </div>
             </div>
+
+            {/* Auto-call banner */}
+            {autoCallMode && (
+                <div className="flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-4 py-3">
+                    <div className="flex items-center gap-3">
+                        <span className="relative flex h-3 w-3">
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                            <span className="relative inline-flex h-3 w-3 rounded-full bg-blue-600" />
+                        </span>
+                        <span className="text-sm font-medium text-blue-900">
+                            オートコール中 — {completedCount}/{queue.length} 完了
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            onClick={() => setAutoCallPaused(!autoCallPaused)}
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 border-blue-300 text-blue-700 hover:bg-blue-100"
+                        >
+                            {autoCallPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+                            {autoCallPaused ? '再開' : '一時停止'}
+                        </Button>
+                        <Button
+                            onClick={stopAutoCall}
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 border-red-300 text-red-600 hover:bg-red-50"
+                        >
+                            <Square className="h-3.5 w-3.5" />
+                            停止
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Success messages */}
             {successMessage && (
@@ -174,7 +277,7 @@ export function CallQueueView({ queue, companies, added = false, called = false 
                                     name="companyId"
                                     required
                                     onChange={handleCompanyChange}
-                                    className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    className="h-10 min-h-[44px] md:min-h-0 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                 >
                                     <option value="">-- 会社を選択 --</option>
                                     {companies.map((c) => (
@@ -216,10 +319,23 @@ export function CallQueueView({ queue, companies, added = false, called = false 
                     <div className="lg:col-span-2">
                         <Card className="shadow-sm">
                             <CardHeader>
-                                <CardTitle className="text-base text-gray-900">
-                                    コール結果を記録 — {callingTarget.companyName}
-                                </CardTitle>
-                                <CardDescription>{callingTarget.phoneNumber}</CardDescription>
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <CardTitle className="text-base text-gray-900">
+                                            コール結果を記録 — {callingTarget.companyName}
+                                        </CardTitle>
+                                        <CardDescription>{callingTarget.phoneNumber}</CardDescription>
+                                    </div>
+                                    {callStatus === 'calling' && (
+                                        <div className="flex items-center gap-2">
+                                            <CallTimer
+                                                isActive={true}
+                                                onElapsedChange={(s) => { elapsedRef.current = s; }}
+                                            />
+                                            <span className="text-xs font-medium text-green-600">通話中</span>
+                                        </div>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent className="space-y-5">
                                 {/* Company info + Zoom Phone */}
@@ -241,14 +357,35 @@ export function CallQueueView({ queue, companies, added = false, called = false 
                                             <p className="text-gray-500">メモ: {callingTarget.notes}</p>
                                         )}
                                     </div>
-                                    <a
-                                        href={`tel:${stripPhoneForTel(callingTarget.phoneNumber)}`}
-                                        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
-                                    >
-                                        <Phone className="h-4 w-4" />
-                                        Zoom Phone で発信
-                                        <ExternalLink className="h-3 w-3 opacity-60" />
-                                    </a>
+                                    <div className="flex shrink-0 flex-col gap-2">
+                                        {callStatus === 'idle' && (
+                                            <a
+                                                href={`tel:${stripPhoneForTel(callingTarget.phoneNumber)}`}
+                                                onClick={handleCallStart}
+                                                className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700"
+                                            >
+                                                <Phone className="h-4 w-4" />
+                                                Zoom Phone で発信
+                                                <ExternalLink className="h-3 w-3 opacity-60" />
+                                            </a>
+                                        )}
+                                        {callStatus === 'calling' && (
+                                            <button
+                                                type="button"
+                                                onClick={handleCallEnd}
+                                                className="inline-flex items-center justify-center gap-2 rounded-md bg-red-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700"
+                                            >
+                                                <PhoneOff className="h-4 w-4" />
+                                                通話終了
+                                            </button>
+                                        )}
+                                        {callStatus === 'ended' && (
+                                            <div className="flex items-center gap-2 rounded-md bg-gray-100 px-4 py-2 text-sm text-gray-600">
+                                                <CallTimer isActive={false} />
+                                                <span>通話終了</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
 
                                 {/* Status buttons */}
@@ -324,7 +461,7 @@ export function CallQueueView({ queue, companies, added = false, called = false 
                                                 {isPending ? '記録中...' : '記録して次へ'}
                                                 {!isPending && <ChevronRight className="h-4 w-4" />}
                                             </Button>
-                                            <Button type="button" variant="outline" onClick={() => setCallingTarget(null)} className="px-5">
+                                            <Button type="button" variant="outline" onClick={() => { setCallingTarget(null); setCallStatus('idle'); }} className="px-5">
                                                 キャンセル
                                             </Button>
                                         </div>
@@ -390,57 +527,33 @@ export function CallQueueView({ queue, companies, added = false, called = false 
                             架電待ちの案件はありません。「+」から追加してください。
                         </div>
                     ) : (
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-200 text-sm">
-                                <thead className="bg-gray-50 text-left text-gray-500">
-                                    <tr>
-                                        <th className="px-6 py-3 font-medium">会社名</th>
-                                        <th className="px-6 py-3 font-medium">電話番号</th>
-                                        <th className="px-6 py-3 font-medium">コンタクト</th>
-                                        <th className="px-6 py-3 font-medium">予定日時</th>
-                                        <th className="px-6 py-3 font-medium">担当者</th>
-                                        <th className="px-6 py-3 font-medium">メモ</th>
-                                        <th className="px-4 py-3 font-medium" />
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-200 bg-white text-gray-700">
+                        <ResponsiveTable
+                            mobileCards={
+                                <div className="divide-y divide-gray-200">
                                     {queue.map((item) => {
                                         const isActive = callingTarget?.id === item.id;
                                         return (
-                                            <tr
+                                            <div
                                                 key={item.id}
-                                                className={isActive ? 'bg-blue-50' : 'hover:bg-gray-50 transition-colors'}
+                                                className={`px-4 py-4 ${isActive ? 'bg-blue-50' : ''}`}
                                             >
-                                                <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                                                    {item.companyName}
-                                                </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <a
-                                                        href={`tel:${stripPhoneForTel(item.phoneNumber)}`}
-                                                        className="inline-flex items-center gap-1 font-mono font-medium text-blue-600 hover:text-blue-800 hover:underline"
-                                                        title="Zoom Phone で発信"
-                                                    >
-                                                        <Phone className="h-3 w-3" />
-                                                        {item.phoneNumber}
-                                                    </a>
-                                                </td>
-                                                <td className="px-6 py-4">{item.contactName ?? '-'}</td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                                    {item.scheduledAt
-                                                        ? formatJST(item.scheduledAt)
-                                                        : '-'}
-                                                </td>
-                                                <td className="px-6 py-4">{item.assignedUserName}</td>
-                                                <td className="max-w-[160px] truncate px-6 py-4 text-gray-500" title={item.notes ?? undefined}>
-                                                    {item.notes ?? '-'}
-                                                </td>
-                                                <td className="px-4 py-4">
-                                                    <div className="flex items-center gap-1.5">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="font-medium text-gray-900">{item.companyName}</p>
+                                                        <a
+                                                            href={`tel:${stripPhoneForTel(item.phoneNumber)}`}
+                                                            className="mt-0.5 inline-flex items-center gap-1 font-mono text-sm text-blue-600"
+                                                        >
+                                                            <Phone className="h-3 w-3" />
+                                                            {item.phoneNumber}
+                                                        </a>
+                                                    </div>
+                                                    <div className="flex shrink-0 items-center gap-1.5">
                                                         <Button
                                                             type="button"
                                                             onClick={() => startRecording(item)}
                                                             size="sm"
-                                                            className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
+                                                            className="gap-1 bg-blue-600 text-white hover:bg-blue-700"
                                                             disabled={isActive}
                                                         >
                                                             <Phone className="h-3.5 w-3.5" />
@@ -453,13 +566,91 @@ export function CallQueueView({ queue, companies, added = false, called = false 
                                                             </Button>
                                                         </form>
                                                     </div>
-                                                </td>
-                                            </tr>
+                                                </div>
+                                                {(item.contactName || item.notes) && (
+                                                    <div className="mt-1.5 flex flex-wrap gap-x-3 text-xs text-gray-500">
+                                                        {item.contactName && <span>{item.contactName}</span>}
+                                                        {item.scheduledAt && <span>{formatJST(item.scheduledAt)}</span>}
+                                                        {item.notes && <span className="truncate max-w-[200px]">{item.notes}</span>}
+                                                    </div>
+                                                )}
+                                            </div>
                                         );
                                     })}
-                                </tbody>
-                            </table>
-                        </div>
+                                </div>
+                            }
+                        >
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead className="bg-gray-50 text-left text-gray-500">
+                                        <tr>
+                                            <th className="px-6 py-3 font-medium">会社名</th>
+                                            <th className="px-6 py-3 font-medium">電話番号</th>
+                                            <th className="px-6 py-3 font-medium">コンタクト</th>
+                                            <th className="px-6 py-3 font-medium">予定日時</th>
+                                            <th className="px-6 py-3 font-medium">担当者</th>
+                                            <th className="px-6 py-3 font-medium">メモ</th>
+                                            <th className="px-4 py-3 font-medium" />
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 bg-white text-gray-700">
+                                        {queue.map((item) => {
+                                            const isActive = callingTarget?.id === item.id;
+                                            return (
+                                                <tr
+                                                    key={item.id}
+                                                    className={isActive ? 'bg-blue-50' : 'hover:bg-gray-50 transition-colors'}
+                                                >
+                                                    <td className="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
+                                                        {item.companyName}
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <a
+                                                            href={`tel:${stripPhoneForTel(item.phoneNumber)}`}
+                                                            className="inline-flex items-center gap-1 font-mono font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                                                            title="Zoom Phone で発信"
+                                                        >
+                                                            <Phone className="h-3 w-3" />
+                                                            {item.phoneNumber}
+                                                        </a>
+                                                    </td>
+                                                    <td className="px-6 py-4">{item.contactName ?? '-'}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-gray-500">
+                                                        {item.scheduledAt
+                                                            ? formatJST(item.scheduledAt)
+                                                            : '-'}
+                                                    </td>
+                                                    <td className="px-6 py-4">{item.assignedUserName}</td>
+                                                    <td className="max-w-[160px] truncate px-6 py-4 text-gray-500" title={item.notes ?? undefined}>
+                                                        {item.notes ?? '-'}
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <Button
+                                                                type="button"
+                                                                onClick={() => startRecording(item)}
+                                                                size="sm"
+                                                                className="gap-1.5 bg-blue-600 text-white hover:bg-blue-700"
+                                                                disabled={isActive}
+                                                            >
+                                                                <Phone className="h-3.5 w-3.5" />
+                                                                架電済み
+                                                            </Button>
+                                                            <form action={removeFromCallQueueAction}>
+                                                                <input type="hidden" name="targetId" value={item.id} />
+                                                                <Button type="submit" size="sm" variant="ghost" className="text-gray-400 hover:text-red-500">
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            </form>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </ResponsiveTable>
                     )}
                 </CardContent>
             </Card>

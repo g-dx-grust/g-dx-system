@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Sidebar } from './sidebar';
+import { BottomNavigation } from './bottom-navigation';
 
 interface LayoutShellProps {
     header: React.ReactNode;
@@ -29,13 +30,16 @@ export function LayoutShell({ header, children, activeBusinessScope }: LayoutShe
 
     return (
         <div className="flex h-screen w-full overflow-hidden bg-white text-gray-900 font-sans">
-            <Sidebar isCollapsed={isCollapsed} onToggle={toggle} activeBusinessScope={activeBusinessScope} />
+            <div className="hidden md:flex">
+                <Sidebar isCollapsed={isCollapsed} onToggle={toggle} activeBusinessScope={activeBusinessScope} />
+            </div>
             <div className="flex flex-1 flex-col overflow-hidden min-w-0">
                 {header}
-                <main className="flex-1 overflow-y-auto bg-gray-50 px-6 py-5">
+                <main className="flex-1 overflow-y-auto bg-gray-50 px-3 py-3 pb-20 md:px-6 md:py-5 md:pb-5">
                     {children}
                 </main>
             </div>
+            <BottomNavigation activeBusinessScope={activeBusinessScope} />
         </div>
     );
 }

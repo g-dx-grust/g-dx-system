@@ -26,6 +26,7 @@ export async function updateCompany(companyId: string, input: UpdateCompanyReque
         phone: input.phone,
         ownerUserId: input.ownerUserId,
         tags: normalizeTags(input.tags),
+        leadSource: input.leadSource,
         businessScope: session.activeBusinessScope,
         actorUserId: session.user.id,
     });

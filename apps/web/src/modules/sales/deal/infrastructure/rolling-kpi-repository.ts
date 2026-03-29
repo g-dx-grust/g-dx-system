@@ -20,6 +20,10 @@ function emptyMetrics(): Record<RollingKpiMetricKey, KpiSegmentedCounts> {
     };
 }
 
+function buildUuidArraySql(values: string[]) {
+    return sql`ARRAY[${sql.join(values.map((value) => sql`${value}`), sql`, `)}]::uuid[]`;
+}
+
 async function getTeamPeriodMetrics(
     businessUnitId: string,
     bounds: RollingPeriodBounds,
@@ -135,7 +139,7 @@ async function getTeamPeriodMetrics(
                 COUNT(*)::int AS cnt
             FROM deal_stage_history dsh
             JOIN deals d ON dsh.deal_id = d.id
-            WHERE dsh.to_stage_id = ANY(${negoStageIds})
+            WHERE dsh.to_stage_id = ANY(${buildUuidArraySql(negoStageIds)})
             AND dsh.changed_at >= ${startDate}::date
             AND dsh.changed_at < (${endDate}::date + INTERVAL '1 day')
             GROUP BY 1
@@ -163,7 +167,7 @@ async function getTeamPeriodMetrics(
                 COUNT(*)::int AS cnt
             FROM deal_stage_history dsh
             JOIN deals d ON dsh.deal_id = d.id
-            WHERE dsh.to_stage_id = ANY(${contractStageIds})
+            WHERE dsh.to_stage_id = ANY(${buildUuidArraySql(contractStageIds)})
             AND dsh.changed_at >= ${startDate}::date
             AND dsh.changed_at < (${endDate}::date + INTERVAL '1 day')
             GROUP BY 1

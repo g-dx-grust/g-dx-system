@@ -4,6 +4,8 @@ export const Role = {
     MANAGER: 'MANAGER',
     OPERATOR: 'OPERATOR',
     VIEWER: 'VIEWER',
+    IS_MEMBER: 'IS_MEMBER', // IS担当
+    TECH: 'TECH',           // 技術部門
 } as const;
 
 export type RoleType = typeof Role[keyof typeof Role];

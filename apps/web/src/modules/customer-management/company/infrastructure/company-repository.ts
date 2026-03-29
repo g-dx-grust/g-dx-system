@@ -8,6 +8,7 @@ import {
     contactBusinessProfiles,
     contacts,
     deals,
+    leadSourceHistory,
     pipelineStages,
     users,
 } from '@g-dx/database/schema';
@@ -332,6 +333,7 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreatedC
                     ownerUserId: input.ownerUserId ?? null,
                     customerStatus: 'active',
                     leadSourceCode: input.leadSource?.trim() || null,
+                    initialLeadSourceCode: input.leadSource?.trim() || null,
                     profileAttributes: {
                         industry: input.industry?.trim() || undefined,
                         tags: input.tags ?? [],
@@ -390,6 +392,7 @@ export async function createCompany(input: CreateCompanyInput): Promise<CreatedC
             ownerUserId: input.ownerUserId ?? null,
             customerStatus: 'active',
             leadSourceCode: input.leadSource?.trim() || null,
+            initialLeadSourceCode: input.leadSource?.trim() || null,
             profileAttributes: {
                 industry: input.industry?.trim() || undefined,
                 tags: input.tags ?? [],
@@ -632,12 +635,16 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdatedC
                 .where(eq(companies.id, input.companyId));
         }
 
+        const nextLeadSourceCode = input.leadSource !== undefined
+            ? (input.leadSource.trim() || null)
+            : (existing.leadSourceCode ?? null);
+
         if (input.industry !== undefined || input.ownerUserId !== undefined || input.tags !== undefined || input.leadSource !== undefined) {
             await tx
                 .update(companyBusinessProfiles)
                 .set({
                     ownerUserId: input.ownerUserId ?? existing.ownerUserId ?? null,
-                    leadSourceCode: input.leadSource !== undefined ? (input.leadSource.trim() || null) : existing.leadSourceCode ?? null,
+                    leadSourceCode: nextLeadSourceCode,
                     profileAttributes: nextAttributes,
                     updatedAt,
                 })
@@ -647,6 +654,17 @@ export async function updateCompany(input: UpdateCompanyInput): Promise<UpdatedC
                         eq(companyBusinessProfiles.businessUnitId, businessUnit.id)
                     )
                 );
+        }
+
+        // 流入経路が変更された場合は変更履歴を記録する
+        if (input.leadSource !== undefined && nextLeadSourceCode !== (existing.leadSourceCode ?? null)) {
+            await tx.insert(leadSourceHistory).values({
+                companyId: input.companyId,
+                businessUnitId: businessUnit.id,
+                previousLeadSourceCode: existing.leadSourceCode ?? null,
+                newLeadSourceCode: nextLeadSourceCode,
+                changedByUserId: input.actorUserId,
+            });
         }
 
         await tx.insert(auditLogs).values({

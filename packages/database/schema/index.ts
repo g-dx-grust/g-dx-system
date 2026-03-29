@@ -10,3 +10,6 @@ export * from './dashboard';
 export * from './audit';
 export * from './integrations';
 export * from './masters';
+export * from './hearings';
+export * from './approvals';
+export * from './notifications';

@@ -9,3 +9,6 @@ export * from './integrations';
 export * from './errors';
 export * from './permissions';
 export * from './search';
+export * from './hearings';
+export * from './approvals';
+export * from './notifications';

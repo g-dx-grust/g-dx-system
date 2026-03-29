@@ -8,6 +8,7 @@ import {
     users,
 } from '@g-dx/database/schema';
 import { and, desc, eq, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import type {
     ApprovalRequestDetail,
     ApprovalRequestListItem,
@@ -83,13 +84,8 @@ export async function listApprovalRequests(
     if (filters.dealId) conditions.push(eq(approvalRequests.dealId, filters.dealId));
     if (filters.applicantUserId) conditions.push(eq(approvalRequests.applicantUserId, filters.applicantUserId));
     if (filters.approverUserId) conditions.push(eq(approvalRequests.approverUserId, filters.approverUserId));
-
-    const applicantUser = db.$with('applicant').as(
-        db.select({ id: users.id, name: users.displayName }).from(users)
-    );
-    const approverUser = db.$with('approver').as(
-        db.select({ id: users.id, name: users.displayName }).from(users)
-    );
+    const applicantUser = alias(users, 'approval_applicant_user');
+    const approverUser = alias(users, 'approval_approver_user');
 
     const rows = await db
         .select({
@@ -100,9 +96,9 @@ export async function listApprovalRequests(
             approvalType: approvalRequests.approvalType,
             approvalStatus: approvalRequests.approvalStatus,
             applicantUserId: approvalRequests.applicantUserId,
-            applicantName: applicantUser.name,
+            applicantName: applicantUser.displayName,
             approverUserId: approvalRequests.approverUserId,
-            approverName: approverUser.name,
+            approverName: approverUser.displayName,
             appliedAt: approvalRequests.appliedAt,
             decidedAt: approvalRequests.decidedAt,
             deadlineAt: approvalRequests.deadlineAt,

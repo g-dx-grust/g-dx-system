@@ -6,6 +6,7 @@ import {
     deals,
     companies,
     users,
+    userBusinessMemberships,
 } from '@g-dx/database/schema';
 import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -462,4 +463,116 @@ export async function listApprovalRoutes(
         allowSelfApproval: row.allowSelfApproval,
         isActive: row.isActive,
     }));
+}
+
+// ─── 承認ルート管理 ────────────────────────────────────────────────────────────
+
+export interface CreateApprovalRouteInput {
+    approvalType: string;
+    routeName: string;
+    approverUserId: string;
+    routeOrder: number;
+    allowSelfApproval: boolean;
+}
+
+export interface UpdateApprovalRouteInput {
+    routeName?: string;
+    approverUserId?: string;
+    routeOrder?: number;
+    allowSelfApproval?: boolean;
+    isActive?: boolean;
+}
+
+export async function createApprovalRoute(
+    businessScope: BusinessScopeType,
+    input: CreateApprovalRouteInput,
+): Promise<{ id: string }> {
+    const businessUnit = await findBusinessUnitByScope(businessScope);
+    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+
+    const [created] = await db
+        .insert(approvalRoutes)
+        .values({
+            businessUnitId: businessUnit.id,
+            approvalType: input.approvalType,
+            routeName: input.routeName,
+            approverUserId: input.approverUserId,
+            routeOrder: input.routeOrder,
+            allowSelfApproval: input.allowSelfApproval,
+            isActive: true,
+        })
+        .returning({ id: approvalRoutes.id });
+
+    return { id: created.id };
+}
+
+export async function updateApprovalRoute(
+    routeId: string,
+    businessScope: BusinessScopeType,
+    input: UpdateApprovalRouteInput,
+): Promise<void> {
+    const businessUnit = await findBusinessUnitByScope(businessScope);
+    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+
+    const [existing] = await db
+        .select({ id: approvalRoutes.id })
+        .from(approvalRoutes)
+        .where(and(eq(approvalRoutes.id, routeId), eq(approvalRoutes.businessUnitId, businessUnit.id)))
+        .limit(1);
+    if (!existing) throw new AppError('NOT_FOUND', 'Approval route not found.');
+
+    await db
+        .update(approvalRoutes)
+        .set({
+            ...(input.routeName !== undefined && { routeName: input.routeName }),
+            ...(input.approverUserId !== undefined && { approverUserId: input.approverUserId }),
+            ...(input.routeOrder !== undefined && { routeOrder: input.routeOrder }),
+            ...(input.allowSelfApproval !== undefined && { allowSelfApproval: input.allowSelfApproval }),
+            ...(input.isActive !== undefined && { isActive: input.isActive }),
+            updatedAt: new Date(),
+        })
+        .where(eq(approvalRoutes.id, routeId));
+}
+
+export async function deleteApprovalRoute(
+    routeId: string,
+    businessScope: BusinessScopeType,
+): Promise<void> {
+    const businessUnit = await findBusinessUnitByScope(businessScope);
+    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+
+    const [existing] = await db
+        .select({ id: approvalRoutes.id })
+        .from(approvalRoutes)
+        .where(and(eq(approvalRoutes.id, routeId), eq(approvalRoutes.businessUnitId, businessUnit.id)))
+        .limit(1);
+    if (!existing) throw new AppError('NOT_FOUND', 'Approval route not found.');
+
+    await db.delete(approvalRoutes).where(eq(approvalRoutes.id, routeId));
+}
+
+// ─── 事業スコープ内のユーザー一覧 ─────────────────────────────────────────────
+
+export interface ScopeUserItem {
+    id: string;
+    displayName: string;
+}
+
+export async function listUsersInScope(businessScope: BusinessScopeType): Promise<ScopeUserItem[]> {
+    const businessUnit = await findBusinessUnitByScope(businessScope);
+    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+
+    const rows = await db
+        .select({ id: users.id, displayName: users.displayName })
+        .from(users)
+        .innerJoin(userBusinessMemberships, eq(userBusinessMemberships.userId, users.id))
+        .where(
+            and(
+                eq(userBusinessMemberships.businessUnitId, businessUnit.id),
+                eq(userBusinessMemberships.membershipStatus, 'active'),
+            )
+        )
+        .orderBy(users.displayName);
+
+    return rows.map((r) => ({ id: r.id, displayName: r.displayName ?? r.id }));
 }

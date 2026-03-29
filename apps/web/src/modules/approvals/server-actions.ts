@@ -6,6 +6,7 @@ import type { ApprovalTypeValue } from '@g-dx/contracts';
 import { isAppError } from '@/shared/server/errors';
 import { createApproval } from './application/create-approval';
 import { decideApproval } from './application/decide-approval';
+import { createRoute, updateRoute, deleteRoute } from './application/manage-routes';
 
 const APPROVAL_TYPES = new Set<ApprovalTypeValue>([
     'PRE_MEETING',
@@ -89,4 +90,102 @@ export async function decideApprovalAction(formData: FormData) {
         revalidatePath(`/sales/deals/${dealId}`);
     }
     redirect(`/sales/approvals/${approvalId}?decided=1`);
+}
+
+// ─── 承認ルート管理 ─────────────────────────────────────────────────────────────
+
+const ROUTE_BASE = '/sales/approvals/routes';
+
+export async function createApprovalRouteAction(formData: FormData) {
+    const approvalType = readString(formData, 'approvalType');
+    const routeName = readString(formData, 'routeName');
+    const approverUserId = readString(formData, 'approverUserId');
+    const routeOrderRaw = readString(formData, 'routeOrder');
+    const allowSelfApproval = formData.get('allowSelfApproval') === 'on';
+
+    if (!approvalType || !routeName || !approverUserId) {
+        redirect(ROUTE_BASE);
+    }
+
+    const routeOrder = routeOrderRaw ? parseInt(routeOrderRaw, 10) : 1;
+
+    try {
+        await createRoute({ approvalType, routeName, approverUserId, routeOrder, allowSelfApproval });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+
+    revalidatePath(ROUTE_BASE);
+    redirect(`${ROUTE_BASE}?created=1`);
+}
+
+export async function updateApprovalRouteAction(formData: FormData) {
+    const routeId = readString(formData, 'routeId');
+    const routeName = readString(formData, 'routeName');
+    const approverUserId = readString(formData, 'approverUserId');
+    const routeOrderRaw = readString(formData, 'routeOrder');
+    const allowSelfApproval = formData.get('allowSelfApproval') === 'on';
+    const isActiveRaw = formData.get('isActive');
+
+    if (!routeId) redirect(ROUTE_BASE);
+
+    const routeOrder = routeOrderRaw ? parseInt(routeOrderRaw, 10) : undefined;
+    const isActive = isActiveRaw !== null ? isActiveRaw === 'true' : undefined;
+
+    try {
+        await updateRoute(routeId, {
+            routeName,
+            approverUserId,
+            routeOrder,
+            allowSelfApproval,
+            isActive,
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (isAppError(error, 'NOT_FOUND')) redirect(ROUTE_BASE);
+        throw error;
+    }
+
+    revalidatePath(ROUTE_BASE);
+    redirect(`${ROUTE_BASE}?updated=1`);
+}
+
+export async function toggleApprovalRouteAction(formData: FormData) {
+    const routeId = readString(formData, 'routeId');
+    const isActive = formData.get('isActive') === 'true';
+
+    if (!routeId) redirect(ROUTE_BASE);
+
+    try {
+        await updateRoute(routeId, { isActive: !isActive });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (isAppError(error, 'NOT_FOUND')) redirect(ROUTE_BASE);
+        throw error;
+    }
+
+    revalidatePath(ROUTE_BASE);
+    redirect(`${ROUTE_BASE}?updated=1`);
+}
+
+export async function deleteApprovalRouteAction(formData: FormData) {
+    const routeId = readString(formData, 'routeId');
+
+    if (!routeId) redirect(ROUTE_BASE);
+
+    try {
+        await deleteRoute(routeId);
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (isAppError(error, 'NOT_FOUND')) redirect(ROUTE_BASE);
+        throw error;
+    }
+
+    revalidatePath(ROUTE_BASE);
+    redirect(`${ROUTE_BASE}?deleted=1`);
 }

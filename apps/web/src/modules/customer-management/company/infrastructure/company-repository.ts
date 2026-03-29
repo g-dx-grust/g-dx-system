@@ -56,37 +56,38 @@ export async function listCompanies(filters: CompanyListFilters): Promise<Compan
             : undefined
     );
 
-    const rows = await db
-        .select({
-            id: companies.id,
-            name: companies.displayName,
-            phone: companies.mainPhone,
-            website: companies.website,
-            postalCode: companies.postalCode,
-            prefecture: companies.prefecture,
-            city: companies.city,
-            addressLine1: companies.addressLine1,
-            addressLine2: companies.addressLine2,
-            profileAttributes: companyBusinessProfiles.profileAttributes,
-            leadSourceCode: companyBusinessProfiles.leadSourceCode,
-            ownerUserId: users.id,
-            ownerUserName: users.displayName,
-        })
-        .from(companyBusinessProfiles)
-        .innerJoin(companies, eq(companyBusinessProfiles.companyId, companies.id))
-        .leftJoin(users, eq(companyBusinessProfiles.ownerUserId, users.id))
-        .where(whereClause)
-        .orderBy(desc(companies.updatedAt))
-        .limit(pageSize)
-        .offset(offset);
-
-    const [{ total }] = await db
-        .select({
-            total: count(),
-        })
-        .from(companyBusinessProfiles)
-        .innerJoin(companies, eq(companyBusinessProfiles.companyId, companies.id))
-        .where(whereClause);
+    const [rows, [{ total }]] = await Promise.all([
+        db
+            .select({
+                id: companies.id,
+                name: companies.displayName,
+                phone: companies.mainPhone,
+                website: companies.website,
+                postalCode: companies.postalCode,
+                prefecture: companies.prefecture,
+                city: companies.city,
+                addressLine1: companies.addressLine1,
+                addressLine2: companies.addressLine2,
+                profileAttributes: companyBusinessProfiles.profileAttributes,
+                leadSourceCode: companyBusinessProfiles.leadSourceCode,
+                ownerUserId: users.id,
+                ownerUserName: users.displayName,
+            })
+            .from(companyBusinessProfiles)
+            .innerJoin(companies, eq(companyBusinessProfiles.companyId, companies.id))
+            .leftJoin(users, eq(companyBusinessProfiles.ownerUserId, users.id))
+            .where(whereClause)
+            .orderBy(desc(companies.updatedAt))
+            .limit(pageSize)
+            .offset(offset),
+        db
+            .select({
+                total: count(),
+            })
+            .from(companyBusinessProfiles)
+            .innerJoin(companies, eq(companyBusinessProfiles.companyId, companies.id))
+            .where(whereClause),
+    ]);
 
     const companyIds = rows.map((row) => row.id);
     const sharedCounts =
@@ -459,31 +460,39 @@ export async function bulkCreateCompanies(
 
     if (rows.length === 0) return results;
 
+    // 既存会社を一括取得して Map に変換（row-by-row SELECT を排除）
+    const normalizedNames = rows.map((r) => r.normalizedName);
+    const existingCompanyRows = await db
+        .select({ id: companies.id, name: companies.displayName, normalizedName: companies.normalizedName })
+        .from(companies)
+        .where(inArray(companies.normalizedName, normalizedNames));
+    const existingCompanyMap = new Map(existingCompanyRows.map((c) => [c.normalizedName, c]));
+
+    // 既存会社のプロファイル有無を一括取得
+    const existingCompanyIds = existingCompanyRows.map((c) => c.id);
+    const existingProfileRows =
+        existingCompanyIds.length === 0
+            ? []
+            : await db
+                .select({ companyId: companyBusinessProfiles.companyId })
+                .from(companyBusinessProfiles)
+                .where(
+                    and(
+                        inArray(companyBusinessProfiles.companyId, existingCompanyIds),
+                        eq(companyBusinessProfiles.businessUnitId, businessUnit.id),
+                    ),
+                );
+    const existingProfileSet = new Set(existingProfileRows.map((p) => p.companyId));
+
     await db.transaction(async (tx) => {
         for (const row of rows) {
             try {
-                const [existingCompany] = await tx
-                    .select({
-                        id: companies.id,
-                        name: companies.displayName,
-                    })
-                    .from(companies)
-                    .where(eq(companies.normalizedName, row.normalizedName))
-                    .limit(1);
+                const existingCompany = existingCompanyMap.get(row.normalizedName);
 
                 if (existingCompany) {
-                    const [existingProfile] = await tx
-                        .select({ id: companyBusinessProfiles.id })
-                        .from(companyBusinessProfiles)
-                        .where(
-                            and(
-                                eq(companyBusinessProfiles.companyId, existingCompany.id),
-                                eq(companyBusinessProfiles.businessUnitId, businessUnit.id)
-                            )
-                        )
-                        .limit(1);
+                    const hasProfile = existingProfileSet.has(existingCompany.id);
 
-                    if (existingProfile) {
+                    if (hasProfile) {
                         results.set(row.normalizedName, {
                             error: '同名の会社が現在の事業部に既に存在します。',
                         });

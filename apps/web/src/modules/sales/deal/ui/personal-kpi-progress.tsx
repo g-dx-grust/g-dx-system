@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import type { PersonalDashboardData } from '@g-dx/contracts';
+import type { PersonalDashboardData, PersonalRollingKpiBlock, KpiSegmentedCounts } from '@g-dx/contracts';
 
 interface PersonalKpiProgressProps {
     data: PersonalDashboardData;
@@ -73,6 +73,84 @@ function RingGauge({ label, actualLabel, targetLabel, pct }: RingGaugeProps) {
                 <p className="text-lg font-bold text-gray-900 leading-tight">{actualLabel}</p>
                 <p className="text-xs text-gray-400">目標: {targetLabel}</p>
             </div>
+        </div>
+    );
+}
+
+const ROLLING_METRIC_LABELS: Record<string, string> = {
+    callCount: 'コール数',
+    visitCount: '訪問数',
+    onlineCount: 'オンライン商談数',
+    appointmentCount: 'アポイント数',
+    negotiationCount: '商談化数',
+    contractCount: '契約数',
+};
+
+const ROLLING_METRIC_KEYS = ['callCount', 'visitCount', 'onlineCount', 'appointmentCount', 'negotiationCount', 'contractCount'] as const;
+
+function SegmentedCell({ counts }: { counts: KpiSegmentedCounts }) {
+    const { total, bySegment } = counts;
+    return (
+        <div className="text-right tabular-nums">
+            <span className="font-semibold text-gray-900">{total.toLocaleString()}</span>
+            {total > 0 && (
+                <div className="text-[11px] text-gray-400 leading-tight">
+                    <span className="text-blue-500">新{bySegment.new}</span>
+                    {' / '}
+                    <span className="text-orange-500">既{bySegment.existing}</span>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function RollingKpiTable({ blocks }: { blocks: PersonalRollingKpiBlock[] }) {
+    if (blocks.length === 0) return null;
+
+    return (
+        <div>
+            <div className="mb-3 flex items-center gap-2">
+                <div className="h-px flex-1 bg-gray-100" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                    期間別実績（新規 / 既存）
+                </span>
+                <div className="h-px flex-1 bg-gray-100" />
+            </div>
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
+                            <th className="px-3 py-2.5 text-left">KPI指標</th>
+                            {blocks.map((b) => (
+                                <th key={b.period} className="px-3 py-2.5 text-right whitespace-nowrap">
+                                    <div>{b.periodLabel.split(' ')[0]}</div>
+                                    <div className="font-normal normal-case text-[10px] text-gray-400">
+                                        {b.startDate.slice(5)} 〜 {b.endDate.slice(5)}
+                                    </div>
+                                </th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {ROLLING_METRIC_KEYS.map((key) => (
+                            <tr key={key} className="hover:bg-gray-50">
+                                <td className="px-3 py-2.5 font-medium text-gray-700 whitespace-nowrap">
+                                    {ROLLING_METRIC_LABELS[key]}
+                                </td>
+                                {blocks.map((b) => (
+                                    <td key={b.period} className="px-3 py-2.5">
+                                        <SegmentedCell counts={b.metrics[key]} />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            <p className="mt-2 text-right text-[11px] text-gray-400">
+                <span className="text-blue-500">新</span> = 新規案件（顧客初回）
+                <span className="text-orange-500">既</span> = 既存案件（リピート）
+            </p>
         </div>
     );
 }
@@ -153,6 +231,9 @@ export function PersonalKpiProgress({ data, className }: PersonalKpiProgressProp
                             ))}
                         </div>
                     </div>
+
+                    {/* ─── 期間別実績テーブル ───────────────────────────────────── */}
+                    <RollingKpiTable blocks={data.rollingKpis} />
                 </CardContent>
             </Card>
         </div>

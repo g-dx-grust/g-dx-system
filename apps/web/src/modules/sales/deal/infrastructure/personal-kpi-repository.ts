@@ -11,7 +11,8 @@ import {
     callLogs,
 } from '@g-dx/database/schema';
 import { and, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
-import type { PersonalNextActionItem, SaveKpiTargetInput, UserKpiTarget } from '@g-dx/contracts';
+import type { PersonalNextActionItem, PersonalRollingKpiBlock, KpiSegmentedCounts, RollingKpiMetricKey, SaveKpiTargetInput, UserKpiTarget } from '@g-dx/contracts';
+import { getRollingPeriodBounds, ALL_ROLLING_PERIODS, type RollingPeriodBounds } from './rolling-period';
 
 function getMonthBounds(targetMonth: string): { startDate: string; endDate: string } {
     const [year, month] = targetMonth.split('-').map(Number);
@@ -111,7 +112,7 @@ export async function getPersonalActuals(
 ): Promise<PersonalActuals> {
     const { startDate, endDate } = getMonthBounds(targetMonth);
 
-    const [activityCounts, callLogCount, negoStages, contractedStages, revenueResult] = await Promise.all([
+    const [activityCounts, callLogCount, negoStages, contractedStages, apoStages, revenueResult] = await Promise.all([
         // 1. コール数・訪問数（dealActivities から ＝ 手動ログ）
         db
             .select({
@@ -166,7 +167,19 @@ export async function getPersonalActuals(
                 ),
             ),
 
-        // 5. 売上実績（contracts から）
+        // 5. APO_ACQUIRED ステージID取得
+        db
+            .select({ id: pipelineStages.id })
+            .from(pipelineStages)
+            .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
+            .where(
+                and(
+                    eq(pipelines.businessUnitId, businessUnitId),
+                    eq(pipelineStages.stageKey, 'APO_ACQUIRED'),
+                ),
+            ),
+
+        // 6. 売上実績（contracts から）
         db
             .select({ total: sql<string>`COALESCE(SUM(${contracts.amount}), 0)` })
             .from(contracts)
@@ -191,74 +204,285 @@ export async function getPersonalActuals(
     // コールシステム経由の架電数を加算（二重カウントなし: 別入力経路）
     const callCount = activityCallCount + (callLogCount[0]?.cnt ?? 0);
 
-    // アポイント数 = 期間内に自分が担当で作成された案件数（APO_ACQUIREDステージ）
-    const apoStages = await db
-        .select({ id: pipelineStages.id })
-        .from(pipelineStages)
-        .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
-        .where(
-            and(
-                eq(pipelines.businessUnitId, businessUnitId),
-                eq(pipelineStages.stageKey, 'APO_ACQUIRED'),
+    // アポイント数・商談化数・契約数を並列取得
+    const [appointmentCount, negotiationCount, contractCount] = await Promise.all([
+        // アポイント数 = 期間内に自分が担当で作成された案件数（APO_ACQUIREDステージ）
+        apoStages.length === 0
+            ? Promise.resolve(0)
+            : db
+                .select({ cnt: count() })
+                .from(deals)
+                .where(
+                    and(
+                        eq(deals.ownerUserId, userId),
+                        eq(deals.businessUnitId, businessUnitId),
+                        isNull(deals.deletedAt),
+                        gte(deals.createdAt, new Date(`${startDate}T00:00:00Z`)),
+                        lte(deals.createdAt, new Date(`${endDate}T23:59:59Z`)),
+                    ),
+                )
+                .then(([r]) => Number(r?.cnt ?? 0)),
+
+        // 商談化数 = NEGOTIATING ステージへ遷移した案件数（自分担当）
+        Promise.all(
+            negoStages.map((stage) =>
+                db
+                    .select({ cnt: count() })
+                    .from(dealStageHistory)
+                    .innerJoin(deals, eq(dealStageHistory.dealId, deals.id))
+                    .where(
+                        and(
+                            eq(dealStageHistory.toStageId, stage.id),
+                            eq(deals.ownerUserId, userId),
+                            gte(dealStageHistory.changedAt, new Date(`${startDate}T00:00:00Z`)),
+                            lte(dealStageHistory.changedAt, new Date(`${endDate}T23:59:59Z`)),
+                        ),
+                    )
+                    .then(([r]) => Number(r?.cnt ?? 0)),
             ),
-        );
+        ).then((counts) => counts.reduce((a, b) => a + b, 0)),
 
-    let appointmentCount = 0;
-    if (apoStages.length > 0) {
-        const [result] = await db
-            .select({ cnt: count() })
-            .from(deals)
-            .where(
-                and(
-                    eq(deals.ownerUserId, userId),
-                    eq(deals.businessUnitId, businessUnitId),
-                    isNull(deals.deletedAt),
-                    gte(deals.createdAt, new Date(`${startDate}T00:00:00Z`)),
-                    lte(deals.createdAt, new Date(`${endDate}T23:59:59Z`)),
-                ),
-            );
-        appointmentCount = Number(result?.cnt ?? 0);
-    }
-
-    // 商談化数 = NEGOTIATING ステージへ遷移した案件数（自分担当）
-    let negotiationCount = 0;
-    for (const stage of negoStages) {
-        const [result] = await db
-            .select({ cnt: count() })
-            .from(dealStageHistory)
-            .innerJoin(deals, eq(dealStageHistory.dealId, deals.id))
-            .where(
-                and(
-                    eq(dealStageHistory.toStageId, stage.id),
-                    eq(deals.ownerUserId, userId),
-                    gte(dealStageHistory.changedAt, new Date(`${startDate}T00:00:00Z`)),
-                    lte(dealStageHistory.changedAt, new Date(`${endDate}T23:59:59Z`)),
-                ),
-            );
-        negotiationCount += Number(result?.cnt ?? 0);
-    }
-
-    // 契約数 = CONTRACTED ステージへ遷移した案件数（自分担当）
-    let contractCount = 0;
-    for (const stage of contractedStages) {
-        const [result] = await db
-            .select({ cnt: count() })
-            .from(dealStageHistory)
-            .innerJoin(deals, eq(dealStageHistory.dealId, deals.id))
-            .where(
-                and(
-                    eq(dealStageHistory.toStageId, stage.id),
-                    eq(deals.ownerUserId, userId),
-                    gte(dealStageHistory.changedAt, new Date(`${startDate}T00:00:00Z`)),
-                    lte(dealStageHistory.changedAt, new Date(`${endDate}T23:59:59Z`)),
-                ),
-            );
-        contractCount += Number(result?.cnt ?? 0);
-    }
+        // 契約数 = CONTRACTED ステージへ遷移した案件数（自分担当）
+        Promise.all(
+            contractedStages.map((stage) =>
+                db
+                    .select({ cnt: count() })
+                    .from(dealStageHistory)
+                    .innerJoin(deals, eq(dealStageHistory.dealId, deals.id))
+                    .where(
+                        and(
+                            eq(dealStageHistory.toStageId, stage.id),
+                            eq(deals.ownerUserId, userId),
+                            gte(dealStageHistory.changedAt, new Date(`${startDate}T00:00:00Z`)),
+                            lte(dealStageHistory.changedAt, new Date(`${endDate}T23:59:59Z`)),
+                        ),
+                    )
+                    .then(([r]) => Number(r?.cnt ?? 0)),
+            ),
+        ).then((counts) => counts.reduce((a, b) => a + b, 0)),
+    ]);
 
     const revenueTotal = parseFloat(revenueResult[0]?.total ?? '0');
 
     return { callCount, visitCount, appointmentCount, negotiationCount, contractCount, revenueTotal };
+}
+
+// ─── Rolling KPI（期間別実績 新規／既存分類付き）────────────────────────────
+
+function emptySegmented(): KpiSegmentedCounts {
+    return { total: 0, bySegment: { new: 0, existing: 0 } };
+}
+
+function emptyMetrics(): Record<RollingKpiMetricKey, KpiSegmentedCounts> {
+    return {
+        callCount: emptySegmented(),
+        visitCount: emptySegmented(),
+        onlineCount: emptySegmented(),
+        appointmentCount: emptySegmented(),
+        negotiationCount: emptySegmented(),
+        contractCount: emptySegmented(),
+    };
+}
+
+async function getPersonalPeriodMetrics(
+    userId: string,
+    businessUnitId: string,
+    bounds: RollingPeriodBounds,
+    negoStageIds: string[],
+    contractStageIds: string[],
+): Promise<Record<RollingKpiMetricKey, KpiSegmentedCounts>> {
+    const { startDate, endDate } = bounds;
+    const metrics = emptyMetrics();
+
+    type SegRow = { segment: string; cnt: number };
+    type ActivityRow = { activity_type: string; segment: string; cnt: number };
+
+    // 1. Activities from deal_activities (CALL, VISIT, ONLINE)
+    //    Segment: at activity_date, were there other deals for the same company?
+    const activityRows = await db.execute<ActivityRow>(sql`
+        SELECT
+            da.activity_type,
+            CASE WHEN EXISTS (
+                SELECT 1 FROM deals d2
+                WHERE d2.company_id = d.company_id
+                AND d2.business_unit_id = ${businessUnitId}
+                AND d2.deleted_at IS NULL
+                AND d2.id != da.deal_id
+                AND d2.created_at::date < da.activity_date
+            ) THEN 'existing' ELSE 'new' END AS segment,
+            COUNT(*)::int AS cnt
+        FROM deal_activities da
+        JOIN deals d ON da.deal_id = d.id
+        WHERE da.user_id = ${userId}
+        AND da.business_unit_id = ${businessUnitId}
+        AND da.activity_date >= ${startDate}
+        AND da.activity_date <= ${endDate}
+        GROUP BY da.activity_type, 2
+    `);
+
+    for (const row of activityRows.rows) {
+        const seg = row.segment as 'new' | 'existing';
+        const cnt = Number(row.cnt);
+        if (row.activity_type === 'CALL') {
+            metrics.callCount.total += cnt;
+            metrics.callCount.bySegment[seg] += cnt;
+        } else if (row.activity_type === 'VISIT') {
+            metrics.visitCount.total += cnt;
+            metrics.visitCount.bySegment[seg] += cnt;
+        } else if (row.activity_type === 'ONLINE') {
+            metrics.onlineCount.total += cnt;
+            metrics.onlineCount.bySegment[seg] += cnt;
+        }
+    }
+
+    // 2. Call logs (callLogs has companyId directly)
+    const callLogRows = await db.execute<SegRow>(sql`
+        SELECT
+            CASE WHEN EXISTS (
+                SELECT 1 FROM deals d2
+                WHERE d2.company_id = cl.company_id
+                AND d2.business_unit_id = ${businessUnitId}
+                AND d2.deleted_at IS NULL
+                AND d2.created_at < cl.started_at
+            ) THEN 'existing' ELSE 'new' END AS segment,
+            COUNT(*)::int AS cnt
+        FROM call_logs cl
+        WHERE cl.user_id = ${userId}
+        AND cl.business_unit_id = ${businessUnitId}
+        AND cl.started_at >= ${startDate}::date
+        AND cl.started_at < (${endDate}::date + INTERVAL '1 day')
+        GROUP BY 1
+    `);
+
+    for (const row of callLogRows.rows) {
+        const seg = row.segment as 'new' | 'existing';
+        const cnt = Number(row.cnt);
+        metrics.callCount.total += cnt;
+        metrics.callCount.bySegment[seg] += cnt;
+    }
+
+    // 3. Appointments (deals created in period, owned by user)
+    const apoRows = await db.execute<SegRow>(sql`
+        SELECT
+            CASE WHEN EXISTS (
+                SELECT 1 FROM deals d2
+                WHERE d2.company_id = d.company_id
+                AND d2.business_unit_id = ${businessUnitId}
+                AND d2.deleted_at IS NULL
+                AND d2.id != d.id
+                AND d2.created_at < d.created_at
+            ) THEN 'existing' ELSE 'new' END AS segment,
+            COUNT(*)::int AS cnt
+        FROM deals d
+        WHERE d.owner_user_id = ${userId}
+        AND d.business_unit_id = ${businessUnitId}
+        AND d.deleted_at IS NULL
+        AND d.created_at >= ${startDate}::date
+        AND d.created_at < (${endDate}::date + INTERVAL '1 day')
+        GROUP BY 1
+    `);
+
+    for (const row of apoRows.rows) {
+        const seg = row.segment as 'new' | 'existing';
+        const cnt = Number(row.cnt);
+        metrics.appointmentCount.total += cnt;
+        metrics.appointmentCount.bySegment[seg] += cnt;
+    }
+
+    // 4. Negotiation (NEGOTIATING stage transitions for user's deals)
+    if (negoStageIds.length > 0) {
+        const negoRows = await db.execute<SegRow>(sql`
+            SELECT
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM deals d2
+                    WHERE d2.company_id = d.company_id
+                    AND d2.business_unit_id = ${businessUnitId}
+                    AND d2.deleted_at IS NULL
+                    AND d2.id != d.id
+                    AND d2.created_at < dsh.changed_at
+                ) THEN 'existing' ELSE 'new' END AS segment,
+                COUNT(*)::int AS cnt
+            FROM deal_stage_history dsh
+            JOIN deals d ON dsh.deal_id = d.id
+            WHERE d.owner_user_id = ${userId}
+            AND dsh.to_stage_id = ANY(${negoStageIds})
+            AND dsh.changed_at >= ${startDate}::date
+            AND dsh.changed_at < (${endDate}::date + INTERVAL '1 day')
+            GROUP BY 1
+        `);
+        for (const row of negoRows.rows) {
+            const seg = row.segment as 'new' | 'existing';
+            const cnt = Number(row.cnt);
+            metrics.negotiationCount.total += cnt;
+            metrics.negotiationCount.bySegment[seg] += cnt;
+        }
+    }
+
+    // 5. Contracts (CONTRACTED stage transitions for user's deals)
+    if (contractStageIds.length > 0) {
+        const contractRows = await db.execute<SegRow>(sql`
+            SELECT
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM deals d2
+                    WHERE d2.company_id = d.company_id
+                    AND d2.business_unit_id = ${businessUnitId}
+                    AND d2.deleted_at IS NULL
+                    AND d2.id != d.id
+                    AND d2.created_at < dsh.changed_at
+                ) THEN 'existing' ELSE 'new' END AS segment,
+                COUNT(*)::int AS cnt
+            FROM deal_stage_history dsh
+            JOIN deals d ON dsh.deal_id = d.id
+            WHERE d.owner_user_id = ${userId}
+            AND dsh.to_stage_id = ANY(${contractStageIds})
+            AND dsh.changed_at >= ${startDate}::date
+            AND dsh.changed_at < (${endDate}::date + INTERVAL '1 day')
+            GROUP BY 1
+        `);
+        for (const row of contractRows.rows) {
+            const seg = row.segment as 'new' | 'existing';
+            const cnt = Number(row.cnt);
+            metrics.contractCount.total += cnt;
+            metrics.contractCount.bySegment[seg] += cnt;
+        }
+    }
+
+    return metrics;
+}
+
+export async function getPersonalRollingKpis(
+    userId: string,
+    businessUnitId: string,
+): Promise<PersonalRollingKpiBlock[]> {
+    const [negoStages, contractStages] = await Promise.all([
+        db
+            .select({ id: pipelineStages.id })
+            .from(pipelineStages)
+            .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
+            .where(and(eq(pipelines.businessUnitId, businessUnitId), eq(pipelineStages.stageKey, 'NEGOTIATING'))),
+        db
+            .select({ id: pipelineStages.id })
+            .from(pipelineStages)
+            .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
+            .where(and(eq(pipelines.businessUnitId, businessUnitId), eq(pipelineStages.stageKey, 'CONTRACTED'))),
+    ]);
+    const negoStageIds = negoStages.map((s) => s.id);
+    const contractStageIds = contractStages.map((s) => s.id);
+
+    const results = await Promise.all(
+        ALL_ROLLING_PERIODS.map(async (period) => {
+            const bounds = getRollingPeriodBounds(period);
+            const metrics = await getPersonalPeriodMetrics(userId, businessUnitId, bounds, negoStageIds, contractStageIds);
+            return {
+                period,
+                periodLabel: bounds.label,
+                startDate: bounds.startDate,
+                endDate: bounds.endDate,
+                metrics,
+            } satisfies PersonalRollingKpiBlock;
+        }),
+    );
+    return results;
 }
 
 export async function getPersonalNextActions(

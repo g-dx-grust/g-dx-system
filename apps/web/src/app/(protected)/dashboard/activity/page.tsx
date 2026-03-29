@@ -1,6 +1,6 @@
 import { getDashboardSummary } from '@/modules/sales/deal/application/get-dashboard-summary';
 import { getMonthlyActivityStats } from '@/modules/sales/deal/application/get-monthly-activity-stats';
-import { getSalesKpi } from '@/modules/sales/deal/application/get-sales-kpi';
+import { getRollingKpi } from '@/modules/sales/deal/application/get-rolling-kpi';
 import { ActivityDashboard } from '@/modules/sales/deal/ui/dashboard-activity';
 import { MemberViewTabs } from '@/modules/sales/deal/ui/member-view-tabs';
 import { SalesKpiDashboard } from '@/modules/sales/deal/ui/sales-kpi-dashboard';
@@ -11,31 +11,18 @@ import { redirect } from 'next/navigation';
 export default async function ActivityDashboardPage() {
     let summary;
     let monthlyStats;
-    let kpiDaily;
-    let kpiMonthly;
-    let kpiQuarterly;
-    let kpiYearly;
+    let rollingKpiData;
     try {
-        [summary, monthlyStats, kpiDaily, kpiMonthly, kpiQuarterly, kpiYearly] = await Promise.all([
+        [summary, monthlyStats, rollingKpiData] = await Promise.all([
             getDashboardSummary(),
             getMonthlyActivityStats(),
-            getSalesKpi('daily'),
-            getSalesKpi('monthly'),
-            getSalesKpi('quarterly'),
-            getSalesKpi('yearly'),
+            getRollingKpi(),
         ]);
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
         throw error;
     }
-
-    const kpiData = {
-        daily: kpiDaily,
-        monthly: kpiMonthly,
-        quarterly: kpiQuarterly,
-        yearly: kpiYearly,
-    };
 
     return (
         <div className="space-y-6">
@@ -48,7 +35,7 @@ export default async function ActivityDashboardPage() {
             <MemberViewTabs owners={summary.byOwner} monthlyStats={monthlyStats ?? []} />
 
             {/* 3.1.2 営業KPIダッシュボード */}
-            <SalesKpiDashboard kpiData={kpiData} activePeriod="monthly" />
+            <SalesKpiDashboard rollingKpiData={rollingKpiData} />
 
             {/* 3.1.3 行動予定一覧 */}
             <div className="grid gap-4 lg:grid-cols-2">

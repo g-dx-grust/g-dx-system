@@ -1,12 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { SalesKpiData } from '../application/get-sales-kpi';
+import type { SalesRollingKpiGrid, KpiSegmentedCounts } from '@g-dx/contracts';
 
 interface SalesKpiDashboardProps {
-    kpiData: Record<string, SalesKpiData>;
-    activePeriod: string;
+    rollingKpiData: SalesRollingKpiGrid;
 }
 
-const KPI_ITEMS: { key: keyof SalesKpiData; label: string }[] = [
+const KPI_ROWS: { key: string; label: string }[] = [
     { key: 'callCount', label: 'コール数' },
     { key: 'visitCount', label: '訪問数' },
     { key: 'onlineCount', label: 'オンライン商談数' },
@@ -15,16 +14,23 @@ const KPI_ITEMS: { key: keyof SalesKpiData; label: string }[] = [
     { key: 'contractCount', label: '契約数' },
 ];
 
-const PERIOD_LABELS: Record<string, string> = {
-    daily: '日次',
-    monthly: '月次',
-    quarterly: '四半期',
-    yearly: '年間',
-};
+function SegmentedCell({ counts }: { counts: KpiSegmentedCounts }) {
+    const { total, bySegment } = counts;
+    return (
+        <div className="text-right tabular-nums">
+            <span className="font-semibold text-gray-900">{total.toLocaleString()}</span>
+            {total > 0 && (
+                <div className="text-[11px] text-gray-400 leading-tight">
+                    <span className="text-blue-500">新{bySegment.new}</span>
+                    {' / '}
+                    <span className="text-orange-500">既{bySegment.existing}</span>
+                </div>
+            )}
+        </div>
+    );
+}
 
-export function SalesKpiDashboard({ kpiData, activePeriod }: SalesKpiDashboardProps) {
-    const periods = ['daily', 'monthly', 'quarterly', 'yearly'] as const;
-
+export function SalesKpiDashboard({ rollingKpiData }: SalesKpiDashboardProps) {
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
@@ -36,31 +42,36 @@ export function SalesKpiDashboard({ kpiData, activePeriod }: SalesKpiDashboardPr
                         <thead>
                             <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
                                 <th className="px-4 py-3">KPI指標</th>
-                                {periods.map((p) => (
-                                    <th key={p} className={`px-4 py-3 text-right ${p === activePeriod ? 'bg-gray-100 text-gray-900' : ''}`}>
-                                        {PERIOD_LABELS[p]}
+                                {rollingKpiData.map((col) => (
+                                    <th key={col.period} className="px-4 py-3 text-right whitespace-nowrap">
+                                        <div>{col.periodLabel.split(' ')[0]}</div>
+                                        <div className="font-normal normal-case text-[10px] text-gray-400">
+                                            {col.startDate.slice(5)} 〜 {col.endDate.slice(5)}
+                                        </div>
                                     </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {KPI_ITEMS.map((item) => (
-                                <tr key={item.key} className="hover:bg-gray-50">
-                                    <td className="px-4 py-3 font-medium text-gray-700">{item.label}</td>
-                                    {periods.map((p) => {
-                                        const data = kpiData[p];
-                                        const value = data ? (data[item.key] as number) : 0;
-                                        return (
-                                            <td key={p} className={`px-4 py-3 text-right tabular-nums ${p === activePeriod ? 'bg-gray-50 font-semibold text-gray-900' : 'text-gray-600'}`}>
-                                                {value.toLocaleString()}
-                                            </td>
-                                        );
-                                    })}
+                            {KPI_ROWS.map((row) => (
+                                <tr key={row.key} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">
+                                        {row.label}
+                                    </td>
+                                    {rollingKpiData.map((col) => (
+                                        <td key={col.period} className="px-4 py-3">
+                                            <SegmentedCell counts={(col.metrics as any)[row.key]} />
+                                        </td>
+                                    ))}
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
+                <p className="mt-2 text-right text-[11px] text-gray-400">
+                    <span className="text-blue-500">新</span> = 新規案件（顧客初回）
+                    <span className="text-orange-500">既</span> = 既存案件（リピート）
+                </p>
             </CardContent>
         </Card>
     );

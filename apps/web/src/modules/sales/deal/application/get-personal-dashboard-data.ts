@@ -2,7 +2,7 @@ import { assertPermission } from '@/shared/server/authorization';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
-import { getKpiTargetRow, getPersonalActuals } from '../infrastructure/personal-kpi-repository';
+import { getKpiTargetRow, getPersonalActuals, getPersonalRollingKpis } from '../infrastructure/personal-kpi-repository';
 import type { PersonalDashboardData, PersonalKpiItem } from '@g-dx/contracts';
 
 function getCurrentMonth(): string {
@@ -34,9 +34,10 @@ export async function getPersonalDashboardData(targetMonth?: string): Promise<Pe
     const businessUnit = await findBusinessUnitByScope(session.activeBusinessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
 
-    const [target, actuals] = await Promise.all([
+    const [target, actuals, rollingKpis] = await Promise.all([
         getKpiTargetRow(session.user.id, businessUnit.id, month),
         getPersonalActuals(session.user.id, businessUnit.id, month),
+        getPersonalRollingKpis(session.user.id, businessUnit.id),
     ]);
 
     const hasTargets = target !== null;
@@ -76,5 +77,6 @@ export async function getPersonalDashboardData(targetMonth?: string): Promise<Pe
         revenueTarget,
         revenueAchievementPct,
         hasTargets,
+        rollingKpis,
     };
 }

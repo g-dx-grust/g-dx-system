@@ -9,6 +9,7 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "db:push": "pnpm --filter @g-dx/database db:push",
+    "db:migrate:phase1": "pnpm --filter @g-dx/database db:migrate:phase1",
     "db:seed": "pnpm --filter @g-dx/database seed"
   },
   "devDependencies": {

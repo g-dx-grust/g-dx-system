@@ -408,7 +408,37 @@ export interface PersonalDashboardData {
     revenueTarget: number;
     revenueAchievementPct: number;
     hasTargets: boolean;
+    rollingKpis: PersonalRollingKpiBlock[];
 }
+
+// ─── Rolling KPI（期間別実績）────────────────────────────────────────────────
+
+export type DealSegment = 'new' | 'existing';
+export type RollingKpiPeriod = 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
+export type RollingKpiMetricKey = 'callCount' | 'visitCount' | 'onlineCount' | 'appointmentCount' | 'negotiationCount' | 'contractCount';
+
+export interface KpiSegmentedCounts {
+    total: number;
+    bySegment: Record<DealSegment, number>;
+}
+
+export interface PersonalRollingKpiBlock {
+    period: RollingKpiPeriod;
+    periodLabel: string;
+    startDate: string;
+    endDate: string;
+    metrics: Record<RollingKpiMetricKey, KpiSegmentedCounts>;
+}
+
+export interface SalesRollingKpiColumn {
+    period: RollingKpiPeriod;
+    periodLabel: string;
+    startDate: string;
+    endDate: string;
+    metrics: Record<RollingKpiMetricKey, KpiSegmentedCounts>;
+}
+
+export type SalesRollingKpiGrid = SalesRollingKpiColumn[];
 
 export type NextActionUrgency = 'OVERDUE' | 'TODAY' | 'THIS_WEEK';
 

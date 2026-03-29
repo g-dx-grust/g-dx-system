@@ -9,9 +9,10 @@ import {
     deals,
     pipelineStages,
     pipelines,
+    userBusinessMemberships,
     users,
 } from '@g-dx/database/schema';
-import { and, count, desc, eq, gte, isNotNull, isNull, lte, sql, sum } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lte, sql, sum } from 'drizzle-orm';
 import type { BusinessScopeType, DealCompanyStat, DealDashboardSummary, DealDetail, DealListItem, DealNextActionItem, DealOwnerStat, DealStageSummary, DealStageKey, DealStatus } from '@g-dx/contracts';
 import { sendGroupMessage, buildStageChangeMessage } from '@/lib/lark/larkMessaging';
 import { createCalendarEvent, buildNextActionCalendarParams } from '@/lib/lark/larkCalendar';
@@ -51,34 +52,35 @@ export async function listDeals(filters: DealListFilters): Promise<DealListResul
         filters.companyId ? eq(deals.companyId, filters.companyId) : undefined,
     );
 
-    const rows = await db
-        .select({
-            id: deals.id,
-            name: deals.title,
-            stageKey: pipelineStages.stageKey,
-            amount: deals.amount,
-            expectedCloseDate: deals.expectedCloseDate,
-            companyId: companies.id,
-            companyName: companies.displayName,
-            ownerUserId: deals.ownerUserId,
-            ownerUserName: users.displayName,
-            businessScopeCode: businessUnits.code,
-        })
-        .from(deals)
-        .innerJoin(businessUnits, eq(deals.businessUnitId, businessUnits.id))
-        .innerJoin(companies, eq(deals.companyId, companies.id))
-        .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
-        .leftJoin(users, eq(deals.ownerUserId, users.id))
-        .where(whereClause)
-        .orderBy(desc(deals.updatedAt))
-        .limit(pageSize)
-        .offset(offset);
-
-    const [{ total }] = await db
-        .select({ total: count() })
-        .from(deals)
-        .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
-        .where(whereClause);
+    const [rows, [{ total }]] = await Promise.all([
+        db
+            .select({
+                id: deals.id,
+                name: deals.title,
+                stageKey: pipelineStages.stageKey,
+                amount: deals.amount,
+                expectedCloseDate: deals.expectedCloseDate,
+                companyId: companies.id,
+                companyName: companies.displayName,
+                ownerUserId: deals.ownerUserId,
+                ownerUserName: users.displayName,
+                businessScopeCode: businessUnits.code,
+            })
+            .from(deals)
+            .innerJoin(businessUnits, eq(deals.businessUnitId, businessUnits.id))
+            .innerJoin(companies, eq(deals.companyId, companies.id))
+            .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+            .leftJoin(users, eq(deals.ownerUserId, users.id))
+            .where(whereClause)
+            .orderBy(desc(deals.updatedAt))
+            .limit(pageSize)
+            .offset(offset),
+        db
+            .select({ total: count() })
+            .from(deals)
+            .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+            .where(whereClause),
+    ]);
 
     return {
         data: rows.map((row): DealListItem => ({
@@ -635,32 +637,72 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
     const businessUnit = await findBusinessUnitByScope(businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
 
-    // Get all stages for this business unit's pipeline
-    const stageRows = await db
-        .select({ id: pipelineStages.id, stageKey: pipelineStages.stageKey, name: pipelineStages.name, stageOrder: pipelineStages.stageOrder })
-        .from(pipelineStages)
-        .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
-        .where(and(eq(pipelines.businessUnitId, businessUnit.id), eq(pipelines.isDefault, true)))
-        .orderBy(pipelineStages.stageOrder);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+    const [stageRows, allDeals, activeMembers, nextActionDeals] = await Promise.all([
+        db
+            .select({ id: pipelineStages.id, stageKey: pipelineStages.stageKey, name: pipelineStages.name, stageOrder: pipelineStages.stageOrder })
+            .from(pipelineStages)
+            .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
+            .where(and(eq(pipelines.businessUnitId, businessUnit.id), eq(pipelines.isDefault, true)))
+            .orderBy(pipelineStages.stageOrder),
+        db
+            .select({
+                id: deals.id,
+                stageId: deals.currentStageId,
+                amount: deals.amount,
+                ownerUserId: deals.ownerUserId,
+                ownerName: users.displayName,
+                dealStatus: deals.dealStatus,
+                companyId: deals.companyId,
+                companyName: companies.displayName,
+            })
+            .from(deals)
+            .leftJoin(users, eq(deals.ownerUserId, users.id))
+            .leftJoin(companies, eq(deals.companyId, companies.id))
+            .where(and(eq(deals.businessUnitId, businessUnit.id), isNull(deals.deletedAt))),
+        db
+            .select({ userId: userBusinessMemberships.userId, displayName: users.displayName })
+            .from(userBusinessMemberships)
+            .innerJoin(users, eq(userBusinessMemberships.userId, users.id))
+            .where(and(
+                eq(userBusinessMemberships.businessUnitId, businessUnit.id),
+                eq(userBusinessMemberships.membershipStatus, 'active'),
+            )),
+        db
+            .select({
+                id: deals.id,
+                title: deals.title,
+                amount: deals.amount,
+                nextActionDate: deals.nextActionDate,
+                nextActionContent: deals.nextActionContent,
+                acquisitionMethod: deals.acquisitionMethod,
+                stageId: deals.currentStageId,
+                ownerUserId: deals.ownerUserId,
+                ownerName: users.displayName,
+                companyName: companies.displayName,
+            })
+            .from(deals)
+            .leftJoin(users, eq(deals.ownerUserId, users.id))
+            .innerJoin(companies, eq(deals.companyId, companies.id))
+            .where(and(
+                eq(deals.businessUnitId, businessUnit.id),
+                isNull(deals.deletedAt),
+                isNotNull(deals.nextActionDate),
+                lte(deals.nextActionDate, weekEndStr),
+                gte(deals.nextActionDate, todayStr),
+            )),
+    ]);
 
     const stageMap = new Map(stageRows.map((s) => [s.id, s]));
-
-    // Get all non-deleted deals with their stage info
-    const allDeals = await db
-        .select({
-            id: deals.id,
-            stageId: deals.currentStageId,
-            amount: deals.amount,
-            ownerUserId: deals.ownerUserId,
-            ownerName: users.displayName,
-            dealStatus: deals.dealStatus,
-            companyId: deals.companyId,
-            companyName: companies.displayName,
-        })
-        .from(deals)
-        .leftJoin(users, eq(deals.ownerUserId, users.id))
-        .leftJoin(companies, eq(deals.companyId, companies.id))
-        .where(and(eq(deals.businessUnitId, businessUnit.id), isNull(deals.deletedAt)));
 
     // Aggregate by stage
     const stageCounts = new Map<string, { count: number; totalAmount: number }>();
@@ -701,6 +743,14 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
         entry.amount += dealAmount;
         ownerMap.set(deal.ownerUserId, entry);
     }
+
+    // §6: 案件を持たないアクティブメンバーも一覧に含める
+    for (const member of activeMembers) {
+        if (!ownerMap.has(member.userId)) {
+            ownerMap.set(member.userId, { name: member.displayName ?? 'Unknown', total: 0, active: 0, contracted: 0, amount: 0 });
+        }
+    }
+
     const byOwner: DealOwnerStat[] = Array.from(ownerMap.entries()).map(([id, v]) => ({
         ownerUserId: id,
         ownerName: v.name,
@@ -728,54 +778,28 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
         totalAmount: v.amount,
     })).sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 10);
 
-    // Next actions
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    const weekEnd = new Date(today);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    const weekEndStr = weekEnd.toISOString().split('T')[0];
-
-    const nextActionDeals = await db
-        .select({
-            id: deals.id,
-            title: deals.title,
-            amount: deals.amount,
-            nextActionDate: deals.nextActionDate,
-            nextActionContent: deals.nextActionContent,
-            acquisitionMethod: deals.acquisitionMethod,
-            stageId: deals.currentStageId,
-            ownerUserId: deals.ownerUserId,
-            ownerName: users.displayName,
-            companyName: companies.displayName,
-        })
-        .from(deals)
-        .leftJoin(users, eq(deals.ownerUserId, users.id))
-        .innerJoin(companies, eq(deals.companyId, companies.id))
-        .where(and(
-            eq(deals.businessUnitId, businessUnit.id),
-            isNull(deals.deletedAt),
-            isNotNull(deals.nextActionDate),
-            lte(deals.nextActionDate, weekEndStr),
-            gte(deals.nextActionDate, todayStr),
-        ));
-
     // 前回アクション情報を各案件について取得
     const dealIds = nextActionDeals.map((d) => d.id);
+    const nextActionDealIds = nextActionDeals.map((deal) => deal.id);
     const lastActivitiesMap = new Map<string, { summary: string | null; date: string | null }>();
-    if (dealIds.length > 0) {
-        for (const did of dealIds) {
-            const [lastActivity] = await db
-                .select({ summary: dealActivities.summary, activityDate: dealActivities.activityDate })
-                .from(dealActivities)
-                .where(eq(dealActivities.dealId, did))
-                .orderBy(desc(dealActivities.activityDate))
-                .limit(1);
-            if (lastActivity) {
-                lastActivitiesMap.set(did, { summary: lastActivity.summary, date: lastActivity.activityDate });
+    if (nextActionDealIds.length > 0) {
+        const lastActivityRows = await db
+            .select({
+                dealId: dealActivities.dealId,
+                summary: dealActivities.summary,
+                activityDate: dealActivities.activityDate,
+                createdAt: dealActivities.createdAt,
+            })
+            .from(dealActivities)
+            .where(inArray(dealActivities.dealId, nextActionDealIds))
+            .orderBy(desc(dealActivities.activityDate), desc(dealActivities.createdAt));
+
+        for (const row of lastActivityRows) {
+            if (!lastActivitiesMap.has(row.dealId)) {
+                lastActivitiesMap.set(row.dealId, {
+                    summary: row.summary,
+                    date: row.activityDate,
+                });
             }
         }
     }

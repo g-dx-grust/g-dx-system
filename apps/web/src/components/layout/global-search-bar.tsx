@@ -24,24 +24,37 @@ export function GlobalSearchBar() {
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const abortRef = useRef<AbortController | null>(null);
 
     const search = useCallback(async (q: string) => {
         if (q.length < 2) {
+            abortRef.current?.abort();
             setResults([]);
             setOpen(false);
             return;
         }
+
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+
         setLoading(true);
         try {
-            const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+            const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`, {
+                signal: controller.signal,
+            });
             if (!res.ok) return;
             const json = await res.json();
             setResults(json.data ?? []);
             setOpen(true);
-        } catch {
-            // Silent fail
+        } catch (error) {
+            if ((error as Error).name === 'AbortError') {
+                return;
+            }
         } finally {
-            setLoading(false);
+            if (abortRef.current === controller) {
+                setLoading(false);
+            }
         }
     }, []);
 
@@ -66,7 +79,13 @@ export function GlobalSearchBar() {
             }
         };
         document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
+        return () => {
+            if (timeoutRef.current) {
+                clearTimeout(timeoutRef.current);
+            }
+            abortRef.current?.abort();
+            document.removeEventListener('mousedown', handler);
+        };
     }, []);
 
     return (

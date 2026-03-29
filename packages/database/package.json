@@ -7,6 +7,7 @@
         "build": "tsc -p tsconfig.json --noEmit",
         "db:push": "drizzle-kit push",
         "db:migrate": "drizzle-kit migrate",
+        "db:migrate:phase1": "tsx scripts/migrate-phase1-prod.ts",
         "seed": "tsx scripts/seed-rbac.ts",
         "seed:masters": "tsx src/seeds/seed-masters.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit"

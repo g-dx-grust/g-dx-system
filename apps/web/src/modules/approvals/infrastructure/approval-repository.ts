@@ -16,6 +16,7 @@ import type {
     CreateApprovalRequest,
     DecideApprovalRequest,
     ApprovalStatusValue,
+    ApprovalTypeValue,
     PaginationMeta,
 } from '@g-dx/contracts';
 import { AppError } from '@/shared/server/errors';
@@ -105,7 +106,7 @@ export async function listApprovalRequests(
             dealId: row.dealId,
             dealTitle: row.dealTitle,
             companyName: row.companyName,
-            approvalType: row.approvalType as ApprovalStatusValue,
+            approvalType: row.approvalType as ApprovalTypeValue,
             approvalStatus: row.approvalStatus as ApprovalStatusValue,
             applicantUserId: row.applicantUserId,
             applicantName: row.applicantName ?? 'Unknown',
@@ -183,7 +184,7 @@ export async function getApprovalRequestDetail(
         dealId: row.dealId,
         dealTitle: row.dealTitle,
         companyName: row.companyName,
-        approvalType: row.approvalType as ApprovalStatusValue,
+        approvalType: row.approvalType as ApprovalTypeValue,
         approvalStatus: row.approvalStatus as ApprovalStatusValue,
         applicantUserId: row.applicantUserId,
         applicantName: row.applicantName ?? 'Unknown',

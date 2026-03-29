@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import {
     BusinessScope,
     PermissionKey,
@@ -176,7 +177,7 @@ export async function setActiveBusinessScopeCookie(activeBusinessScope: Business
     });
 }
 
-export async function getAuthenticatedAppSession(): Promise<AuthenticatedAppSession | null> {
+const getAuthenticatedAppSessionCached = cache(async (): Promise<AuthenticatedAppSession | null> => {
     const cookieStore = cookies();
     const userId = cookieStore.get(getSessionCookieName())?.value;
 
@@ -200,21 +201,37 @@ export async function getAuthenticatedAppSession(): Promise<AuthenticatedAppSess
         return null;
     }
 
-    const memberships = await db
-        .select({
-            code: businessUnits.code,
-            name: businessUnits.name,
-            isDefault: userBusinessMemberships.isDefault,
-        })
-        .from(userBusinessMemberships)
-        .innerJoin(businessUnits, eq(userBusinessMemberships.businessUnitId, businessUnits.id))
-        .where(
-            and(
-                eq(userBusinessMemberships.userId, userId),
-                eq(userBusinessMemberships.membershipStatus, 'active'),
-                eq(businessUnits.isActive, true)
-            )
-        );
+    const [memberships, roleRows] = await Promise.all([
+        db
+            .select({
+                code: businessUnits.code,
+                name: businessUnits.name,
+                isDefault: userBusinessMemberships.isDefault,
+            })
+            .from(userBusinessMemberships)
+            .innerJoin(businessUnits, eq(userBusinessMemberships.businessUnitId, businessUnits.id))
+            .where(
+                and(
+                    eq(userBusinessMemberships.userId, userId),
+                    eq(userBusinessMemberships.membershipStatus, 'active'),
+                    eq(businessUnits.isActive, true)
+                )
+            ),
+        db
+            .select({
+                code: roles.code,
+                businessScope: businessUnits.code,
+            })
+            .from(userRoleAssignments)
+            .innerJoin(roles, eq(userRoleAssignments.roleId, roles.id))
+            .leftJoin(businessUnits, eq(userRoleAssignments.businessUnitId, businessUnits.id))
+            .where(
+                and(
+                    eq(userRoleAssignments.userId, userId),
+                    or(isNull(userRoleAssignments.expiresAt), gt(userRoleAssignments.expiresAt, new Date()))
+                )
+            ),
+    ]);
 
     const businessMemberships = memberships
         .filter((membership): membership is typeof membership & { code: BusinessScopeType } => isBusinessScopeType(membership.code))
@@ -227,21 +244,6 @@ export async function getAuthenticatedAppSession(): Promise<AuthenticatedAppSess
     if (businessMemberships.length === 0) {
         return null;
     }
-
-    const roleRows = await db
-        .select({
-            code: roles.code,
-            businessScope: businessUnits.code,
-        })
-        .from(userRoleAssignments)
-        .innerJoin(roles, eq(userRoleAssignments.roleId, roles.id))
-        .leftJoin(businessUnits, eq(userRoleAssignments.businessUnitId, businessUnits.id))
-        .where(
-            and(
-                eq(userRoleAssignments.userId, userId),
-                or(isNull(userRoleAssignments.expiresAt), gt(userRoleAssignments.expiresAt, new Date()))
-            )
-        );
 
     // SUPER_ADMIN は全ビジネスユニットに自動アクセス
     if (roleRows.some(row => row.code === Role.SUPER_ADMIN)) {
@@ -284,6 +286,10 @@ export async function getAuthenticatedAppSession(): Promise<AuthenticatedAppSess
         businessMemberships,
         expiresAt: getSessionExpiryIso(),
     };
+});
+
+export async function getAuthenticatedAppSession(): Promise<AuthenticatedAppSession | null> {
+    return getAuthenticatedAppSessionCached();
 }
 
 export function getGrantedPermissionKeys(roles: RoleType[]): PermissionKey[] {

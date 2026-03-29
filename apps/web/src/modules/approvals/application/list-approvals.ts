@@ -1,4 +1,4 @@
-import type { ApprovalRequestListResponse } from '@g-dx/contracts';
+import type { ApprovalRequestListResponse, PaginationMeta } from '@g-dx/contracts';
 import { assertPermission } from '@/shared/server/authorization';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
@@ -10,7 +10,7 @@ export async function listApprovals(filters: {
     approvalType?: string;
     approvalStatus?: string;
     dealId?: string;
-}): Promise<ApprovalRequestListResponse['data']> {
+}): Promise<{ data: ApprovalRequestListResponse['data']; meta: PaginationMeta }> {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
 

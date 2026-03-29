@@ -3,14 +3,30 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Building2, Briefcase, PhoneCall, ScrollText, TrendingUp, Banknote, Activity, History, ChevronLeft, ChevronRight, MapPin, FileText as JetContractIcon, User, Target } from 'lucide-react';
+import {
+    Activity,
+    Banknote,
+    Briefcase,
+    Building2,
+    ChevronLeft,
+    ChevronRight,
+    FileText as JetContractIcon,
+    History,
+    MapPin,
+    PhoneCall,
+    ScrollText,
+    ShieldCheck,
+    Target,
+    TrendingUp,
+    User,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const commonNavigation = [
     {
         name: 'ダッシュボード',
         items: [
-            { name: '案件ダッシュボード', href: '/dashboard/deals', icon: TrendingUp },
+            { name: '商談ダッシュボード', href: '/dashboard/deals', icon: TrendingUp },
             { name: '入金ダッシュボード', href: '/dashboard/payments', icon: Banknote },
             { name: '活動ダッシュボード', href: '/dashboard/activity', icon: Activity },
             { name: '個人ダッシュボード', href: '/dashboard/personal', icon: User },
@@ -26,8 +42,9 @@ const commonNavigation = [
     {
         name: '営業管理',
         items: [
-            { name: '案件', href: '/sales/deals', icon: Briefcase },
+            { name: '商談', href: '/sales/deals', icon: Briefcase },
             { name: '契約', href: '/sales/contracts', icon: ScrollText },
+            { name: '承認', href: '/sales/approvals', icon: ShieldCheck },
         ],
     },
     {
@@ -42,7 +59,7 @@ const commonNavigation = [
 
 const jetNavigation = [
     {
-        name: '節水事業（JET）',
+        name: '施設事業管理',
         items: [
             { name: '施設一覧', href: '/jet/facilities', icon: MapPin },
             { name: 'JET契約', href: '/jet/contracts', icon: JetContractIcon },
@@ -67,8 +84,7 @@ export function Sidebar({ isCollapsed = false, onToggle, activeBusinessScope }: 
 
     return (
         <div className={cn('flex h-full flex-col border-r bg-white transition-all duration-200', isCollapsed ? 'w-14' : 'w-64')}>
-            {/* ロゴ + トグルボタン */}
-            <div className="flex h-14 shrink-0 items-center border-b px-3 gap-2">
+            <div className="flex h-14 shrink-0 items-center gap-2 border-b px-3">
                 {isCollapsed ? (
                     <Link href="/dashboard/deals" className="flex shrink-0 items-center justify-center" title="G-DX System">
                         <Image src="/gdxlogo__1_.png" alt="G-DX" width={32} height={32} className="object-contain" />
@@ -80,22 +96,22 @@ export function Sidebar({ isCollapsed = false, onToggle, activeBusinessScope }: 
                 )}
                 <button
                     onClick={onToggle}
-                    className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 transition-colors"
+                    className="ml-auto flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-400 transition-colors hover:bg-gray-200 hover:text-gray-600"
                     title={isCollapsed ? 'サイドバーを開く' : 'サイドバーを閉じる'}
                 >
                     {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
                 </button>
             </div>
 
-            {/* ナビゲーション */}
             <div className="flex-1 overflow-y-auto px-2 py-4">
                 <nav className="space-y-5">
                     {navigation.map((group) => (
                         <div key={group.name}>
-                            {isCollapsed
-                                ? <div className="mb-1 border-t border-gray-200" />
-                                : <h3 className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{group.name}</h3>
-                            }
+                            {isCollapsed ? (
+                                <div className="mb-1 border-t border-gray-200" />
+                            ) : (
+                                <h3 className="mb-1 px-2 text-xs font-semibold uppercase tracking-wider text-gray-400">{group.name}</h3>
+                            )}
                             <div className="space-y-0.5">
                                 {group.items.map((item) => {
                                     const ItemIcon = item.icon;
@@ -106,11 +122,9 @@ export function Sidebar({ isCollapsed = false, onToggle, activeBusinessScope }: 
                                             href={item.href}
                                             title={isCollapsed ? item.name : undefined}
                                             className={cn(
-                                                'flex items-center rounded-md px-2 py-2 text-sm font-normal transition-colors',
-                                                isCollapsed ? 'justify-center' : 'gap-3 px-3',
-                                                active
-                                                    ? 'bg-gray-100 text-gray-900'
-                                                    : 'text-gray-700 hover:bg-gray-100'
+                                                'flex items-center rounded-md py-2 text-sm font-normal transition-colors',
+                                                isCollapsed ? 'justify-center px-2' : 'gap-3 px-3',
+                                                active ? 'bg-gray-100 text-gray-900' : 'text-gray-700 hover:bg-gray-100',
                                             )}
                                         >
                                             <ItemIcon className={cn('h-4 w-4 shrink-0', active ? 'text-gray-900' : 'text-gray-500')} />
@@ -124,12 +138,11 @@ export function Sidebar({ isCollapsed = false, onToggle, activeBusinessScope }: 
                 </nav>
             </div>
 
-            {/* フッター */}
-            {!isCollapsed && (
+            {!isCollapsed ? (
                 <div className="border-t p-3">
                     <p className="text-xs text-gray-400">© 2026 G-DX Inc.</p>
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }

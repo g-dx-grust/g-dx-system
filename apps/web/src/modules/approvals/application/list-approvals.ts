@@ -10,6 +10,8 @@ export async function listApprovals(filters: {
     approvalType?: string;
     approvalStatus?: string;
     dealId?: string;
+    applicantUserId?: string;
+    approverUserId?: string;
 }): Promise<{ data: ApprovalRequestListResponse['data']; meta: PaginationMeta }> {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');

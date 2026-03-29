@@ -1,10 +1,20 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
-import type { DealActivityItem, DealDetail, DealStageKey, PipelineStageDefinition } from '@g-dx/contracts';
+import type {
+    ApprovalRequestListItem,
+    DealActivityItem,
+    DealDetail,
+    DealStageKey,
+    HearingCompletionStatus,
+    HearingRecord,
+    PipelineStageDefinition,
+} from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DealApprovalPanel } from '@/modules/approvals/ui/deal-approval-panel';
+import { HearingPanel } from '@/modules/sales/hearing/ui/hearing-panel';
 import { updateDealAction, changeDealStageAction, saveLarkSettingsAction } from '@/modules/sales/deal/server-actions';
 import { DealActivityLog, DealActivitySidebarForm } from './deal-activity-log';
 import type { DealStageHistoryItem } from '../infrastructure/deal-repository';
@@ -18,6 +28,14 @@ interface DealDetailViewProps {
     staged?: boolean;
     activityAdded?: boolean;
     larkSaved?: boolean;
+    approvalCreated?: boolean;
+    hearingSaved?: boolean;
+    hearingRecord: HearingRecord | null;
+    hearingCompletion: HearingCompletionStatus;
+    approvalRequests: ApprovalRequestListItem[];
+    canEditHearing: boolean;
+    canCreateApproval: boolean;
+    canReadApprovals: boolean;
 }
 
 const STAGE_LABELS: Record<DealStageKey, string> = {
@@ -60,7 +78,24 @@ const STAGE_BUTTON_STYLES: Record<DealStageKey, string> = {
     CONTRACTED: 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700',
 };
 
-export function DealDetailView({ deal, stages, activities, stageHistory = [], updated = false, staged = false, activityAdded = false, larkSaved = false }: DealDetailViewProps) {
+export function DealDetailView({
+    deal,
+    stages,
+    activities,
+    stageHistory = [],
+    updated = false,
+    staged = false,
+    activityAdded = false,
+    larkSaved = false,
+    approvalCreated = false,
+    hearingSaved = false,
+    hearingRecord,
+    hearingCompletion,
+    approvalRequests,
+    canEditHearing,
+    canCreateApproval,
+    canReadApprovals,
+}: DealDetailViewProps) {
     const isOpen = deal.status === 'open';
     const otherStages = stages.filter((s) => s.key !== deal.stage);
 
@@ -102,6 +137,18 @@ export function DealDetailView({ deal, stages, activities, stageHistory = [], up
             ) : null}
 
             {/* 2カラムレイアウト: メインコンテンツ + 活動ログサイドバー */}
+            {approvalCreated ? (
+                <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    承認申請を登録しました。
+                </div>
+            ) : null}
+
+            {hearingSaved ? (
+                <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    ヒアリング内容を更新しました。
+                </div>
+            ) : null}
+
             <div className="xl:grid xl:grid-cols-[1fr_300px] xl:items-start xl:gap-6">
                 {/* 左カラム */}
                 <div className="space-y-6">
@@ -285,6 +332,20 @@ export function DealDetailView({ deal, stages, activities, stageHistory = [], up
                             </form>
                         </div>
                     </details>
+
+                    <HearingPanel
+                        dealId={deal.id}
+                        record={hearingRecord}
+                        completion={hearingCompletion}
+                        canEdit={canEditHearing}
+                    />
+
+                    <DealApprovalPanel
+                        dealId={deal.id}
+                        approvals={approvalRequests}
+                        canCreate={canCreateApproval}
+                        canRead={canReadApprovals}
+                    />
 
                     <DealActivityLog dealId={deal.id} activities={activities} activityAdded={activityAdded} hideForm />
 

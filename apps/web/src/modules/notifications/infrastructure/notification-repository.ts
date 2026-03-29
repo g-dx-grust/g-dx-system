@@ -96,3 +96,25 @@ export async function markAllNotificationsRead(recipientUserId: string): Promise
             )
         );
 }
+
+export async function createNotification(input: {
+    businessUnitId?: string | null;
+    recipientUserId: string;
+    notificationType: NotificationTypeValue;
+    title: string;
+    body?: string | null;
+    relatedEntityType?: string | null;
+    relatedEntityId?: string | null;
+    linkUrl?: string | null;
+}): Promise<void> {
+    await db.insert(notifications).values({
+        businessUnitId: input.businessUnitId ?? null,
+        recipientUserId: input.recipientUserId,
+        notificationType: input.notificationType,
+        title: input.title,
+        body: input.body ?? null,
+        relatedEntityType: input.relatedEntityType ?? null,
+        relatedEntityId: input.relatedEntityId ?? null,
+        linkUrl: input.linkUrl ?? null,
+    });
+}

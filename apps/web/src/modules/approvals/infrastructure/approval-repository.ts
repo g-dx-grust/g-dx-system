@@ -21,6 +21,7 @@ import type {
 } from '@g-dx/contracts';
 import { AppError } from '@/shared/server/errors';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
+import { createNotification } from '@/modules/notifications/infrastructure/notification-repository';
 import type { BusinessScopeType } from '@g-dx/contracts';
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
@@ -37,6 +38,24 @@ function mapCheckItem(row: typeof approvalCheckItems.$inferSelect): ApprovalChec
     };
 }
 
+const DECISION_NOTIFICATION_TYPES = {
+    APPROVED: 'APPROVAL_APPROVED',
+    REJECTED: 'APPROVAL_REJECTED',
+    RETURNED: 'APPROVAL_RETURNED',
+} as const;
+
+const DECISION_STATUS_TEXT: Record<string, string> = {
+    APPROVED: '承認済み',
+    REJECTED: '却下',
+    RETURNED: '差し戻し',
+};
+
+const APPROVAL_TYPE_TEXT: Record<string, string> = {
+    PRE_MEETING: '事前準備承認',
+    ESTIMATE_PRESENTATION: '見積提示承認',
+    TECH_REVIEW: '技術確認',
+};
+
 // ─── Queries ─────────────────────────────────────────────────────────────────
 
 export async function listApprovalRequests(
@@ -47,6 +66,8 @@ export async function listApprovalRequests(
         approvalType?: string;
         approvalStatus?: string;
         dealId?: string;
+        applicantUserId?: string;
+        approverUserId?: string;
     },
 ): Promise<{ data: ApprovalRequestListItem[]; meta: PaginationMeta }> {
     const businessUnit = await findBusinessUnitByScope(businessScope);
@@ -60,6 +81,8 @@ export async function listApprovalRequests(
     if (filters.approvalType) conditions.push(eq(approvalRequests.approvalType, filters.approvalType));
     if (filters.approvalStatus) conditions.push(eq(approvalRequests.approvalStatus, filters.approvalStatus));
     if (filters.dealId) conditions.push(eq(approvalRequests.dealId, filters.dealId));
+    if (filters.applicantUserId) conditions.push(eq(approvalRequests.applicantUserId, filters.applicantUserId));
+    if (filters.approverUserId) conditions.push(eq(approvalRequests.approverUserId, filters.approverUserId));
 
     const applicantUser = db.$with('applicant').as(
         db.select({ id: users.id, name: users.displayName }).from(users)
@@ -213,7 +236,10 @@ export async function createApprovalRequest(
 
     // Verify deal belongs to business unit
     const [deal] = await db
-        .select({ id: deals.id })
+        .select({
+            id: deals.id,
+            title: deals.title,
+        })
         .from(deals)
         .where(and(eq(deals.id, input.dealId), eq(deals.businessUnitId, businessUnit.id)))
         .limit(1);
@@ -260,6 +286,19 @@ export async function createApprovalRequest(
         );
     }
 
+    if (route?.approverUserId) {
+        await createNotification({
+            businessUnitId: businessUnit.id,
+            recipientUserId: route.approverUserId,
+            notificationType: 'APPROVAL_REQUESTED',
+            title: `承認依頼: ${deal.title}`,
+            body: `${APPROVAL_TYPE_TEXT[input.approvalType] ?? input.approvalType} の承認依頼が届いています。`,
+            relatedEntityType: 'approval_request',
+            relatedEntityId: created.id,
+            linkUrl: `/sales/approvals/${created.id}`,
+        });
+    }
+
     return { id: created.id };
 }
 
@@ -275,11 +314,14 @@ export async function decideApprovalRequest(
     const [existing] = await db
         .select({
             id: approvalRequests.id,
+            approvalType: approvalRequests.approvalType,
             approvalStatus: approvalRequests.approvalStatus,
             applicantUserId: approvalRequests.applicantUserId,
             approverUserId: approvalRequests.approverUserId,
+            dealTitle: deals.title,
         })
         .from(approvalRequests)
+        .innerJoin(deals, eq(approvalRequests.dealId, deals.id))
         .where(
             and(
                 eq(approvalRequests.id, approvalId),
@@ -330,6 +372,17 @@ export async function decideApprovalRequest(
             updatedAt: new Date(),
         })
         .where(eq(approvalRequests.id, approvalId));
+
+    await createNotification({
+        businessUnitId: businessUnit.id,
+        recipientUserId: existing.applicantUserId,
+        notificationType: DECISION_NOTIFICATION_TYPES[input.decision],
+        title: `承認結果: ${existing.dealTitle}`,
+        body: `${APPROVAL_TYPE_TEXT[existing.approvalType] ?? existing.approvalType} が ${DECISION_STATUS_TEXT[input.decision]} になりました。`,
+        relatedEntityType: 'approval_request',
+        relatedEntityId: approvalId,
+        linkUrl: `/sales/approvals/${approvalId}`,
+    });
 }
 
 export async function expireApprovalRequests(

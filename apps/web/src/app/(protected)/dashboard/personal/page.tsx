@@ -1,18 +1,49 @@
+import { redirect } from 'next/navigation';
+import type { ApprovalRequestListItem } from '@g-dx/contracts';
+import { listApprovals } from '@/modules/approvals/application/list-approvals';
+import { PersonalApprovalOverview } from '@/modules/approvals/ui/personal-approval-overview';
 import { getPersonalDashboardData } from '@/modules/sales/deal/application/get-personal-dashboard-data';
 import { getPersonalActionList } from '@/modules/sales/deal/application/get-personal-action-list';
 import { PersonalKpiProgress } from '@/modules/sales/deal/ui/personal-kpi-progress';
 import { PersonalActionList } from '@/modules/sales/deal/ui/personal-action-list';
 import { isAppError } from '@/shared/server/errors';
-import { redirect } from 'next/navigation';
+import { getAuthenticatedAppSession, getGrantedPermissionKeys } from '@/shared/server/session';
 
 export default async function PersonalDashboardPage() {
+    const session = await getAuthenticatedAppSession();
+    if (!session) {
+        redirect('/login');
+    }
+
+    const permissions = new Set(getGrantedPermissionKeys(session.user.roles));
+    const canReadApprovals = permissions.has('approval.request.read');
+
     let dashboardData;
     let actionItems;
+    let pendingApprovals: ApprovalRequestListItem[] = [];
+    let requestedApprovals: ApprovalRequestListItem[] = [];
     try {
-        [dashboardData, actionItems] = await Promise.all([
+        const [dashboardResult, actionResult, pendingApprovalResult, requestedApprovalResult] = await Promise.all([
             getPersonalDashboardData(),
             getPersonalActionList(),
+            canReadApprovals
+                ? listApprovals({
+                    approvalStatus: 'PENDING',
+                    approverUserId: session.user.id,
+                    pageSize: 5,
+                })
+                : Promise.resolve(null),
+            canReadApprovals
+                ? listApprovals({
+                    applicantUserId: session.user.id,
+                    pageSize: 5,
+                })
+                : Promise.resolve(null),
         ]);
+        dashboardData = dashboardResult;
+        actionItems = actionResult;
+        pendingApprovals = pendingApprovalResult?.data ?? [];
+        requestedApprovals = requestedApprovalResult?.data ?? [];
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
@@ -27,6 +58,13 @@ export default async function PersonalDashboardPage() {
             </div>
 
             <PersonalKpiProgress data={dashboardData} />
+
+            {canReadApprovals ? (
+                <PersonalApprovalOverview
+                    pendingItems={pendingApprovals}
+                    requestedItems={requestedApprovals}
+                />
+            ) : null}
 
             <PersonalActionList items={actionItems} />
         </div>

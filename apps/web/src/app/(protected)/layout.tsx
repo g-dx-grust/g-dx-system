@@ -13,7 +13,7 @@ export default async function ProtectedLayout({
     }
 
     return (
-        <GlobalLayout activeBusinessScope={session.activeBusinessScope}>
+        <GlobalLayout activeBusinessScope={session.activeBusinessScope} session={session}>
             {children}
         </GlobalLayout>
     );

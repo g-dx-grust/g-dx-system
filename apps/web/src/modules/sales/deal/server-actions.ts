@@ -1,21 +1,31 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createDeal } from '@/modules/sales/deal/application/create-deal';
 import { updateDeal } from '@/modules/sales/deal/application/update-deal';
 import { changeDealStage } from '@/modules/sales/deal/application/change-deal-stage';
 import { createDealActivity } from '@/modules/sales/deal/application/create-deal-activity';
 import { saveLarkSettings } from '@/modules/sales/deal/application/save-lark-settings';
+import { getDashboardScopeTag } from '@/modules/sales/deal/infrastructure/dashboard-cache';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
-import type { DealActivityType, DealStageKey } from '@g-dx/contracts';
+import type { BusinessScopeType, DealActivityType, DealStageKey } from '@g-dx/contracts';
 
 function readString(formData: FormData, key: string): string | undefined {
     const value = formData.get(key);
     if (typeof value !== 'string') return undefined;
     const trimmed = value.trim();
     return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function revalidateDashboardPaths(scope?: BusinessScopeType) {
+    revalidatePath('/dashboard/deals');
+    revalidatePath('/dashboard/activity');
+    revalidatePath('/dashboard/personal');
+    if (scope) {
+        revalidateTag(getDashboardScopeTag(scope));
+    }
 }
 
 export async function createDealAction(formData: FormData) {
@@ -46,6 +56,7 @@ export async function createDealAction(formData: FormData) {
             memo: readString(formData, 'memo'),
         });
         revalidatePath('/sales/deals');
+        revalidateDashboardPaths(session.activeBusinessScope);
         revalidatePath(`/customers/companies/${companyId}`);
         redirect(`/sales/deals/${result.id}?created=1`);
     } catch (error) {
@@ -59,6 +70,8 @@ export async function createDealAction(formData: FormData) {
 export async function updateDealAction(formData: FormData) {
     const dealId = readString(formData, 'dealId');
     if (!dealId) redirect('/sales/deals');
+    const session = await getAuthenticatedAppSession();
+    if (!session) redirect('/login');
 
     const amountRaw = readString(formData, 'amount');
     const amount = amountRaw !== undefined ? (amountRaw === '' ? null : Number(amountRaw)) : undefined;
@@ -83,6 +96,7 @@ export async function updateDealAction(formData: FormData) {
 
     revalidatePath('/sales/deals');
     revalidatePath(`/sales/deals/${dealId}`);
+    revalidateDashboardPaths(session.activeBusinessScope);
     redirect(`/sales/deals/${dealId}?updated=1`);
 }
 
@@ -90,6 +104,8 @@ export async function changeDealStageAction(formData: FormData) {
     const dealId = readString(formData, 'dealId');
     const toStage = readString(formData, 'toStage') as DealStageKey | undefined;
     if (!dealId || !toStage) redirect('/sales/deals');
+    const session = await getAuthenticatedAppSession();
+    if (!session) redirect('/login');
 
     let result;
     try {
@@ -103,6 +119,7 @@ export async function changeDealStageAction(formData: FormData) {
 
     revalidatePath('/sales/deals');
     revalidatePath(`/sales/deals/${dealId}`);
+    revalidateDashboardPaths(session.activeBusinessScope);
 
     if (result.currentStage === 'CONTRACTED') {
         const { getDealForContractRedirect } = await import('@/modules/sales/deal/application/get-deal-for-contract-redirect');
@@ -125,6 +142,8 @@ export async function createDealActivityAction(formData: FormData) {
     const activityType = readString(formData, 'activityType') as DealActivityType | undefined;
     const activityDate = readString(formData, 'activityDate');
     if (!dealId || !activityType || !activityDate) redirect(`/sales/deals/${dealId ?? ''}`);
+    const session = await getAuthenticatedAppSession();
+    if (!session) redirect('/login');
 
     try {
         await createDealActivity({ dealId, activityType, activityDate, summary: readString(formData, 'summary') });
@@ -135,6 +154,7 @@ export async function createDealActivityAction(formData: FormData) {
     }
 
     revalidatePath(`/sales/deals/${dealId}`);
+    revalidateDashboardPaths(session.activeBusinessScope);
     redirect(`/sales/deals/${dealId}?activityAdded=1`);
 }
 

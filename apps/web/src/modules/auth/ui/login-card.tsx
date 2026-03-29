@@ -1,25 +1,32 @@
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
+import { LoginStartButton } from '@/components/auth/login-start-button';
 
 interface LoginCardProps {
     errorMessage?: string;
 }
 
 const ERROR_MESSAGES: Record<string, string> = {
-    local_login_failed: 'ログインに失敗しました。PostgreSQLが起動しているか、スキーマが適用されているか確認してください。',
-    bootstrap_failed: 'ログインに失敗しました。しばらくしてから再度お試しください。',
-    auth_not_configured: 'Lark認証が設定されていません。環境変数を確認してください。',
-    lark_auth_denied: 'Lark認証が拒否されました。再度お試しください。',
-    missing_code: 'Lark認証コードが取得できませんでした。再度お試しください。',
-    state_mismatch: '認証セッションが無効です。再度お試しください。',
-    token_exchange_failed: 'Lark認証トークンの取得に失敗しました。再度お試しください。',
-    userinfo_failed: 'Larkユーザー情報の取得に失敗しました。再度お試しください。',
+    local_login_failed:
+        'ログインに失敗しました。PostgreSQL へ接続できているか、設定値が正しいかを確認してください。',
+    bootstrap_failed:
+        'ログイン処理中にユーザー初期化で失敗しました。しばらく待ってから再度お試しください。',
+    auth_not_configured:
+        'Lark 認証が設定されていません。環境変数の設定を確認してください。',
+    lark_auth_denied:
+        'Lark 認証がキャンセルされました。内容をご確認のうえ、再度お試しください。',
+    missing_code:
+        'Lark 認証コードを受け取れませんでした。再度ログインしてください。',
+    state_mismatch:
+        '認証セッションが一致しませんでした。ブラウザを更新して再度お試しください。',
+    token_exchange_failed:
+        'Lark のトークン取得に失敗しました。ネットワーク状態と設定を確認してください。',
+    userinfo_failed:
+        'Lark のユーザー情報取得に失敗しました。設定と権限を確認してください。',
 };
 
 export function LoginCard({ errorMessage }: LoginCardProps) {
     return (
         <div className="relative z-10 flex w-full max-w-md flex-col items-center gap-10">
-            {/* ロゴ */}
             <div className="flex flex-col items-center gap-5">
                 <div className="relative">
                     <div className="absolute -inset-3 rounded-2xl bg-white opacity-80 blur-xl" />
@@ -34,35 +41,28 @@ export function LoginCard({ errorMessage }: LoginCardProps) {
                     />
                 </div>
                 <div className="text-center">
-                    <p className="text-sm font-medium tracking-widest text-gray-400 uppercase">Management System</p>
+                    <p className="text-sm font-medium uppercase tracking-widest text-gray-400">
+                        Management System
+                    </p>
                 </div>
             </div>
 
-            {/* カード */}
             <div className="w-full rounded-2xl border border-gray-100 bg-white px-8 py-8 shadow-xl shadow-gray-100/80">
                 <div className="mb-6 text-center">
                     <h2 className="text-lg font-semibold text-gray-800">ログイン</h2>
-                    <p className="mt-1 text-sm text-gray-400">Larkアカウントで続けてください</p>
+                    <p className="mt-1 text-sm text-gray-400">
+                        Lark アカウントでサインインしてください
+                    </p>
                 </div>
 
                 {errorMessage ? (
                     <div className="mb-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-600">
-                        {ERROR_MESSAGES[errorMessage] ?? 'ログインに失敗しました。再度お試しください。'}
+                        {ERROR_MESSAGES[errorMessage] ??
+                            'ログインに失敗しました。設定と認証状態をご確認ください。'}
                     </div>
                 ) : null}
 
-                <Button
-                    asChild
-                    className="h-12 w-full rounded-xl bg-[#1B4F72] text-white hover:bg-[#154060] font-medium text-sm tracking-wide shadow-sm transition-all hover:shadow-md"
-                    size="lg"
-                >
-                    <a href="/api/v1/auth/lark/start">
-                        <svg className="mr-2.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.5 14.5h-2.25v-4.25H9.75v4.25H7.5v-9h2.25v3.25h4.5V7.5H16.5v9z" />
-                        </svg>
-                        Larkでログイン
-                    </a>
-                </Button>
+                <LoginStartButton />
             </div>
 
             <p className="text-xs text-gray-300">© 2026 G DX Inc. All rights reserved.</p>

@@ -12,7 +12,8 @@ import {
     userBusinessMemberships,
     users,
 } from '@g-dx/database/schema';
-import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lte, sql, sum } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm';
+import { unstable_cache } from 'next/cache';
 import type { BusinessScopeType, DealCompanyStat, DealDashboardSummary, DealDetail, DealListItem, DealNextActionItem, DealOwnerStat, DealStageSummary, DealStageKey, DealStatus } from '@g-dx/contracts';
 import { sendGroupMessage, buildStageChangeMessage } from '@/lib/lark/larkMessaging';
 import { createCalendarEvent, buildNextActionCalendarParams } from '@/lib/lark/larkCalendar';
@@ -30,6 +31,7 @@ import type {
 } from '../domain/deal';
 import { findBusinessUnitByScope, nextAuditId } from '../../shared/infrastructure/sales-shared';
 import { AppError } from '@/shared/server/errors';
+import { DASHBOARD_CACHE_REVALIDATE_SECONDS, getDashboardScopeTag } from './dashboard-cache';
 
 type DealAttributes = { memo?: string };
 
@@ -629,11 +631,15 @@ export async function getPipelineBoard(
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-const ACTIVE_STAGES = ['APO_ACQUIRED', 'NEGOTIATING', 'ALLIANCE'];
-const STALLED_STAGES = ['PENDING', 'APO_CANCELLED', 'LOST'];
-const CONTRACTED_STAGES = ['CONTRACTED'];
+const ACTIVE_STAGES: readonly DealStageKey[] = ['APO_ACQUIRED', 'NEGOTIATING', 'ALLIANCE'];
+const STALLED_STAGES: readonly DealStageKey[] = ['PENDING', 'APO_CANCELLED', 'LOST'];
+const CONTRACTED_STAGES: readonly DealStageKey[] = ['CONTRACTED'];
 
-export async function getDashboardSummary(businessScope: BusinessScopeType): Promise<DealDashboardSummary> {
+function buildTextListSql(values: readonly string[]) {
+    return sql.join(values.map((value) => sql`${value}`), sql`, `);
+}
+
+async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<DealDashboardSummary> {
     const businessUnit = await findBusinessUnitByScope(businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
 
@@ -647,28 +653,46 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
     weekEnd.setDate(weekEnd.getDate() + 7);
     const weekEndStr = weekEnd.toISOString().split('T')[0];
 
-    const [stageRows, allDeals, activeMembers, nextActionDeals] = await Promise.all([
+    const activeStagesSql = buildTextListSql(ACTIVE_STAGES);
+    const contractedStagesSql = buildTextListSql(CONTRACTED_STAGES);
+
+    const [stageRows, ownerRows, activeMembers, companyRows, nextActionDeals] = await Promise.all([
         db
-            .select({ id: pipelineStages.id, stageKey: pipelineStages.stageKey, name: pipelineStages.name, stageOrder: pipelineStages.stageOrder })
+            .select({
+                id: pipelineStages.id,
+                stageKey: pipelineStages.stageKey,
+                name: pipelineStages.name,
+                stageOrder: pipelineStages.stageOrder,
+                dealCount: sql<number>`count(${deals.id})::int`,
+                totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
+            })
             .from(pipelineStages)
             .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
+            .leftJoin(
+                deals,
+                and(
+                    eq(deals.currentStageId, pipelineStages.id),
+                    eq(deals.businessUnitId, businessUnit.id),
+                    isNull(deals.deletedAt),
+                ),
+            )
             .where(and(eq(pipelines.businessUnitId, businessUnit.id), eq(pipelines.isDefault, true)))
+            .groupBy(pipelineStages.id, pipelineStages.stageKey, pipelineStages.name, pipelineStages.stageOrder)
             .orderBy(pipelineStages.stageOrder),
         db
             .select({
-                id: deals.id,
-                stageId: deals.currentStageId,
-                amount: deals.amount,
                 ownerUserId: deals.ownerUserId,
                 ownerName: users.displayName,
-                dealStatus: deals.dealStatus,
-                companyId: deals.companyId,
-                companyName: companies.displayName,
+                totalDeals: sql<number>`count(${deals.id})::int`,
+                activeDeals: sql<number>`coalesce(sum(case when ${pipelineStages.stageKey} in (${activeStagesSql}) then 1 else 0 end), 0)::int`,
+                contractedDeals: sql<number>`coalesce(sum(case when ${pipelineStages.stageKey} in (${contractedStagesSql}) then 1 else 0 end), 0)::int`,
+                totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
             })
             .from(deals)
             .leftJoin(users, eq(deals.ownerUserId, users.id))
-            .leftJoin(companies, eq(deals.companyId, companies.id))
-            .where(and(eq(deals.businessUnitId, businessUnit.id), isNull(deals.deletedAt))),
+            .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+            .where(and(eq(deals.businessUnitId, businessUnit.id), isNull(deals.deletedAt)))
+            .groupBy(deals.ownerUserId, users.displayName),
         db
             .select({ userId: userBusinessMemberships.userId, displayName: users.displayName })
             .from(userBusinessMemberships)
@@ -677,6 +701,19 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
                 eq(userBusinessMemberships.businessUnitId, businessUnit.id),
                 eq(userBusinessMemberships.membershipStatus, 'active'),
             )),
+        db
+            .select({
+                companyId: deals.companyId,
+                companyName: companies.displayName,
+                totalDeals: sql<number>`count(${deals.id})::int`,
+                activeDeals: sql<number>`coalesce(sum(case when ${pipelineStages.stageKey} in (${activeStagesSql}) then 1 else 0 end), 0)::int`,
+                totalAmount: sql<string>`coalesce(sum(case when ${pipelineStages.stageKey} in (${activeStagesSql}) then ${deals.amount} else 0 end), 0)`,
+            })
+            .from(deals)
+            .innerJoin(companies, eq(deals.companyId, companies.id))
+            .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+            .where(and(eq(deals.businessUnitId, businessUnit.id), isNull(deals.deletedAt)))
+            .groupBy(deals.companyId, companies.displayName),
         db
             .select({
                 id: deals.id,
@@ -699,50 +736,63 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
                 isNotNull(deals.nextActionDate),
                 lte(deals.nextActionDate, weekEndStr),
                 gte(deals.nextActionDate, todayStr),
-            )),
+            ))
+            .orderBy(deals.nextActionDate, desc(deals.updatedAt)),
     ]);
 
-    const stageMap = new Map(stageRows.map((s) => [s.id, s]));
-
-    // Aggregate by stage
-    const stageCounts = new Map<string, { count: number; totalAmount: number }>();
-    let totalDeals = 0;
-    let activeCount = 0; let activeAmount = 0;
-    let stalledCount = 0; let stalledAmount = 0;
-    let contractedCount = 0; let contractedAmount = 0;
-
-    for (const deal of allDeals) {
-        const stage = stageMap.get(deal.stageId);
-        if (!stage) continue;
-        totalDeals++;
-        const amount = deal.amount !== null ? Number(deal.amount) : 0;
-        const existing = stageCounts.get(stage.stageKey) ?? { count: 0, totalAmount: 0 };
-        stageCounts.set(stage.stageKey, { count: existing.count + 1, totalAmount: existing.totalAmount + amount });
-        if (ACTIVE_STAGES.includes(stage.stageKey)) { activeCount++; activeAmount += amount; }
-        else if (CONTRACTED_STAGES.includes(stage.stageKey)) { contractedCount++; contractedAmount += amount; }
-        else { stalledCount++; stalledAmount += amount; }
-    }
-
-    const byStage: DealStageSummary[] = stageRows.map((s) => ({
-        stageKey: s.stageKey as DealStageKey,
-        stageName: s.name,
-        count: stageCounts.get(s.stageKey)?.count ?? 0,
-        totalAmount: stageCounts.get(s.stageKey)?.totalAmount ?? 0,
+    const stageMap = new Map(stageRows.map((stage) => [stage.id, stage]));
+    const byStage: DealStageSummary[] = stageRows.map((stage) => ({
+        stageKey: stage.stageKey as DealStageKey,
+        stageName: stage.name,
+        count: stage.dealCount,
+        totalAmount: Number(stage.totalAmount),
     }));
 
-    // Per-owner stats
-    const ownerMap = new Map<string, { name: string; total: number; active: number; contracted: number; amount: number }>();
-    for (const deal of allDeals) {
-        const stage = stageMap.get(deal.stageId);
-        if (!stage) continue;
-        const entry = ownerMap.get(deal.ownerUserId) ?? { name: deal.ownerName ?? 'Unknown', total: 0, active: 0, contracted: 0, amount: 0 };
-        entry.total++;
-        const dealAmount = deal.amount !== null ? Number(deal.amount) : 0;
-        if (ACTIVE_STAGES.includes(stage.stageKey)) entry.active++;
-        if (CONTRACTED_STAGES.includes(stage.stageKey)) entry.contracted++;
-        entry.amount += dealAmount;
-        ownerMap.set(deal.ownerUserId, entry);
+    let totalDeals = 0;
+    let activeCount = 0;
+    let activeAmount = 0;
+    let stalledCount = 0;
+    let stalledAmount = 0;
+    let contractedCount = 0;
+    let contractedAmount = 0;
+
+    for (const stage of byStage) {
+        totalDeals += stage.count;
+
+        if (ACTIVE_STAGES.includes(stage.stageKey)) {
+            activeCount += stage.count;
+            activeAmount += stage.totalAmount;
+            continue;
+        }
+
+        if (CONTRACTED_STAGES.includes(stage.stageKey)) {
+            contractedCount += stage.count;
+            contractedAmount += stage.totalAmount;
+            continue;
+        }
+
+        if (STALLED_STAGES.includes(stage.stageKey)) {
+            stalledCount += stage.count;
+            stalledAmount += stage.totalAmount;
+            continue;
+        }
+
+        stalledCount += stage.count;
+        stalledAmount += stage.totalAmount;
     }
+
+    const ownerMap = new Map<string, { name: string; total: number; active: number; contracted: number; amount: number }>(
+        ownerRows.map((row) => [
+            row.ownerUserId,
+            {
+                name: row.ownerName ?? 'Unknown',
+                total: row.totalDeals,
+                active: row.activeDeals,
+                contracted: row.contractedDeals,
+                amount: Number(row.totalAmount),
+            },
+        ]),
+    );
 
     // §6: 案件を持たないアクティブメンバーも一覧に含める
     for (const member of activeMembers) {
@@ -758,25 +808,18 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
         activeDeals: v.active,
         contractedDeals: v.contracted,
         totalAmount: v.amount,
-    })).sort((a, b) => b.totalDeals - a.totalDeals);
+    })).sort((a, b) => (b.totalDeals - a.totalDeals) || (b.totalAmount - a.totalAmount));
 
-    // Per-company stats
-    const companyMap = new Map<string, { name: string; total: number; active: number; amount: number }>();
-    for (const deal of allDeals) {
-        const stage = stageMap.get(deal.stageId);
-        if (!stage) continue;
-        const entry = companyMap.get(deal.companyId) ?? { name: deal.companyName ?? 'Unknown', total: 0, active: 0, amount: 0 };
-        entry.total++;
-        if (ACTIVE_STAGES.includes(stage.stageKey)) { entry.active++; entry.amount += deal.amount !== null ? Number(deal.amount) : 0; }
-        companyMap.set(deal.companyId, entry);
-    }
-    const byCompany: DealCompanyStat[] = Array.from(companyMap.entries()).map(([id, v]) => ({
-        companyId: id,
-        companyName: v.name,
-        totalDeals: v.total,
-        activeDeals: v.active,
-        totalAmount: v.amount,
-    })).sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 10);
+    const byCompany: DealCompanyStat[] = companyRows
+        .map((row) => ({
+            companyId: row.companyId,
+            companyName: row.companyName,
+            totalDeals: row.totalDeals,
+            activeDeals: row.activeDeals,
+            totalAmount: Number(row.totalAmount),
+        }))
+        .sort((a, b) => b.totalAmount - a.totalAmount)
+        .slice(0, 10);
 
     // 前回アクション情報を各案件について取得
     const dealIds = nextActionDeals.map((d) => d.id);
@@ -843,6 +886,307 @@ export async function getDashboardSummary(businessScope: BusinessScopeType): Pro
 }
 
 // ─── Lark 設定 ────────────────────────────────────────────────────────────────
+
+export async function getDashboardSummary(businessScope: BusinessScopeType): Promise<DealDashboardSummary> {
+    return unstable_cache(
+        async () => queryDashboardSummary(businessScope),
+        ['deal-dashboard-summary', businessScope],
+        {
+            revalidate: DASHBOARD_CACHE_REVALIDATE_SECONDS,
+            tags: [getDashboardScopeTag(businessScope)],
+        },
+    )();
+}
+
+export async function getDashboardSummaryOptimized(
+    businessScope: BusinessScopeType,
+): Promise<DealDashboardSummary> {
+    const businessUnit = await findBusinessUnitByScope(businessScope);
+    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+    const weekEnd = new Date(today);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+    const weekEndStr = weekEnd.toISOString().split('T')[0];
+
+    const [stageRows, ownerRows, companyRows, activeMembers, nextActionDeals] = await Promise.all([
+        db
+            .select({
+                id: pipelineStages.id,
+                stageKey: pipelineStages.stageKey,
+                name: pipelineStages.name,
+                stageOrder: pipelineStages.stageOrder,
+                dealCount: sql<number>`count(${deals.id})::int`,
+                totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
+            })
+            .from(pipelineStages)
+            .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
+            .leftJoin(
+                deals,
+                and(
+                    eq(deals.currentStageId, pipelineStages.id),
+                    eq(deals.businessUnitId, businessUnit.id),
+                    isNull(deals.deletedAt),
+                ),
+            )
+            .where(and(eq(pipelines.businessUnitId, businessUnit.id), eq(pipelines.isDefault, true)))
+            .groupBy(
+                pipelineStages.id,
+                pipelineStages.stageKey,
+                pipelineStages.name,
+                pipelineStages.stageOrder,
+            )
+            .orderBy(pipelineStages.stageOrder),
+        db
+            .select({
+                ownerUserId: deals.ownerUserId,
+                ownerName: users.displayName,
+                stageKey: pipelineStages.stageKey,
+                dealCount: sql<number>`count(*)::int`,
+                totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
+            })
+            .from(deals)
+            .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+            .leftJoin(users, eq(deals.ownerUserId, users.id))
+            .where(and(eq(deals.businessUnitId, businessUnit.id), isNull(deals.deletedAt)))
+            .groupBy(deals.ownerUserId, users.displayName, pipelineStages.stageKey),
+        db
+            .select({
+                companyId: deals.companyId,
+                companyName: companies.displayName,
+                stageKey: pipelineStages.stageKey,
+                dealCount: sql<number>`count(*)::int`,
+                totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
+            })
+            .from(deals)
+            .innerJoin(companies, eq(deals.companyId, companies.id))
+            .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+            .where(and(eq(deals.businessUnitId, businessUnit.id), isNull(deals.deletedAt)))
+            .groupBy(deals.companyId, companies.displayName, pipelineStages.stageKey),
+        db
+            .select({ userId: userBusinessMemberships.userId, displayName: users.displayName })
+            .from(userBusinessMemberships)
+            .innerJoin(users, eq(userBusinessMemberships.userId, users.id))
+            .where(
+                and(
+                    eq(userBusinessMemberships.businessUnitId, businessUnit.id),
+                    eq(userBusinessMemberships.membershipStatus, 'active'),
+                ),
+            ),
+        db
+            .select({
+                id: deals.id,
+                title: deals.title,
+                amount: deals.amount,
+                nextActionDate: deals.nextActionDate,
+                nextActionContent: deals.nextActionContent,
+                acquisitionMethod: deals.acquisitionMethod,
+                stageId: deals.currentStageId,
+                ownerUserId: deals.ownerUserId,
+                ownerName: users.displayName,
+                companyName: companies.displayName,
+            })
+            .from(deals)
+            .leftJoin(users, eq(deals.ownerUserId, users.id))
+            .innerJoin(companies, eq(deals.companyId, companies.id))
+            .where(
+                and(
+                    eq(deals.businessUnitId, businessUnit.id),
+                    isNull(deals.deletedAt),
+                    isNotNull(deals.nextActionDate),
+                    lte(deals.nextActionDate, weekEndStr),
+                    gte(deals.nextActionDate, todayStr),
+                ),
+            ),
+    ]);
+
+    const stageMap = new Map(
+        stageRows.map((stage) => [
+            stage.id,
+            { stageKey: stage.stageKey, name: stage.name },
+        ]),
+    );
+
+    const byStage: DealStageSummary[] = stageRows.map((stage) => ({
+        stageKey: stage.stageKey as DealStageKey,
+        stageName: stage.name,
+        count: Number(stage.dealCount ?? 0),
+        totalAmount: Number(stage.totalAmount ?? 0),
+    }));
+
+    let totalDeals = 0;
+    let activeCount = 0;
+    let activeAmount = 0;
+    let stalledCount = 0;
+    let stalledAmount = 0;
+    let contractedCount = 0;
+    let contractedAmount = 0;
+
+    for (const stage of byStage) {
+        totalDeals += stage.count;
+        if (ACTIVE_STAGES.includes(stage.stageKey)) {
+            activeCount += stage.count;
+            activeAmount += stage.totalAmount;
+            continue;
+        }
+
+        if (CONTRACTED_STAGES.includes(stage.stageKey)) {
+            contractedCount += stage.count;
+            contractedAmount += stage.totalAmount;
+            continue;
+        }
+
+        stalledCount += stage.count;
+        stalledAmount += stage.totalAmount;
+    }
+
+    const ownerMap = new Map<string, { name: string; total: number; active: number; contracted: number; amount: number }>();
+    for (const row of ownerRows) {
+        const entry = ownerMap.get(row.ownerUserId) ?? {
+            name: row.ownerName ?? 'Unknown',
+            total: 0,
+            active: 0,
+            contracted: 0,
+            amount: 0,
+        };
+        const dealCount = Number(row.dealCount ?? 0);
+        const totalAmount = Number(row.totalAmount ?? 0);
+        const stageKey = row.stageKey as DealStageKey;
+
+        entry.total += dealCount;
+        entry.amount += totalAmount;
+        if (ACTIVE_STAGES.includes(stageKey)) entry.active += dealCount;
+        if (CONTRACTED_STAGES.includes(stageKey)) entry.contracted += dealCount;
+
+        ownerMap.set(row.ownerUserId, entry);
+    }
+
+    for (const member of activeMembers) {
+        if (!ownerMap.has(member.userId)) {
+            ownerMap.set(member.userId, {
+                name: member.displayName ?? 'Unknown',
+                total: 0,
+                active: 0,
+                contracted: 0,
+                amount: 0,
+            });
+        }
+    }
+
+    const byOwner: DealOwnerStat[] = Array.from(ownerMap.entries())
+        .map(([id, value]) => ({
+            ownerUserId: id,
+            ownerName: value.name,
+            totalDeals: value.total,
+            activeDeals: value.active,
+            contractedDeals: value.contracted,
+            totalAmount: value.amount,
+        }))
+        .sort((a, b) => b.totalDeals - a.totalDeals);
+
+    const companyMap = new Map<string, { name: string; total: number; active: number; amount: number }>();
+    for (const row of companyRows) {
+        const entry = companyMap.get(row.companyId) ?? {
+            name: row.companyName ?? 'Unknown',
+            total: 0,
+            active: 0,
+            amount: 0,
+        };
+        const dealCount = Number(row.dealCount ?? 0);
+        const stageKey = row.stageKey as DealStageKey;
+
+        entry.total += dealCount;
+        if (ACTIVE_STAGES.includes(stageKey)) {
+            entry.active += dealCount;
+            entry.amount += Number(row.totalAmount ?? 0);
+        }
+
+        companyMap.set(row.companyId, entry);
+    }
+
+    const byCompany: DealCompanyStat[] = Array.from(companyMap.entries())
+        .map(([id, value]) => ({
+            companyId: id,
+            companyName: value.name,
+            totalDeals: value.total,
+            activeDeals: value.active,
+            totalAmount: value.amount,
+        }))
+        .sort((a, b) => b.totalAmount - a.totalAmount)
+        .slice(0, 10);
+
+    const nextActionDealIds = nextActionDeals.map((deal) => deal.id);
+    const lastActivitiesMap = new Map<string, { summary: string | null; date: string | null }>();
+    if (nextActionDealIds.length > 0) {
+        const lastActivityRows = await db
+            .select({
+                dealId: dealActivities.dealId,
+                summary: dealActivities.summary,
+                activityDate: dealActivities.activityDate,
+                createdAt: dealActivities.createdAt,
+            })
+            .from(dealActivities)
+            .where(inArray(dealActivities.dealId, nextActionDealIds))
+            .orderBy(desc(dealActivities.activityDate), desc(dealActivities.createdAt));
+
+        for (const row of lastActivityRows) {
+            if (!lastActivitiesMap.has(row.dealId)) {
+                lastActivitiesMap.set(row.dealId, {
+                    summary: row.summary,
+                    date: row.activityDate,
+                });
+            }
+        }
+    }
+
+    const toNextActionItem = (row: typeof nextActionDeals[0]): DealNextActionItem => {
+        const stage = stageMap.get(row.stageId);
+        const lastActivity = lastActivitiesMap.get(row.id);
+        return {
+            dealId: row.id,
+            dealName: row.title,
+            companyName: row.companyName,
+            stageKey: (stage?.stageKey ?? 'LOST') as DealStageKey,
+            stageName: stage?.name ?? '-',
+            amount: row.amount !== null ? Number(row.amount) : null,
+            ownerName: row.ownerName ?? '-',
+            ownerUserId: row.ownerUserId ?? '',
+            acquisitionMethod: row.acquisitionMethod ?? null,
+            nextActionDate: row.nextActionDate ?? '',
+            nextActionContent: row.nextActionContent ?? null,
+            lastActivitySummary: lastActivity?.summary ?? null,
+            lastActivityDate: lastActivity?.date ?? null,
+        };
+    };
+
+    const nextActionsToday = nextActionDeals
+        .filter((deal) => deal.nextActionDate === todayStr)
+        .map(toNextActionItem);
+    const nextActionsTomorrow = nextActionDeals
+        .filter((deal) => deal.nextActionDate === tomorrowStr)
+        .map(toNextActionItem);
+    const nextActionsThisWeek = nextActionDeals
+        .filter((deal) => deal.nextActionDate && deal.nextActionDate > tomorrowStr)
+        .map(toNextActionItem);
+
+    return {
+        totalDeals,
+        activeGroup: { count: activeCount, totalAmount: activeAmount },
+        stalledGroup: { count: stalledCount, totalAmount: stalledAmount },
+        contractedGroup: { count: contractedCount, totalAmount: contractedAmount },
+        byStage,
+        nextActionsToday,
+        nextActionsTomorrow,
+        nextActionsThisWeek,
+        byOwner,
+        byCompany,
+    };
+}
 
 export async function updateDealLarkSettings(input: {
     dealId: string;

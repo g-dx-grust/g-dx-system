@@ -17,5 +17,5 @@ export default async function LocalLoginPage() {
         redirect('/login?error=local_login_failed');
     }
 
-    redirect('/dashboard');
+    redirect('/dashboard/deals');
 }

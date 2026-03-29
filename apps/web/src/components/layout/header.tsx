@@ -1,32 +1,29 @@
+import { Suspense } from 'react';
 import { BusinessSwitcher } from './business-switcher';
 import { NotificationMenu } from './notification-menu';
 import { UserMenu } from './user-menu';
 import { getNotificationUnreadCount } from '@/modules/notifications/application/get-unread-count';
-import { getAuthenticatedAppSession, getGrantedPermissionKeys } from '@/shared/server/session';
-import type { BusinessScopeType } from '@g-dx/contracts';
+import { getGrantedPermissionKeys, type AuthenticatedAppSession } from '@/shared/server/session';
 import { GlobalSearchBar } from './global-search-bar';
 import { MobileSearchButton } from './mobile-search-button';
 
-export async function Header() {
-    const session = await getAuthenticatedAppSession();
-    const availableScopes: BusinessScopeType[] =
-        session?.businessMemberships.map((m) => m.code) ?? [];
-    const permissionSet = new Set(session ? getGrantedPermissionKeys(session.user.roles) : []);
+interface HeaderProps {
+    session: AuthenticatedAppSession;
+}
+
+export function Header({ session }: HeaderProps) {
+    const availableScopes = session.businessMemberships.map((membership) => membership.code);
+    const permissionSet = new Set(getGrantedPermissionKeys(session.user.roles));
     const canReadNotifications = permissionSet.has('notification.read');
-    const unreadCount = canReadNotifications
-        ? (await getNotificationUnreadCount().catch(() => ({ count: 0 }))).count
-        : 0;
 
     return (
         <header className="sticky top-0 z-10 flex h-14 shrink-0 flex-col justify-center border-b bg-white px-4">
             <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
-                    {session ? (
-                        <BusinessSwitcher
-                            activeBusinessScope={session.activeBusinessScope}
-                            availableScopes={availableScopes}
-                        />
-                    ) : null}
+                    <BusinessSwitcher
+                        activeBusinessScope={session.activeBusinessScope}
+                        availableScopes={availableScopes}
+                    />
                 </div>
 
                 <div className="flex items-center gap-2 md:gap-4">
@@ -37,17 +34,24 @@ export async function Header() {
                     </div>
 
                     {canReadNotifications ? (
-                        <NotificationMenu initialUnreadCount={unreadCount} />
+                        <Suspense fallback={<NotificationMenu initialUnreadCount={0} />}>
+                            <HeaderNotificationMenu />
+                        </Suspense>
                     ) : null}
 
                     <UserMenu
-                        name={session?.user.name ?? 'ゲスト'}
-                        email={session?.user.email ?? ''}
-                        avatarUrl={session?.user.avatarUrl}
-                        isAdmin={session?.user.roles.some((r) => r === 'SUPER_ADMIN' || r === 'ADMIN') ?? false}
+                        name={session.user.name}
+                        email={session.user.email}
+                        avatarUrl={session.user.avatarUrl}
+                        isAdmin={session.user.roles.some((role) => role === 'SUPER_ADMIN' || role === 'ADMIN')}
                     />
                 </div>
             </div>
         </header>
     );
+}
+
+async function HeaderNotificationMenu() {
+    const unreadCount = (await getNotificationUnreadCount().catch(() => ({ count: 0 }))).count;
+    return <NotificationMenu initialUnreadCount={unreadCount} />;
 }

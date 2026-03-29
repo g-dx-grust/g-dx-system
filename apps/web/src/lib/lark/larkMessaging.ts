@@ -87,6 +87,22 @@ export function buildStageChangeMessage(p: StageChangeNotificationParams): strin
     ].join('\n');
 }
 
+export interface ApprovalRequestNotificationParams {
+    dealName: string;
+    approvalTypeLabel: string;
+    meetingDateTime: string | null;
+    documentUrl: string | null;
+}
+
+export function buildApprovalRequestMessage(p: ApprovalRequestNotificationParams): string {
+    return [
+        `案件名：${p.dealName}_${p.approvalTypeLabel}`,
+        `商談日：${p.meetingDateTime ?? '（未入力）'}`,
+        'G-DXシステムを確認してください。',
+        `資料リンク：${p.documentUrl ?? '（なし）'}`,
+    ].join('\n');
+}
+
 export interface DailyAlertParams {
     dealName: string;
     companyName: string;

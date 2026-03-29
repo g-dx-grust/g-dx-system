@@ -23,6 +23,8 @@ import type {
 import { AppError } from '@/shared/server/errors';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
 import { createNotification } from '@/modules/notifications/infrastructure/notification-repository';
+import { getDealLarkContext } from '@/modules/sales/deal/infrastructure/deal-repository';
+import { sendGroupMessage, buildApprovalRequestMessage } from '@/lib/lark/larkMessaging';
 import type { BusinessScopeType } from '@g-dx/contracts';
 
 // ─── Mappers ────────────────────────────────────────────────────────────────
@@ -103,6 +105,7 @@ export async function listApprovalRequests(
             decidedAt: approvalRequests.decidedAt,
             deadlineAt: approvalRequests.deadlineAt,
             meetingDate: approvalRequests.meetingDate,
+            documentUrl: approvalRequests.documentUrl,
         })
         .from(approvalRequests)
         .innerJoin(deals, eq(approvalRequests.dealId, deals.id))
@@ -134,7 +137,8 @@ export async function listApprovalRequests(
             appliedAt: row.appliedAt.toISOString(),
             decidedAt: row.decidedAt?.toISOString() ?? null,
             deadlineAt: row.deadlineAt?.toISOString() ?? null,
-            meetingDate: row.meetingDate ?? null,
+            meetingDate: row.meetingDate?.toISOString() ?? null,
+            documentUrl: row.documentUrl ?? null,
         })),
         meta: { page, pageSize, total: Number(total) },
     };
@@ -162,6 +166,7 @@ export async function getApprovalRequestDetail(
             decidedAt: approvalRequests.decidedAt,
             deadlineAt: approvalRequests.deadlineAt,
             meetingDate: approvalRequests.meetingDate,
+            documentUrl: approvalRequests.documentUrl,
             decisionComment: approvalRequests.decisionComment,
             expiryReason: approvalRequests.expiryReason,
             snapshotData: approvalRequests.snapshotData,
@@ -212,7 +217,8 @@ export async function getApprovalRequestDetail(
         appliedAt: row.appliedAt.toISOString(),
         decidedAt: row.decidedAt?.toISOString() ?? null,
         deadlineAt: row.deadlineAt?.toISOString() ?? null,
-        meetingDate: row.meetingDate ?? null,
+        meetingDate: row.meetingDate?.toISOString() ?? null,
+        documentUrl: row.documentUrl ?? null,
         decisionComment: row.decisionComment,
         expiryReason: row.expiryReason,
         snapshotData: row.snapshotData as Record<string, unknown> | null,
@@ -241,19 +247,25 @@ export async function createApprovalRequest(
         .limit(1);
     if (!deal) throw new AppError('NOT_FOUND', 'Deal was not found in the active business scope.');
 
-    // Look up approver from routes
-    const [route] = await db
-        .select({ approverUserId: approvalRoutes.approverUserId })
-        .from(approvalRoutes)
-        .where(
-            and(
-                eq(approvalRoutes.businessUnitId, businessUnit.id),
-                eq(approvalRoutes.approvalType, input.approvalType),
-                eq(approvalRoutes.isActive, true),
+    // 承認者: 手動指定があればそれを使い、なければルートから自動選択
+    let resolvedApproverUserId: string | null = input.approverUserId ?? null;
+    if (!resolvedApproverUserId) {
+        const [route] = await db
+            .select({ approverUserId: approvalRoutes.approverUserId })
+            .from(approvalRoutes)
+            .where(
+                and(
+                    eq(approvalRoutes.businessUnitId, businessUnit.id),
+                    eq(approvalRoutes.approvalType, input.approvalType),
+                    eq(approvalRoutes.isActive, true),
+                )
             )
-        )
-        .orderBy(approvalRoutes.routeOrder)
-        .limit(1);
+            .orderBy(approvalRoutes.routeOrder)
+            .limit(1);
+        resolvedApproverUserId = route?.approverUserId ?? null;
+    }
+
+    const meetingDateValue = input.meetingDate ? new Date(input.meetingDate) : null;
 
     const [created] = await db
         .insert(approvalRequests)
@@ -262,8 +274,9 @@ export async function createApprovalRequest(
             dealId: input.dealId,
             approvalType: input.approvalType,
             applicantUserId,
-            approverUserId: route?.approverUserId ?? null,
-            meetingDate: input.meetingDate ?? null,
+            approverUserId: resolvedApproverUserId,
+            meetingDate: meetingDateValue,
+            documentUrl: input.documentUrl ?? null,
             snapshotData: input.snapshotData ?? null,
         })
         .returning({ id: approvalRequests.id });
@@ -282,10 +295,10 @@ export async function createApprovalRequest(
         );
     }
 
-    if (route?.approverUserId) {
+    if (resolvedApproverUserId) {
         await createNotification({
             businessUnitId: businessUnit.id,
-            recipientUserId: route.approverUserId,
+            recipientUserId: resolvedApproverUserId,
             notificationType: 'APPROVAL_REQUESTED',
             title: `承認依頼: ${deal.title}`,
             body: `${APPROVAL_TYPE_TEXT[input.approvalType] ?? input.approvalType} の承認依頼が届いています。`,
@@ -294,6 +307,21 @@ export async function createApprovalRequest(
             linkUrl: `/sales/approvals/${created.id}`,
         });
     }
+
+    // Lark通知: 承認依頼をグループチャットに送信 (fire-and-forget)
+    getDealLarkContext(input.dealId).then((dealCtx) => {
+        if (!dealCtx?.larkChatId) return;
+        const meetingDateLabel = meetingDateValue
+            ? meetingDateValue.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })
+            : null;
+        const message = buildApprovalRequestMessage({
+            dealName: deal.title,
+            approvalTypeLabel: APPROVAL_TYPE_TEXT[input.approvalType] ?? input.approvalType,
+            meetingDateTime: meetingDateLabel,
+            documentUrl: input.documentUrl ?? null,
+        });
+        return sendGroupMessage(dealCtx.larkChatId, message);
+    }).catch((err) => console.error('[Lark] approval request notification failed:', err));
 
     return { id: created.id };
 }

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, uuid, integer, jsonb, index, date } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, uuid, integer, jsonb, index } from 'drizzle-orm/pg-core';
 import { businessUnits } from './business-units';
 import { users } from './users';
 import { deals } from './sales';
@@ -34,7 +34,8 @@ export const approvalRequests = pgTable('approval_requests', {
     appliedAt: timestamp('applied_at', { withTimezone: true }).defaultNow().notNull(),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
     deadlineAt: timestamp('deadline_at', { withTimezone: true }),
-    meetingDate: date('meeting_date'), // 面談日（事前準備承認用）
+    meetingDate: timestamp('meeting_date', { withTimezone: true }), // 商談日（日時）
+    documentUrl: text('document_url'), // 資料URL
     decisionComment: text('decision_comment'),
     expiryReason: text('expiry_reason'),
     snapshotData: jsonb('snapshot_data'), // 申請時点のスナップショット

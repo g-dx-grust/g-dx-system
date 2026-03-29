@@ -50,12 +50,15 @@ export function formatApprovalDateTime(value: string | null | undefined): string
 
 export function formatApprovalDate(value: string | null | undefined): string {
     if (!value) return '-';
-    const date = new Date(`${value}T00:00:00`);
+    // timestamp 形式も date-only 形式も両方対応
+    const date = value.includes('T') ? new Date(value) : new Date(`${value}T00:00:00`);
     if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString('ja-JP', {
+    return date.toLocaleString('ja-JP', {
         year: 'numeric',
         month: 'short',
         day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
     });
 }
 

@@ -3,6 +3,7 @@ import type { ApprovalRequestDetail } from '@g-dx/contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { decideApprovalAction } from '../server-actions';
 import {
     APPROVAL_STATUS_BADGE_VARIANTS,
@@ -63,7 +64,8 @@ export function ApprovalDetailView({ detail, canDecide, decided = false }: Appro
                             <ApprovalInfoItem label="ステータス" value={APPROVAL_STATUS_LABELS[detail.approvalStatus]} />
                             <ApprovalInfoItem label="申請者" value={detail.applicantName} />
                             <ApprovalInfoItem label="承認者" value={detail.approverName ?? '-'} />
-                            <ApprovalInfoItem label="面談日" value={formatApprovalDate(detail.meetingDate)} />
+                            <ApprovalInfoItem label="商談日" value={formatApprovalDate(detail.meetingDate)} />
+                            <ApprovalInfoItem label="資料URL" value={detail.documentUrl ?? '-'} />
                             <ApprovalInfoItem label="申請日時" value={formatApprovalDateTime(detail.appliedAt)} />
                             <ApprovalInfoItem label="承認日時" value={formatApprovalDateTime(detail.decidedAt)} />
                             <ApprovalInfoItem label="期限" value={formatApprovalDateTime(detail.deadlineAt)} />
@@ -152,15 +154,15 @@ export function ApprovalDetailView({ detail, canDecide, decided = false }: Appro
                                         />
                                     </label>
                                     <div className="grid gap-2">
-                                        <Button type="submit" name="decision" value="APPROVED" className="bg-emerald-600 text-white hover:bg-emerald-700">
+                                        <SubmitButton name="decision" value="APPROVED" pendingText="処理中..." className="bg-emerald-600 text-white hover:bg-emerald-700">
                                             承認する
-                                        </Button>
-                                        <Button type="submit" name="decision" value="RETURNED" variant="outline">
+                                        </SubmitButton>
+                                        <SubmitButton name="decision" value="RETURNED" pendingText="処理中..." variant="outline">
                                             差し戻す
-                                        </Button>
-                                        <Button type="submit" name="decision" value="REJECTED" variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
+                                        </SubmitButton>
+                                        <SubmitButton name="decision" value="REJECTED" pendingText="処理中..." variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
                                             却下する
-                                        </Button>
+                                        </SubmitButton>
                                     </div>
                                 </form>
                             )}

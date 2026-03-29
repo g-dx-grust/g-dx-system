@@ -4,6 +4,7 @@ import { getDealDetail, getDealStageHistory } from '@/modules/sales/deal/applica
 import { getPipeline } from '@/modules/sales/deal/application/get-pipeline';
 import { getDealActivities } from '@/modules/sales/deal/application/list-deal-activities';
 import { listApprovals } from '@/modules/approvals/application/list-approvals';
+import { getApprovalRoutes } from '@/modules/approvals/application/list-approval-routes';
 import { getHearing, getHearingCompletion } from '@/modules/sales/hearing/application/get-hearing';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession, getGrantedPermissionKeys } from '@/shared/server/session';
@@ -51,8 +52,9 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
     let hearingRecord = null;
     let hearingCompletion = EMPTY_HEARING_COMPLETION;
     let approvalRequests = [];
+    let approvalRoutes = [];
     try {
-        [deal, pipeline, activities, stageHistory, hearingRecord, hearingCompletion, approvalRequests] = await Promise.all([
+        [deal, pipeline, activities, stageHistory, hearingRecord, hearingCompletion, approvalRequests, approvalRoutes] = await Promise.all([
             getDealDetail(params.dealId),
             getPipeline(),
             getDealActivities(params.dealId),
@@ -61,6 +63,9 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
             canReadHearing ? getHearingCompletion(params.dealId) : Promise.resolve(EMPTY_HEARING_COMPLETION),
             canReadApprovals
                 ? listApprovals({ dealId: params.dealId, pageSize: 5 }).then((result) => result.data)
+                : Promise.resolve([]),
+            canCreateApproval
+                ? getApprovalRoutes().catch(() => [])
                 : Promise.resolve([]),
         ]);
     } catch (error) {
@@ -85,6 +90,7 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
             hearingRecord={hearingRecord}
             hearingCompletion={hearingCompletion}
             approvalRequests={approvalRequests}
+            approvalRoutes={approvalRoutes}
             canEditHearing={canEditHearing}
             canCreateApproval={canCreateApproval}
             canReadApprovals={canReadApprovals}

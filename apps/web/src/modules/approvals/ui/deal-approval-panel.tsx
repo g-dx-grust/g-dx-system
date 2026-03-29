@@ -1,26 +1,36 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
-import type { ApprovalRequestListItem } from '@g-dx/contracts';
+import type { ApprovalRequestListItem, ApprovalRouteItem, ApprovalTypeValue } from '@g-dx/contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { createApprovalAction } from '../server-actions';
 import {
     APPROVAL_STATUS_BADGE_VARIANTS,
     APPROVAL_STATUS_LABELS,
     APPROVAL_TYPE_LABELS,
     APPROVAL_TYPE_OPTIONS,
-    formatApprovalDate,
     formatApprovalDateTime,
 } from './approval-ui';
 
 interface DealApprovalPanelProps {
     dealId: string;
     approvals: ApprovalRequestListItem[];
+    approvalRoutes: ApprovalRouteItem[];
     canCreate: boolean;
     canRead: boolean;
 }
 
-export function DealApprovalPanel({ dealId, approvals, canCreate, canRead }: DealApprovalPanelProps) {
+export function DealApprovalPanel({ dealId, approvals, approvalRoutes, canCreate, canRead }: DealApprovalPanelProps) {
+    const [selectedType, setSelectedType] = useState<ApprovalTypeValue>('PRE_MEETING');
+
+    const approversForType = approvalRoutes.filter(
+        (r) => r.approvalType === selectedType && r.isActive,
+    );
+
     if (!canCreate && !canRead) {
         return null;
     }
@@ -49,11 +59,13 @@ export function DealApprovalPanel({ dealId, approvals, canCreate, canRead }: Dea
                 {canCreate ? (
                     <form action={createApprovalAction} className="grid gap-4 rounded-lg border border-gray-200 bg-gray-50 p-4 md:grid-cols-2">
                         <input type="hidden" name="dealId" value={dealId} />
+
                         <label className="grid gap-2 text-sm font-medium text-gray-700">
                             承認種別
                             <select
                                 name="approvalType"
-                                defaultValue="PRE_MEETING"
+                                value={selectedType}
+                                onChange={(e) => setSelectedType(e.target.value as ApprovalTypeValue)}
                                 className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             >
                                 {APPROVAL_TYPE_OPTIONS.map((type) => (
@@ -63,14 +75,41 @@ export function DealApprovalPanel({ dealId, approvals, canCreate, canRead }: Dea
                                 ))}
                             </select>
                         </label>
+
                         <label className="grid gap-2 text-sm font-medium text-gray-700">
-                            面談日
+                            承認者
+                            <select
+                                name="approverUserId"
+                                className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                <option value="">ルート自動選択</option>
+                                {approversForType.map((r) => (
+                                    <option key={r.approverUserId} value={r.approverUserId}>
+                                        {r.approverName}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            商談日
                             <input
-                                type="date"
+                                type="datetime-local"
                                 name="meetingDate"
                                 className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             />
                         </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            資料URL
+                            <input
+                                type="url"
+                                name="documentUrl"
+                                placeholder="https://..."
+                                className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            />
+                        </label>
+
                         <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                             補足メモ
                             <textarea
@@ -80,10 +119,14 @@ export function DealApprovalPanel({ dealId, approvals, canCreate, canRead }: Dea
                                 placeholder="申請背景や承認者に伝えたい補足を入力"
                             />
                         </label>
+
                         <div className="flex justify-end md:col-span-2">
-                            <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700">
+                            <SubmitButton
+                                pendingText="申請中..."
+                                className="bg-blue-600 text-white hover:bg-blue-700"
+                            >
                                 承認を申請する
-                            </Button>
+                            </SubmitButton>
                         </div>
                     </form>
                 ) : null}
@@ -100,7 +143,7 @@ export function DealApprovalPanel({ dealId, approvals, canCreate, canRead }: Dea
                                         <th className="px-4 py-3">ステータス</th>
                                         <th className="px-4 py-3">申請者</th>
                                         <th className="px-4 py-3">承認者</th>
-                                        <th className="px-4 py-3">面談日</th>
+                                        <th className="px-4 py-3">商談日</th>
                                         <th className="px-4 py-3">申請日時</th>
                                     </tr>
                                 </thead>
@@ -119,7 +162,7 @@ export function DealApprovalPanel({ dealId, approvals, canCreate, canRead }: Dea
                                             </td>
                                             <td className="px-4 py-3 text-gray-700">{approval.applicantName}</td>
                                             <td className="px-4 py-3 text-gray-700">{approval.approverName ?? '-'}</td>
-                                            <td className="px-4 py-3 text-gray-700">{formatApprovalDate(approval.meetingDate)}</td>
+                                            <td className="px-4 py-3 text-gray-700">{formatApprovalDateTime(approval.meetingDate)}</td>
                                             <td className="px-4 py-3 text-gray-700">{formatApprovalDateTime(approval.appliedAt)}</td>
                                         </tr>
                                     ))}

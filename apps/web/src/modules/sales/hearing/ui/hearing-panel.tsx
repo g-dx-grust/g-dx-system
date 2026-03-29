@@ -4,6 +4,7 @@ import type { HearingCompletionStatus, HearingRecord } from '@g-dx/contracts';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { SubmitButton, FormAutoClose } from '@/components/ui/submit-button';
 import { saveHearingAction } from '../server-actions';
 
 interface HearingPanelProps {
@@ -59,6 +60,7 @@ export function HearingPanel({ dealId, record, completion, canEdit }: HearingPan
                 ) : null}
 
                 <form action={saveHearingAction} className="space-y-6">
+                    <FormAutoClose />
                     <input type="hidden" name="dealId" value={dealId} />
 
                     <fieldset disabled={!canEdit} className="space-y-6 disabled:opacity-100">
@@ -148,9 +150,9 @@ export function HearingPanel({ dealId, record, completion, canEdit }: HearingPan
 
                     {canEdit ? (
                         <div className="flex justify-end">
-                            <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700">
+                            <SubmitButton className="bg-blue-600 text-white hover:bg-blue-700">
                                 ヒアリングを保存
-                            </Button>
+                            </SubmitButton>
                         </div>
                     ) : null}
                 </form>

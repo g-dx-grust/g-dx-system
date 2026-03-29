@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type {
     ApprovalRequestListItem,
+    ApprovalRouteItem,
     DealActivityItem,
     DealDetail,
     DealStageKey,
@@ -15,6 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { DealApprovalPanel } from '@/modules/approvals/ui/deal-approval-panel';
 import { HearingPanel } from '@/modules/sales/hearing/ui/hearing-panel';
+import { SubmitButton, FormAutoClose } from '@/components/ui/submit-button';
 import { updateDealAction, changeDealStageAction, saveLarkSettingsAction } from '@/modules/sales/deal/server-actions';
 import { DealActivityLog, DealActivitySidebarForm } from './deal-activity-log';
 import type { DealStageHistoryItem } from '../infrastructure/deal-repository';
@@ -33,6 +35,7 @@ interface DealDetailViewProps {
     hearingRecord: HearingRecord | null;
     hearingCompletion: HearingCompletionStatus;
     approvalRequests: ApprovalRequestListItem[];
+    approvalRoutes: ApprovalRouteItem[];
     canEditHearing: boolean;
     canCreateApproval: boolean;
     canReadApprovals: boolean;
@@ -92,6 +95,7 @@ export function DealDetailView({
     hearingRecord,
     hearingCompletion,
     approvalRequests,
+    approvalRoutes,
     canEditHearing,
     canCreateApproval,
     canReadApprovals,
@@ -223,6 +227,7 @@ export function DealDetailView({
                         </summary>
                         <div className="border-t border-gray-100 px-6 pb-6 pt-5">
                             <form action={updateDealAction} className="grid gap-4 md:grid-cols-2">
+                                <FormAutoClose />
                                 <input type="hidden" name="dealId" value={deal.id} />
 
                                 <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
@@ -280,9 +285,9 @@ export function DealDetailView({
                                 </label>
 
                                 <div className="flex items-center justify-end md:col-span-2">
-                                    <Button type="submit" className="bg-blue-600 px-8 text-white hover:bg-blue-700">
+                                    <SubmitButton className="bg-blue-600 px-8 text-white hover:bg-blue-700">
                                         保存
-                                    </Button>
+                                    </SubmitButton>
                                 </div>
                             </form>
                         </div>
@@ -307,6 +312,7 @@ export function DealDetailView({
                         </summary>
                         <div className="border-t border-gray-100 px-6 pb-6 pt-5">
                             <form action={saveLarkSettingsAction} className="grid gap-4 md:grid-cols-2">
+                                <FormAutoClose />
                                 <input type="hidden" name="dealId" value={deal.id} />
                                 <label className="grid gap-2 text-sm font-medium text-gray-700">
                                     グループチャットID
@@ -325,9 +331,9 @@ export function DealDetailView({
                                     />
                                 </label>
                                 <div className="flex items-center justify-end md:col-span-2">
-                                    <Button type="submit" className="bg-blue-600 px-8 text-white hover:bg-blue-700">
+                                    <SubmitButton className="bg-blue-600 px-8 text-white hover:bg-blue-700">
                                         Lark設定を保存
-                                    </Button>
+                                    </SubmitButton>
                                 </div>
                             </form>
                         </div>
@@ -343,6 +349,7 @@ export function DealDetailView({
                     <DealApprovalPanel
                         dealId={deal.id}
                         approvals={approvalRequests}
+                        approvalRoutes={approvalRoutes}
                         canCreate={canCreateApproval}
                         canRead={canReadApprovals}
                     />

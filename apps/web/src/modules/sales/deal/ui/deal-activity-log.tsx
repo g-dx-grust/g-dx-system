@@ -2,6 +2,7 @@ import type { DealActivityItem, DealActivityType } from '@g-dx/contracts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { createDealActivityAction } from '@/modules/sales/deal/server-actions';
 
 export const ACTIVITY_LABELS: Record<DealActivityType, string> = {
@@ -51,7 +52,7 @@ export function DealActivityLog({ dealId, activities, activityAdded = false, hid
                             <Input name="summary" placeholder="活動の概要を記入..." className="h-9 text-sm" />
                         </label>
                         <div className="flex items-end md:col-span-4">
-                            <Button type="submit" size="sm" className="bg-blue-600 px-5 text-white hover:bg-blue-700">記録</Button>
+                            <SubmitButton size="sm" pendingText="記録中..." className="bg-blue-600 px-5 text-white hover:bg-blue-700">記録</SubmitButton>
                         </div>
                     </form>
                 )}
@@ -118,9 +119,9 @@ export function DealActivitySidebarForm({ dealId, recentActivities, activityAdde
                         内容
                         <Input name="summary" placeholder="活動の概要..." className="h-8 text-sm" />
                     </label>
-                    <Button type="submit" size="sm" className="w-full bg-blue-600 text-white hover:bg-blue-700">
+                    <SubmitButton size="sm" pendingText="記録中..." className="w-full bg-blue-600 text-white hover:bg-blue-700">
                         記録する
-                    </Button>
+                    </SubmitButton>
                 </form>
 
                 {/* 直近の活動（最新5件） */}

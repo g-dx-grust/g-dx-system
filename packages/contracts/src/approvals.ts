@@ -52,7 +52,8 @@ export interface ApprovalRequestListItem {
     appliedAt: ISODateString;
     decidedAt: ISODateString | null;
     deadlineAt: ISODateString | null;
-    meetingDate: ISODateOnlyString | null;
+    meetingDate: ISODateString | null;
+    documentUrl: string | null;
 }
 
 export interface ApprovalRequestDetail extends ApprovalRequestListItem {
@@ -77,7 +78,9 @@ export interface ApprovalCheckItem {
 export interface CreateApprovalRequest {
     dealId: UUID;
     approvalType: ApprovalTypeValue;
-    meetingDate?: ISODateOnlyString;
+    approverUserId?: UUID;
+    meetingDate?: ISODateString;
+    documentUrl?: string;
     checkItems?: CreateApprovalCheckItem[];
     snapshotData?: Record<string, unknown>;
 }

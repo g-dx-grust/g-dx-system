@@ -25,7 +25,9 @@ function readString(formData: FormData, key: string): string | undefined {
 export async function createApprovalAction(formData: FormData) {
     const dealId = readString(formData, 'dealId');
     const approvalType = readString(formData, 'approvalType') as ApprovalTypeValue | undefined;
+    const approverUserId = readString(formData, 'approverUserId');
     const meetingDate = readString(formData, 'meetingDate');
+    const documentUrl = readString(formData, 'documentUrl');
     const requestNote = readString(formData, 'requestNote');
 
     if (!dealId) {
@@ -40,7 +42,9 @@ export async function createApprovalAction(formData: FormData) {
         await createApproval({
             dealId,
             approvalType,
+            approverUserId,
             meetingDate,
+            documentUrl,
             snapshotData: requestNote ? { requestNote } : undefined,
         });
     } catch (error) {

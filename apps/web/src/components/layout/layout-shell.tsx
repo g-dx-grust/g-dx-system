@@ -35,7 +35,7 @@ export function LayoutShell({ header, children, activeBusinessScope }: LayoutShe
             </div>
             <div className="flex flex-1 flex-col overflow-hidden min-w-0">
                 {header}
-                <main className="flex-1 overflow-y-auto bg-gray-50 px-3 py-3 pb-20 md:px-6 md:py-5 md:pb-5">
+                <main className="flex-1 overflow-y-auto bg-gray-50 px-3 py-3 pb-safe-nav md:px-6 md:py-5 md:pb-5">
                     {children}
                 </main>
             </div>

@@ -13,6 +13,7 @@ import {
     MapPin,
     MoreHorizontal,
     PhoneCall,
+    Plus,
     ScrollText,
     ShieldCheck,
     Target,
@@ -61,18 +62,32 @@ export function BottomNavigation({ activeBusinessScope }: BottomNavigationProps)
 
     return (
         <>
+            {/* FAB: 新規商談登録 - ボトムナビ + セーフエリアの上に配置 */}
+            <Link
+                href="/sales/deals/new"
+                className="fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg active:bg-blue-700 md:hidden"
+                style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom))' }}
+                aria-label="新規商談登録"
+            >
+                <Plus className="h-6 w-6" />
+            </Link>
+
             {isMoreOpen ? (
                 <div className="fixed inset-0 z-40 md:hidden" onClick={() => setIsMoreOpen(false)}>
                     <div className="absolute inset-0 bg-black/30" />
                     <div
-                        className="absolute bottom-16 left-0 right-0 rounded-t-2xl bg-white px-4 pb-4 pt-3 shadow-lg"
+                        className="absolute left-0 right-0 rounded-t-2xl bg-white px-4 pt-3 shadow-lg"
+                        style={{
+                            bottom: 'calc(3.5rem + env(safe-area-inset-bottom))',
+                            paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))',
+                        }}
                         onClick={(event) => event.stopPropagation()}
                     >
                         <div className="mb-3 flex items-center justify-between">
                             <p className="text-sm font-semibold text-gray-900">その他メニュー</p>
                             <button
                                 onClick={() => setIsMoreOpen(false)}
-                                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100"
+                                className="flex h-11 w-11 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 active:bg-gray-100"
                                 aria-label="Close"
                             >
                                 <X className="h-4 w-4" />
@@ -88,7 +103,7 @@ export function BottomNavigation({ activeBusinessScope }: BottomNavigationProps)
                                         href={item.href}
                                         onClick={() => setIsMoreOpen(false)}
                                         className={cn(
-                                            'flex flex-col items-center gap-1.5 rounded-lg px-2 py-3 text-xs transition-colors',
+                                            'flex flex-col items-center gap-1.5 rounded-lg px-2 py-3 text-xs transition-colors active:bg-gray-100',
                                             active ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:bg-gray-50',
                                         )}
                                     >
@@ -102,7 +117,10 @@ export function BottomNavigation({ activeBusinessScope }: BottomNavigationProps)
                 </div>
             ) : null}
 
-            <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-white md:hidden">
+            <nav
+                className="fixed bottom-0 left-0 right-0 z-30 border-t bg-white md:hidden"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+            >
                 <div className="flex items-stretch justify-around">
                     {primaryTabs.map((tab) => {
                         const Icon = tab.icon;
@@ -112,7 +130,7 @@ export function BottomNavigation({ activeBusinessScope }: BottomNavigationProps)
                                 key={tab.href}
                                 href={tab.href}
                                 className={cn(
-                                    'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors',
+                                    'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors active:bg-gray-50',
                                     active ? 'text-blue-600' : 'text-gray-500',
                                 )}
                             >
@@ -124,7 +142,7 @@ export function BottomNavigation({ activeBusinessScope }: BottomNavigationProps)
                     <button
                         onClick={() => setIsMoreOpen((current) => !current)}
                         className={cn(
-                            'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors',
+                            'flex min-h-[56px] flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors active:bg-gray-50',
                             isMoreOpen ? 'text-blue-600' : 'text-gray-500',
                         )}
                     >

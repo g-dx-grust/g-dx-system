@@ -4,6 +4,7 @@ import { listApprovals } from '@/modules/approvals/application/list-approvals';
 import { PersonalApprovalOverview } from '@/modules/approvals/ui/personal-approval-overview';
 import { getPersonalDashboardData } from '@/modules/sales/deal/application/get-personal-dashboard-data';
 import { getPersonalActionList } from '@/modules/sales/deal/application/get-personal-action-list';
+import { PersonalCompanyActionHighlights } from '@/modules/sales/deal/ui/personal-company-action-highlights';
 import { PersonalKpiProgress } from '@/modules/sales/deal/ui/personal-kpi-progress';
 import { PersonalActionList } from '@/modules/sales/deal/ui/personal-action-list';
 import { isAppError } from '@/shared/server/errors';
@@ -58,6 +59,11 @@ export default async function PersonalDashboardPage() {
             </div>
 
             <PersonalKpiProgress data={dashboardData} />
+
+            <PersonalCompanyActionHighlights
+                memberName={session.user.name}
+                groups={dashboardData.lastWeekCompanyActions}
+            />
 
             {canReadApprovals ? (
                 <PersonalApprovalOverview

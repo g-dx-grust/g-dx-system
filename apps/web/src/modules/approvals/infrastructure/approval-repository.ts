@@ -7,7 +7,7 @@ import {
     companies,
     users,
 } from '@g-dx/database/schema';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type {
     ApprovalRequestDetail,
@@ -115,7 +115,7 @@ export async function listApprovalRequests(
         .offset(offset);
 
     const [{ total }] = await db
-        .select({ total: db.$count(approvalRequests.id) })
+        .select({ total: count() })
         .from(approvalRequests)
         .where(and(...conditions));
 

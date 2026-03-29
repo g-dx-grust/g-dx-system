@@ -42,8 +42,8 @@ function RingGauge({ label, actualLabel, targetLabel, pct }: RingGaugeProps) {
     const color = ringColorClass(pct);
 
     return (
-        <div className="flex flex-col items-center gap-3">
-            <div className="relative h-36 w-36">
+        <div className="flex flex-col items-center gap-2 sm:gap-3">
+            <div className="relative h-24 w-24 sm:h-36 sm:w-36">
                 <svg className="h-full w-full -rotate-90" viewBox="0 0 120 120">
                     {/* トラック */}
                     <circle
@@ -62,15 +62,15 @@ function RingGauge({ label, actualLabel, targetLabel, pct }: RingGaugeProps) {
                     />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className={`text-2xl font-bold leading-none ${color}`}>{pct}%</span>
+                    <span className={`text-lg font-bold leading-none sm:text-2xl ${color}`}>{pct}%</span>
                     {pct >= 100 && (
-                        <span className="mt-1 text-[10px] font-medium text-emerald-500">達成</span>
+                        <span className="mt-0.5 text-[9px] font-medium text-emerald-500 sm:mt-1 sm:text-[10px]">達成</span>
                     )}
                 </div>
             </div>
             <div className="text-center">
-                <p className="text-sm font-semibold text-gray-700">{label}</p>
-                <p className="text-lg font-bold text-gray-900 leading-tight">{actualLabel}</p>
+                <p className="text-xs font-semibold text-gray-700 sm:text-sm">{label}</p>
+                <p className="text-base font-bold text-gray-900 leading-tight sm:text-lg">{actualLabel}</p>
                 <p className="text-xs text-gray-400">目標: {targetLabel}</p>
             </div>
         </div>
@@ -120,7 +120,7 @@ function RollingKpiTable({ blocks }: { blocks: PersonalRollingKpiBlock[] }) {
                 <table className="w-full text-sm">
                     <thead>
                         <tr className="border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500">
-                            <th className="px-3 py-2.5 text-left">KPI指標</th>
+                            <th className="sticky left-0 bg-gray-50 px-3 py-2.5 text-left">KPI指標</th>
                             {blocks.map((b) => (
                                 <th key={b.period} className="px-3 py-2.5 text-right whitespace-nowrap">
                                     <div>{b.periodLabel.split(' ')[0]}</div>
@@ -134,7 +134,7 @@ function RollingKpiTable({ blocks }: { blocks: PersonalRollingKpiBlock[] }) {
                     <tbody className="divide-y divide-gray-100">
                         {ROLLING_METRIC_KEYS.map((key) => (
                             <tr key={key} className="hover:bg-gray-50">
-                                <td className="px-3 py-2.5 font-medium text-gray-700 whitespace-nowrap">
+                                <td className="sticky left-0 bg-white px-3 py-2.5 font-medium text-gray-700 whitespace-nowrap">
                                     {ROLLING_METRIC_LABELS[key]}
                                 </td>
                                 {blocks.map((b) => (
@@ -188,7 +188,7 @@ export function PersonalKpiProgress({ data, className }: PersonalKpiProgressProp
                     )}
 
                     {/* ─── ヒーロー: リングゲージ ─────────────────────────────── */}
-                    <div className="flex items-start justify-center gap-12 py-2">
+                    <div className="flex items-start justify-center gap-6 py-2 sm:gap-12">
                         <RingGauge
                             label="売上KPI"
                             actualLabel={formatRevenue(data.revenueActual)}

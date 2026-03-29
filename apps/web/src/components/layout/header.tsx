@@ -5,6 +5,7 @@ import { getNotificationUnreadCount } from '@/modules/notifications/application/
 import { getAuthenticatedAppSession, getGrantedPermissionKeys } from '@/shared/server/session';
 import type { BusinessScopeType } from '@g-dx/contracts';
 import { GlobalSearchBar } from './global-search-bar';
+import { MobileSearchButton } from './mobile-search-button';
 
 export async function Header() {
     const session = await getAuthenticatedAppSession();
@@ -28,7 +29,9 @@ export async function Header() {
                     ) : null}
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 md:gap-4">
+                    <MobileSearchButton />
+
                     <div className="hidden md:block">
                         <GlobalSearchBar />
                     </div>

@@ -96,8 +96,8 @@ export function KpiTargetForm({ currentTarget, currentMonth }: KpiTargetFormProp
                         ))}
                     </div>
 
-                    <div>
-                        <Button type="submit">目標を保存</Button>
+                    <div className="pt-2 md:pt-0">
+                        <Button type="submit" className="w-full md:w-auto">目標を保存</Button>
                     </div>
                 </form>
             </CardContent>

@@ -409,6 +409,24 @@ export interface PersonalDashboardData {
     revenueAchievementPct: number;
     hasTargets: boolean;
     rollingKpis: PersonalRollingKpiBlock[];
+    lastWeekCompanyActions: PersonalLastWeekCompanyActionGroup[];
+}
+
+export type PersonalCompanyActionType = 'VISIT' | 'ONLINE' | 'APPOINTMENT' | 'CONTRACT';
+
+export interface PersonalLastWeekCompanyActionItem {
+    companyId: UUID;
+    companyName: string;
+    dealId: UUID;
+    dealName: string;
+    latestActedAt: ISODateString | ISODateOnlyString;
+    occurrenceCount: number;
+}
+
+export interface PersonalLastWeekCompanyActionGroup {
+    actionType: PersonalCompanyActionType;
+    label: string;
+    companies: PersonalLastWeekCompanyActionItem[];
 }
 
 // ─── Rolling KPI（期間別実績）────────────────────────────────────────────────

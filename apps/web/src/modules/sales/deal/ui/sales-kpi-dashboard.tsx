@@ -41,9 +41,9 @@ export function SalesKpiDashboard({ rollingKpiData }: SalesKpiDashboardProps) {
                     <table className="w-full text-sm">
                         <thead>
                             <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                                <th className="px-4 py-3">KPI指標</th>
+                                <th className="sticky left-0 bg-gray-50 px-3 py-3 md:px-4">KPI指標</th>
                                 {rollingKpiData.map((col) => (
-                                    <th key={col.period} className="px-4 py-3 text-right whitespace-nowrap">
+                                    <th key={col.period} className="px-3 py-3 text-right whitespace-nowrap md:px-4">
                                         <div>{col.periodLabel.split(' ')[0]}</div>
                                         <div className="font-normal normal-case text-[10px] text-gray-400">
                                             {col.startDate.slice(5)} 〜 {col.endDate.slice(5)}
@@ -55,11 +55,11 @@ export function SalesKpiDashboard({ rollingKpiData }: SalesKpiDashboardProps) {
                         <tbody className="divide-y divide-gray-100">
                             {KPI_ROWS.map((row) => (
                                 <tr key={row.key} className="hover:bg-gray-50">
-                                    <td className="px-4 py-3 font-medium text-gray-700 whitespace-nowrap">
+                                    <td className="sticky left-0 bg-white px-3 py-2.5 font-medium text-gray-700 whitespace-nowrap md:px-4 md:py-3">
                                         {row.label}
                                     </td>
                                     {rollingKpiData.map((col) => (
-                                        <td key={col.period} className="px-4 py-3">
+                                        <td key={col.period} className="px-3 py-2.5 md:px-4 md:py-3">
                                             <SegmentedCell counts={(col.metrics as any)[row.key]} />
                                         </td>
                                     ))}

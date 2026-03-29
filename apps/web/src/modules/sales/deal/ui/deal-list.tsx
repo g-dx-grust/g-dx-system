@@ -68,11 +68,11 @@ export function DealList({ deals, total, keyword, stage, created = false }: Deal
                             ))}
                         </select>
                         <div className="flex gap-2">
-                            <Button type="submit" className="bg-blue-600 px-6 text-white hover:bg-blue-700">
+                            <Button type="submit" className="flex-1 bg-blue-600 px-6 text-white hover:bg-blue-700 md:flex-none">
                                 検索
                             </Button>
                             {(keyword || stage) ? (
-                                <Button asChild variant="outline" className="px-5">
+                                <Button asChild variant="outline" className="flex-1 px-5 md:flex-none">
                                     <Link href="/sales/deals">クリア</Link>
                                 </Button>
                             ) : null}
@@ -100,52 +100,93 @@ export function DealList({ deals, total, keyword, stage, created = false }: Deal
                                 : 'このビジネスにはまだ案件がありません。'}
                         </div>
                     ) : (
-                        <table className="min-w-full divide-y divide-gray-200 text-sm">
-                            <thead className="bg-gray-50 text-left text-gray-500">
-                                <tr>
-                                    <th className="px-6 py-3 font-medium">案件名</th>
-                                    <th className="px-6 py-3 font-medium">会社</th>
-                                    <th className="px-6 py-3 font-medium">ステージ</th>
-                                    <th className="px-6 py-3 font-medium">金額</th>
-                                    <th className="px-6 py-3 font-medium">担当者</th>
-                                    <th className="px-6 py-3 font-medium">クローズ予定</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 bg-white text-gray-700">
+                        <>
+                            {/* モバイル: カード表示 */}
+                            <div className="divide-y divide-gray-100 md:hidden">
                                 {deals.map((deal) => (
-                                    <tr key={deal.id}>
-                                        <td className="px-6 py-4 font-medium text-gray-900">
-                                            <Link
-                                                href={`/sales/deals/${deal.id}`}
-                                                className="hover:text-gray-700 hover:underline"
-                                            >
-                                                {deal.name}
-                                            </Link>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <Link
-                                                href={`/customers/companies/${deal.company.id}`}
-                                                className="hover:underline"
-                                            >
-                                                {deal.company.name}
-                                            </Link>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_COLORS[deal.stage]}`}>
+                                    <div key={deal.id} className="px-4 py-3">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <Link
+                                                    href={`/sales/deals/${deal.id}`}
+                                                    className="block truncate font-medium text-gray-900 hover:underline"
+                                                >
+                                                    {deal.name}
+                                                </Link>
+                                                <Link
+                                                    href={`/customers/companies/${deal.company.id}`}
+                                                    className="mt-0.5 block text-xs text-gray-500 hover:underline"
+                                                >
+                                                    {deal.company.name}
+                                                </Link>
+                                            </div>
+                                            <span className={`shrink-0 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_COLORS[deal.stage]}`}>
                                                 {STAGE_LABELS[deal.stage]}
                                             </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            {deal.amount !== null
-                                                ? `¥${deal.amount.toLocaleString()}`
-                                                : '-'}
-                                        </td>
-                                        <td className="px-6 py-4">{deal.ownerUser.name}</td>
-                                        <td className="px-6 py-4">{deal.expectedCloseDate ?? '-'}</td>
-                                    </tr>
+                                        </div>
+                                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                                            <span>{deal.ownerUser.name}</span>
+                                            {deal.amount !== null && (
+                                                <span className="font-medium text-gray-700">¥{deal.amount.toLocaleString()}</span>
+                                            )}
+                                            {deal.expectedCloseDate && (
+                                                <span>〆{deal.expectedCloseDate}</span>
+                                            )}
+                                        </div>
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+
+                            {/* デスクトップ: テーブル表示 */}
+                            <div className="hidden md:block overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-200 text-sm">
+                                    <thead className="bg-gray-50 text-left text-gray-500">
+                                        <tr>
+                                            <th className="px-6 py-3 font-medium">案件名</th>
+                                            <th className="px-6 py-3 font-medium">会社</th>
+                                            <th className="px-6 py-3 font-medium">ステージ</th>
+                                            <th className="px-6 py-3 font-medium">金額</th>
+                                            <th className="px-6 py-3 font-medium">担当者</th>
+                                            <th className="px-6 py-3 font-medium">クローズ予定</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-200 bg-white text-gray-700">
+                                        {deals.map((deal) => (
+                                            <tr key={deal.id}>
+                                                <td className="px-6 py-4 font-medium text-gray-900">
+                                                    <Link
+                                                        href={`/sales/deals/${deal.id}`}
+                                                        className="hover:text-gray-700 hover:underline"
+                                                    >
+                                                        {deal.name}
+                                                    </Link>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <Link
+                                                        href={`/customers/companies/${deal.company.id}`}
+                                                        className="hover:underline"
+                                                    >
+                                                        {deal.company.name}
+                                                    </Link>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_COLORS[deal.stage]}`}>
+                                                        {STAGE_LABELS[deal.stage]}
+                                                    </span>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    {deal.amount !== null
+                                                        ? `¥${deal.amount.toLocaleString()}`
+                                                        : '-'}
+                                                </td>
+                                                <td className="px-6 py-4">{deal.ownerUser.name}</td>
+                                                <td className="px-6 py-4">{deal.expectedCloseDate ?? '-'}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
                     )}
                 </CardContent>
             </Card>

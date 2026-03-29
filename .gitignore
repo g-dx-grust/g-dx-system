@@ -42,3 +42,5 @@ lint.log
 .claude/
 .gemini/
 brain/
+
+.vercel

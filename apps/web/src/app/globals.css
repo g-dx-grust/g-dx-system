@@ -70,3 +70,18 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
 }
+
+@layer utilities {
+  /* iPhone などのホームインジケーター・ノッチ対応 */
+  .pb-safe-nav {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+  /* スクロールバー非表示（横スクロールUI向け） */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

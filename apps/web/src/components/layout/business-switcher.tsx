@@ -18,6 +18,7 @@ type TabValue = typeof ALL_TAB | BusinessScopeType;
 interface TabDef {
     value: TabValue;
     label: string;
+    shortLabel: string;
 }
 
 const STORAGE_KEY = 'gdx_active_tab';
@@ -61,17 +62,17 @@ export function BusinessSwitcher({ activeBusinessScope, availableScopes }: Busin
     };
 
     const tabs: TabDef[] = [
-        { value: ALL_TAB, label: '全案件' },
+        { value: ALL_TAB, label: '全案件', shortLabel: '全案件' },
         ...(availableScopes.includes(BusinessScope.LARK_SUPPORT)
-            ? [{ value: BusinessScope.LARK_SUPPORT as TabValue, label: 'G-DX（Lark導入支援）' }]
+            ? [{ value: BusinessScope.LARK_SUPPORT as TabValue, label: 'G-DX（Lark導入支援）', shortLabel: 'G-DX' }]
             : []),
         ...(availableScopes.includes(BusinessScope.WATER_SAVING)
-            ? [{ value: BusinessScope.WATER_SAVING as TabValue, label: 'JET（節水器具）' }]
+            ? [{ value: BusinessScope.WATER_SAVING as TabValue, label: 'JET（節水器具）', shortLabel: 'JET' }]
             : []),
     ];
 
     return (
-        <div className="flex items-center gap-4 border-b border-transparent">
+        <div className="scrollbar-none flex items-center gap-3 overflow-x-auto border-b border-transparent">
             {tabs.map((tab) => {
                 const isActive = tab.value === selectedTab;
 
@@ -81,14 +82,15 @@ export function BusinessSwitcher({ activeBusinessScope, availableScopes }: Busin
                         onClick={() => handleSelect(tab.value)}
                         disabled={isPending}
                         className={cn(
-                            'relative px-1 pb-2 text-sm font-medium transition-colors whitespace-nowrap',
+                            'relative shrink-0 px-1 pb-2 text-sm font-medium transition-colors',
                             isActive
                                 ? 'border-b-2 border-gray-900 text-gray-900'
                                 : 'text-gray-500 hover:text-gray-700',
                             isPending && 'opacity-50 cursor-not-allowed'
                         )}
                     >
-                        {tab.label}
+                        <span className="md:hidden">{tab.shortLabel}</span>
+                        <span className="hidden md:inline">{tab.label}</span>
                     </button>
                 );
             })}

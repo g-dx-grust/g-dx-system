@@ -10,8 +10,18 @@ import {
     companies,
     callLogs,
 } from '@g-dx/database/schema';
-import { and, count, eq, gte, isNull, lte, sql } from 'drizzle-orm';
-import type { PersonalNextActionItem, PersonalRollingKpiBlock, KpiSegmentedCounts, RollingKpiMetricKey, SaveKpiTargetInput, UserKpiTarget } from '@g-dx/contracts';
+import { and, count, desc, eq, gte, inArray, isNull, lte, sql } from 'drizzle-orm';
+import type {
+    KpiSegmentedCounts,
+    PersonalCompanyActionType,
+    PersonalLastWeekCompanyActionGroup,
+    PersonalLastWeekCompanyActionItem,
+    PersonalNextActionItem,
+    PersonalRollingKpiBlock,
+    RollingKpiMetricKey,
+    SaveKpiTargetInput,
+    UserKpiTarget,
+} from '@g-dx/contracts';
 import { getRollingPeriodBounds, ALL_ROLLING_PERIODS, type RollingPeriodBounds } from './rolling-period';
 
 function getMonthBounds(targetMonth: string): { startDate: string; endDate: string } {
@@ -487,6 +497,189 @@ export async function getPersonalRollingKpis(
         }),
     );
     return results;
+}
+
+type CompanyActionRow = {
+    companyId: string;
+    companyName: string;
+    dealId: string;
+    dealName: string;
+    actedAt: string;
+};
+
+const PERSONAL_ACTION_TYPE_LABELS: Record<PersonalCompanyActionType, string> = {
+    VISIT: '訪問',
+    ONLINE: 'オンライン商談',
+    APPOINTMENT: 'アポイント獲得',
+    CONTRACT: '契約',
+};
+
+function aggregateLastWeekCompanyActions(
+    actionType: PersonalCompanyActionType,
+    rows: CompanyActionRow[],
+): PersonalLastWeekCompanyActionGroup {
+    const companyMap = new Map<string, PersonalLastWeekCompanyActionItem>();
+
+    for (const row of rows) {
+        const existing = companyMap.get(row.companyId);
+        if (existing) {
+            existing.occurrenceCount += 1;
+            continue;
+        }
+
+        companyMap.set(row.companyId, {
+            companyId: row.companyId,
+            companyName: row.companyName,
+            dealId: row.dealId,
+            dealName: row.dealName,
+            latestActedAt: row.actedAt,
+            occurrenceCount: 1,
+        });
+    }
+
+    return {
+        actionType,
+        label: PERSONAL_ACTION_TYPE_LABELS[actionType],
+        companies: Array.from(companyMap.values()),
+    };
+}
+
+export async function getPersonalLastWeekCompanyActions(
+    userId: string,
+    businessUnitId: string,
+): Promise<PersonalLastWeekCompanyActionGroup[]> {
+    const lastWeekBounds = getRollingPeriodBounds('lastWeek');
+    const startDateTime = new Date(`${lastWeekBounds.startDate}T00:00:00Z`);
+    const endDateTime = new Date(`${lastWeekBounds.endDate}T23:59:59Z`);
+
+    const [contractStages, visits, onlineMeetings, appointments] = await Promise.all([
+        db
+            .select({ id: pipelineStages.id })
+            .from(pipelineStages)
+            .innerJoin(pipelines, eq(pipelineStages.pipelineId, pipelines.id))
+            .where(and(eq(pipelines.businessUnitId, businessUnitId), eq(pipelineStages.stageKey, 'CONTRACTED'))),
+        db
+            .select({
+                companyId: companies.id,
+                companyName: companies.displayName,
+                dealId: deals.id,
+                dealName: deals.title,
+                actedAt: dealActivities.activityDate,
+            })
+            .from(dealActivities)
+            .innerJoin(deals, eq(dealActivities.dealId, deals.id))
+            .innerJoin(companies, eq(deals.companyId, companies.id))
+            .where(
+                and(
+                    eq(dealActivities.userId, userId),
+                    eq(dealActivities.businessUnitId, businessUnitId),
+                    eq(dealActivities.activityType, 'VISIT'),
+                    gte(dealActivities.activityDate, lastWeekBounds.startDate),
+                    lte(dealActivities.activityDate, lastWeekBounds.endDate),
+                ),
+            )
+            .orderBy(desc(dealActivities.activityDate), desc(dealActivities.createdAt)),
+        db
+            .select({
+                companyId: companies.id,
+                companyName: companies.displayName,
+                dealId: deals.id,
+                dealName: deals.title,
+                actedAt: dealActivities.activityDate,
+            })
+            .from(dealActivities)
+            .innerJoin(deals, eq(dealActivities.dealId, deals.id))
+            .innerJoin(companies, eq(deals.companyId, companies.id))
+            .where(
+                and(
+                    eq(dealActivities.userId, userId),
+                    eq(dealActivities.businessUnitId, businessUnitId),
+                    eq(dealActivities.activityType, 'ONLINE'),
+                    gte(dealActivities.activityDate, lastWeekBounds.startDate),
+                    lte(dealActivities.activityDate, lastWeekBounds.endDate),
+                ),
+            )
+            .orderBy(desc(dealActivities.activityDate), desc(dealActivities.createdAt)),
+        db
+            .select({
+                companyId: companies.id,
+                companyName: companies.displayName,
+                dealId: deals.id,
+                dealName: deals.title,
+                actedAt: deals.createdAt,
+            })
+            .from(deals)
+            .innerJoin(companies, eq(deals.companyId, companies.id))
+            .where(
+                and(
+                    eq(deals.ownerUserId, userId),
+                    eq(deals.businessUnitId, businessUnitId),
+                    isNull(deals.deletedAt),
+                    gte(deals.createdAt, startDateTime),
+                    lte(deals.createdAt, endDateTime),
+                ),
+            )
+            .orderBy(desc(deals.createdAt)),
+    ]);
+
+    const contracts =
+        contractStages.length === 0
+            ? []
+            : await db
+                  .select({
+                      companyId: companies.id,
+                      companyName: companies.displayName,
+                      dealId: deals.id,
+                      dealName: deals.title,
+                      actedAt: dealStageHistory.changedAt,
+                  })
+                  .from(dealStageHistory)
+                  .innerJoin(deals, eq(dealStageHistory.dealId, deals.id))
+                  .innerJoin(companies, eq(deals.companyId, companies.id))
+                  .where(
+                      and(
+                          eq(deals.ownerUserId, userId),
+                          eq(deals.businessUnitId, businessUnitId),
+                          inArray(
+                              dealStageHistory.toStageId,
+                              contractStages.map((stage) => stage.id),
+                          ),
+                          gte(dealStageHistory.changedAt, startDateTime),
+                          lte(dealStageHistory.changedAt, endDateTime),
+                      ),
+                  )
+                  .orderBy(desc(dealStageHistory.changedAt));
+
+    return [
+        aggregateLastWeekCompanyActions(
+            'VISIT',
+            visits.map((row) => ({
+                ...row,
+                actedAt: row.actedAt,
+            })),
+        ),
+        aggregateLastWeekCompanyActions(
+            'ONLINE',
+            onlineMeetings.map((row) => ({
+                ...row,
+                actedAt: row.actedAt,
+            })),
+        ),
+        aggregateLastWeekCompanyActions(
+            'APPOINTMENT',
+            appointments.map((row) => ({
+                ...row,
+                actedAt: row.actedAt.toISOString(),
+            })),
+        ),
+        aggregateLastWeekCompanyActions(
+            'CONTRACT',
+            contracts.map((row) => ({
+                ...row,
+                actedAt: row.actedAt.toISOString(),
+            })),
+        ),
+    ];
 }
 
 export async function getPersonalNextActions(

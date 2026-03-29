@@ -191,11 +191,11 @@ export function DealCreateForm({
                         />
                     </label>
 
-                    <div className="flex items-center justify-end gap-2 md:col-span-2">
-                        <Button asChild variant="outline" className="px-6">
+                    <div className="flex flex-col-reverse gap-2 md:col-span-2 md:flex-row md:justify-end">
+                        <Button asChild variant="outline" className="w-full px-6 md:w-auto">
                             <Link href="/sales/deals">キャンセル</Link>
                         </Button>
-                        <Button type="submit" className="bg-blue-600 px-6 text-white hover:bg-blue-700">
+                        <Button type="submit" className="w-full bg-blue-600 px-6 text-white hover:bg-blue-700 md:w-auto">
                             案件を登録
                         </Button>
                     </div>

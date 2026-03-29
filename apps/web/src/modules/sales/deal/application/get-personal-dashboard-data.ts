@@ -2,7 +2,12 @@ import { assertPermission } from '@/shared/server/authorization';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
-import { getKpiTargetRow, getPersonalActuals, getPersonalRollingKpis } from '../infrastructure/personal-kpi-repository';
+import {
+    getKpiTargetRow,
+    getPersonalActuals,
+    getPersonalLastWeekCompanyActions,
+    getPersonalRollingKpis,
+} from '../infrastructure/personal-kpi-repository';
 import type { PersonalDashboardData, PersonalKpiItem } from '@g-dx/contracts';
 
 function getCurrentMonth(): string {
@@ -25,19 +30,24 @@ const KPI_ITEM_DEFS: Array<{ key: PersonalKpiItem['key']; label: string }> = [
     { key: 'contractCount', label: '契約数' },
 ];
 
-export async function getPersonalDashboardData(targetMonth?: string): Promise<PersonalDashboardData> {
+export async function getPersonalDashboardData(options?: {
+    targetMonth?: string;
+    userId?: string;
+}): Promise<PersonalDashboardData> {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
     assertPermission(session, 'dashboard.kpi.read');
 
-    const month = targetMonth ?? getCurrentMonth();
+    const month = options?.targetMonth ?? getCurrentMonth();
+    const targetUserId = options?.userId ?? session.user.id;
     const businessUnit = await findBusinessUnitByScope(session.activeBusinessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
 
-    const [target, actuals, rollingKpis] = await Promise.all([
-        getKpiTargetRow(session.user.id, businessUnit.id, month),
-        getPersonalActuals(session.user.id, businessUnit.id, month),
-        getPersonalRollingKpis(session.user.id, businessUnit.id),
+    const [target, actuals, rollingKpis, lastWeekCompanyActions] = await Promise.all([
+        getKpiTargetRow(targetUserId, businessUnit.id, month),
+        getPersonalActuals(targetUserId, businessUnit.id, month),
+        getPersonalRollingKpis(targetUserId, businessUnit.id),
+        getPersonalLastWeekCompanyActions(targetUserId, businessUnit.id),
     ]);
 
     const hasTargets = target !== null;
@@ -78,5 +88,6 @@ export async function getPersonalDashboardData(targetMonth?: string): Promise<Pe
         revenueAchievementPct,
         hasTargets,
         rollingKpis,
+        lastWeekCompanyActions,
     };
 }

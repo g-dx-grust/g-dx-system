@@ -58,7 +58,38 @@ export function PersonalActionList({ items, className }: PersonalActionListProps
                                 <Badge variant={badgeVariant}>{label}</Badge>
                                 <span className="text-xs text-gray-500">{sectionItems.length}件</span>
                             </div>
-                            <div className="overflow-x-auto rounded-md border border-gray-100">
+
+                            {/* モバイル: カード表示 */}
+                            <div className="space-y-2 md:hidden">
+                                {sectionItems.map((item) => (
+                                    <div key={item.dealId} className="rounded-md border border-gray-100 bg-gray-50 px-3 py-2.5">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <Link
+                                                    href={`/sales/deals/${item.dealId}`}
+                                                    className="block truncate text-sm font-medium text-gray-900 hover:underline"
+                                                >
+                                                    {item.companyName}
+                                                </Link>
+                                                <div className="mt-0.5 truncate text-xs text-gray-500">{item.dealName}</div>
+                                            </div>
+                                            <span className="shrink-0 tabular-nums text-xs font-medium text-gray-600">
+                                                {formatAmount(item.amount)}
+                                            </span>
+                                        </div>
+                                        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-gray-500">
+                                            <span className="rounded bg-gray-200 px-1.5 py-0.5 text-gray-600">{item.stageName}</span>
+                                            {item.nextActionDate && <span>{item.nextActionDate}</span>}
+                                        </div>
+                                        {item.nextActionContent && (
+                                            <div className="mt-1 line-clamp-2 text-xs text-gray-600">{item.nextActionContent}</div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* デスクトップ: テーブル表示 */}
+                            <div className="hidden overflow-x-auto rounded-md border border-gray-100 md:block">
                                 <table className="w-full text-sm">
                                     <thead>
                                         <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-medium text-gray-500">
@@ -82,11 +113,11 @@ export function PersonalActionList({ items, className }: PersonalActionListProps
                                                         {item.dealName}
                                                     </div>
                                                 </td>
-                                                <td className="px-3 py-2 text-gray-600 text-xs">
+                                                <td className="px-3 py-2 text-xs text-gray-600">
                                                     {item.stageName}
                                                 </td>
                                                 <td className="px-3 py-2">
-                                                    <div className="text-gray-700 text-xs">
+                                                    <div className="text-xs text-gray-700">
                                                         {item.nextActionContent ?? '-'}
                                                     </div>
                                                     <div className="mt-0.5 text-xs text-gray-400">

@@ -139,11 +139,11 @@ export function DealDashboard({
                     summary={teamTargetSummary}
                     rollingKpiData={rollingKpiData}
                     title="チームKPIと進捗"
-                    description="月次のチームKPIと現時点の実績を並べて確認できます。会社目標と個人入力の橋渡しになる位置づけです。"
+                    description="月次KPI / 実績"
                 />
 
                 <DashboardNarrativeCard
-                    description="案件の流れと次の打ち手を、ひと呼吸で読み取れる短いメモにまとめています。"
+                    description="案件サマリー"
                     lines={buildNarrativeLines(
                         summary,
                         rollingKpiData,
@@ -155,25 +155,25 @@ export function DealDashboard({
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <DashboardMetricCard
                     title="総案件数"
-                    description="現在追っている案件全体の件数です。"
+                    description="案件総数"
                     value={`${summary.totalDeals.toLocaleString()}件`}
                     footnote={`成約率は ${winRate}% です。`}
                 />
                 <DashboardMetricCard
                     title="進行中案件"
-                    description="アポイント取得後から商談中までの進行中案件です。"
+                    description="進行中案件"
                     value={`${summary.activeGroup.count.toLocaleString()}件`}
                     footnote={`進行中金額 ${formatDashboardAmount(summary.activeGroup.totalAmount)}`}
                 />
                 <DashboardMetricCard
                     title="停滞案件"
-                    description="保留や失注など、見直しが必要な案件数です。"
+                    description="停滞案件"
                     value={`${summary.stalledGroup.count.toLocaleString()}件`}
                     footnote={`対象金額 ${formatDashboardAmount(summary.stalledGroup.totalAmount)}`}
                 />
                 <DashboardMetricCard
                     title="成約済み"
-                    description="今期の成約済み案件の件数です。"
+                    description="成約件数"
                     value={`${summary.contractedGroup.count.toLocaleString()}件`}
                     footnote={`成約金額 ${formatDashboardAmount(summary.contractedGroup.totalAmount)}`}
                 />
@@ -186,7 +186,7 @@ export function DealDashboard({
                             フェーズ別の件数
                         </CardTitle>
                         <CardDescription>
-                            案件の偏りをステージ単位で確認できます。
+                            ステージ別件数
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -200,7 +200,7 @@ export function DealDashboard({
                             フェーズ別の金額
                         </CardTitle>
                         <CardDescription>
-                            件数だけでなく、金額の重心もあわせて確認します。
+                            件数 / 金額
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -217,7 +217,7 @@ export function DealDashboard({
                                             {stage.stageName}
                                         </span>
                                         <p className="text-xs text-gray-500">
-                                            件数と金額をあわせて確認できます。
+                                            件数 / 金額
                                         </p>
                                     </div>
                                     <div className="text-right">
@@ -261,7 +261,7 @@ export function DealDashboard({
                             会社別の進行中案件金額
                         </CardTitle>
                         <CardDescription>
-                            進行中案件の金額が大きい会社から順に確認できます。
+                            進行中金額 上位
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -276,7 +276,7 @@ export function DealDashboard({
                         ネクストアクション
                     </CardTitle>
                     <CardDescription>
-                        今日から今週にかけての予定をまとめています。
+                        今週の予定
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

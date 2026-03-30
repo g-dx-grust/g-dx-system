@@ -46,7 +46,7 @@ export function HearingPanel({ dealId, record, completion, canEdit }: HearingPan
                             {completion.completedCount} / {completion.totalCount} 完了
                         </Badge>
                     </div>
-                    <p className="text-sm text-gray-500">5つの必須論点を商談詳細上で整理できます。</p>
+                    <p className="text-sm text-gray-500">ヒアリング5項目</p>
                     <Progress value={completion.completedCount} max={completion.totalCount} className="max-w-sm" />
                 </div>
                 <ChevronDown className="h-5 w-5 text-gray-400 transition-transform duration-200 group-open:rotate-180" />

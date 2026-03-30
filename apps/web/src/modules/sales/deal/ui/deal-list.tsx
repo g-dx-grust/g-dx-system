@@ -90,7 +90,7 @@ export function DealList({ deals, total, keyword, stage, created = false }: Deal
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">案件リスト</CardTitle>
-                    <CardDescription>現在のビジネスに紐づく案件を表示しています。</CardDescription>
+                    <CardDescription>案件一覧</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     {deals.length === 0 ? (

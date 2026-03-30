@@ -64,9 +64,7 @@ export default async function PersonalDashboardPage() {
                 <h1 className="text-2xl font-semibold text-gray-900">
                     個人ダッシュボード
                 </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                    月次目標、週次換算の目安、承認と次の行動を一つの流れで確認できます。
-                </p>
+                <p className="mt-1 text-sm text-gray-500">個人ダッシュボード</p>
             </div>
 
             <ActivityPersonalView

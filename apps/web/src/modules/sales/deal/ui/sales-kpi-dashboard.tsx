@@ -36,7 +36,7 @@ export function SalesKpiDashboard({ rollingKpiData }: SalesKpiDashboardProps) {
             <CardHeader>
                 <CardTitle className="text-base text-gray-900">期間別の活動実績</CardTitle>
                 <CardDescription>
-                    今週・先週・今月・先月を、新規 / 既存の内訳つきで確認します。
+                    期間別KPI
                 </CardDescription>
             </CardHeader>
             <CardContent>

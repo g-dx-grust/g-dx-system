@@ -160,7 +160,7 @@ export function DealDetailView({
                         <Card className="shadow-sm">
                             <CardHeader>
                                 <CardTitle className="text-lg text-gray-900">案件情報</CardTitle>
-                                <CardDescription>案件の基本情報。</CardDescription>
+                                <CardDescription>基本情報</CardDescription>
                             </CardHeader>
                             <CardContent className="grid gap-4 sm:grid-cols-2">
                                 <InfoItem label="会社">
@@ -192,7 +192,7 @@ export function DealDetailView({
                             <Card className="shadow-sm">
                                 <CardHeader>
                                     <CardTitle className="text-lg text-gray-900">ステージ変更</CardTitle>
-                                    <CardDescription>ステージを移動します。</CardDescription>
+                                    <CardDescription>ステージ移動</CardDescription>
                                 </CardHeader>
                                 <CardContent className="flex flex-col gap-2">
                                     {otherStages.map((stage) => (

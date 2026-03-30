@@ -54,7 +54,7 @@ const BUSINESS_GOAL_FIELDS: BusinessGoalField[] = [
     {
         key: 'revenueTarget',
         title: '売上目標',
-        description: '月次で目指す売上の着地ラインを共有します。',
+        description: '売上目標',
         placeholder: '例 5000000',
         step: '1000',
         isAmount: true,
@@ -62,7 +62,7 @@ const BUSINESS_GOAL_FIELDS: BusinessGoalField[] = [
     {
         key: 'grossProfitTarget',
         title: '粗利目標',
-        description: '売上だけでなく、採算の目線もあわせて確認します。',
+        description: '粗利目標',
         placeholder: '例 1800000',
         step: '1000',
         isAmount: true,
@@ -70,7 +70,7 @@ const BUSINESS_GOAL_FIELDS: BusinessGoalField[] = [
     {
         key: 'contractCountTarget',
         title: '契約件数目標',
-        description: '月内に契約完了を目指す件数を登録します。',
+        description: '契約目標件数',
         placeholder: '例 8',
         step: '1',
     },
@@ -345,7 +345,7 @@ export function BusinessGoalSettingsSection({
                     className="max-w-xs"
                 />
                 <p className="text-xs text-gray-500">
-                    会社目標は月ごとに管理します。個人KPIとは別に、ここで全体の基準を整えます。
+                    会社目標
                 </p>
             </div>
 

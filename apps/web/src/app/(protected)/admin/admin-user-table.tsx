@@ -78,7 +78,7 @@ export function AdminUserTable({ users, roleOptions, businessUnits, currentUserI
                     <ShieldCheck className="h-6 w-6 text-gray-700" />
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-900">管理者設定</h1>
-                        <p className="text-sm text-gray-500">ユーザーのロールと権限を管理します</p>
+                        <p className="text-sm text-gray-500">ユーザー権限</p>
                     </div>
                 </div>
                 <Button

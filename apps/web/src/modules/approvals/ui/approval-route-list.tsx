@@ -24,7 +24,7 @@ export function ApprovalRouteListView({ routes }: ApprovalRouteListViewProps) {
         <div className="space-y-6">
             <div className="space-y-1">
                 <h1 className="text-2xl font-semibold text-gray-900">承認ルート</h1>
-                <p className="text-sm text-gray-500">現在の事業スコープで有効な承認ルートを確認できます。</p>
+                <p className="text-sm text-gray-500">承認ルート</p>
             </div>
 
             {routes.length === 0 ? (

@@ -69,7 +69,7 @@ export function CompanyList({ companies, total, created = false, keyword }: Comp
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">会社ディレクトリ</CardTitle>
                     <CardDescription>
-                        登録されている会社の一覧です。
+                        会社一覧
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">

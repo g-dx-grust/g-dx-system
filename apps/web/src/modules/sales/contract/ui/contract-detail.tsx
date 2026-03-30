@@ -197,7 +197,7 @@ export function ContractDetailView({ contract, users = [], created = false, upda
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-base text-gray-900">契約を編集</CardTitle>
-                    <CardDescription>契約情報を更新します。</CardDescription>
+                    <CardDescription>契約編集</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form action={updateContractAction} className="grid gap-4 md:grid-cols-2">

@@ -26,7 +26,7 @@ export function CompanyDetailView({ company, leadSources, updated = false, conta
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div className="space-y-1">
                     <h1 className="text-2xl font-semibold text-gray-900">{company.name}</h1>
-                    <p className="text-sm text-gray-500">会社の詳細情報です。</p>
+                    <p className="text-sm text-gray-500">会社詳細</p>
                 </div>
                 <Button asChild variant="outline" className="px-5">
                     <Link href="/customers/companies">一覧へ戻る</Link>
@@ -44,7 +44,7 @@ export function CompanyDetailView({ company, leadSources, updated = false, conta
                 <Card className="shadow-sm">
                     <CardHeader>
                         <CardTitle className="text-lg text-gray-900">基本情報</CardTitle>
-                        <CardDescription>会社の基本情報です。</CardDescription>
+                        <CardDescription>基本情報</CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4 sm:grid-cols-2">
                         <OverviewItem label="業種" value={company.industry ?? '-'} />
@@ -111,7 +111,7 @@ export function CompanyDetailView({ company, leadSources, updated = false, conta
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">コンタクト</CardTitle>
-                    <CardDescription>この会社の担当者一覧です。</CardDescription>
+                    <CardDescription>担当者一覧</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-0 p-0">
                     {/* 通知 */}

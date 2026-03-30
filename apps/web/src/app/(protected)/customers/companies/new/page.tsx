@@ -15,7 +15,7 @@ interface NewCompanyPageProps {
 function getErrorMessage(errorCode?: string): string | undefined {
     switch (errorCode) {
         case 'duplicate':
-            return '同じ名前の会社がすでに登録されています。';
+            return '同じ会社がすでに登録されています。';
         case 'validation':
             return '会社名は必須です。';
         default:
@@ -44,10 +44,8 @@ export default async function NewCompanyPage({ searchParams }: NewCompanyPagePro
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-semibold text-gray-900">会社を登録</h1>
-                    <p className="text-sm text-gray-500">
-                        会社マスタとビジネスプロフィールを同時に登録します。
-                    </p>
+                    <h1 className="text-2xl font-semibold text-gray-900">会社登録</h1>
+                    <p className="text-sm text-gray-500">会社登録</p>
                 </div>
                 <Button asChild variant="outline">
                     <Link href="/customers/companies">一覧へ戻る</Link>

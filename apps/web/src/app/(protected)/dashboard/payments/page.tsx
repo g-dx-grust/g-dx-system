@@ -15,11 +15,11 @@ const STATUS_LABELS: Record<ContractStatus, string> = {
 };
 
 const STATUS_DESCRIPTIONS: Record<ContractStatus, string> = {
-    CONTRACTED: '契約済みで、請求前の状態です。',
-    INVOICED: '請求書を発行し、入金待ちになっている状態です。',
-    PAID: '入金確認まで完了した契約です。',
-    SERVICE_STARTED: 'サービス提供が進行中の契約です。',
-    SERVICE_ENDED: 'サービス提供が完了した契約です。',
+    CONTRACTED: '契約済 / 請求前',
+    INVOICED: '請求済 / 入金待ち',
+    PAID: '入金完了',
+    SERVICE_STARTED: '提供中',
+    SERVICE_ENDED: '提供終了',
 };
 
 const STATUS_BADGES: Record<ContractStatus, string> = {
@@ -59,7 +59,7 @@ export default async function PaymentDashboardPage() {
                         入金関連ダッシュボード
                     </h1>
                     <p className="mt-1 text-sm text-gray-500">
-                        契約、請求、入金、サービス提供の流れを落ち着いて追える構成にしています。
+                        契約 / 請求 / 入金 / 提供状況
                     </p>
                 </div>
                 <Link href="/sales/contracts" className="text-sm text-gray-600 hover:underline">
@@ -70,13 +70,13 @@ export default async function PaymentDashboardPage() {
             <div className="grid gap-4 md:grid-cols-2">
                 <DashboardMetricCard
                     title="入金済み合計"
-                    description="入金確認まで完了した契約の総額です。"
+                    description="入金完了総額"
                     value={formatAmount(summary.paidGroup.totalAmount)}
                     footnote={`${summary.paidGroup.count.toLocaleString()}件`}
                 />
                 <DashboardMetricCard
                     title="サービス稼働中"
-                    description="現在サービス提供中の契約件数と金額です。"
+                    description="提供中件数 / 金額"
                     value={`${summary.activeServiceGroup.count.toLocaleString()}件`}
                     footnote={formatAmount(summary.activeServiceGroup.totalAmount)}
                 />
@@ -88,7 +88,7 @@ export default async function PaymentDashboardPage() {
                         契約ステータス一覧
                     </CardTitle>
                     <CardDescription>
-                        何の状態かを先に確認し、そのうえで件数と金額を見られるようにしています。
+                        ステータス別件数 / 金額
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -127,7 +127,7 @@ export default async function PaymentDashboardPage() {
             <Card className="border-gray-200 shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-base text-gray-900">最近の契約</CardTitle>
-                    <CardDescription>登録日順で直近10件を表示しています。</CardDescription>
+                    <CardDescription>直近10件</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     {summary.recentContracts.length === 0 ? (

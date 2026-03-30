@@ -135,23 +135,21 @@ export default async function ActivityDashboardPage({
                 <h1 className="text-2xl font-semibold text-gray-900">
                     活動ダッシュボード
                 </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                    チーム全体の目標、期間別実績、担当者ごとの動きを同じ流れで確認できます。
-                </p>
+                <p className="mt-1 text-sm text-gray-500">活動ダッシュボード</p>
             </div>
 
             <TeamTargetOverview
                 summary={teamTargetSummary}
                 rollingKpiData={rollingKpiData}
-                title="KPI目標合計"
-                description="活動ダッシュボードでは、月次目標合計と実績を先に確認できます。"
+                title="チームKPI"
+                description="月次KPI / 実績"
             />
 
             <SalesKpiDashboard rollingKpiData={rollingKpiData} />
 
             <div className="grid gap-4 lg:grid-cols-3">
                 <NextActionList
-                    title="本日のネクストアクション"
+                    title="今日のネクストアクション"
                     items={summary.nextActionsToday}
                 />
                 <NextActionList

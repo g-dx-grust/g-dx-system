@@ -13,11 +13,9 @@ export default function DealDashboardPage() {
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-semibold text-gray-900">
-                    営業ダッシュボード
+                    案件ダッシュボード
                 </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                    営業活動の流れと次の打ち手に加えて、会社目標との位置関係も同じ画面で見渡せるようにしています。
-                </p>
+                <p className="mt-1 text-sm text-gray-500">案件ダッシュボード</p>
             </div>
 
             <Suspense fallback={<DashboardContentSkeleton />}>

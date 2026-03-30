@@ -267,7 +267,7 @@ export function CallQueueView({ queue, companies, added = false, called = false 
                 <Card className="shadow-sm">
                     <CardHeader>
                         <CardTitle className="text-base text-gray-900">架電先を追加</CardTitle>
-                        <CardDescription>架電予定の会社・担当者を追加します。</CardDescription>
+                        <CardDescription>架電先追加</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form action={addToCallQueueAction} className="grid gap-4 md:grid-cols-2">

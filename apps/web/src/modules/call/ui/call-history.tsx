@@ -152,7 +152,7 @@ export function CallHistoryView({ calls, total, keyword, result, companies, reco
                 <Card className="shadow-sm">
                     <CardHeader>
                         <CardTitle className="text-base text-gray-900">コールを記録</CardTitle>
-                        <CardDescription>通話記録を手動で追加します。</CardDescription>
+                        <CardDescription>通話記録追加</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-5">
                         {/* Company select */}
@@ -259,7 +259,7 @@ export function CallHistoryView({ calls, total, keyword, result, companies, reco
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">コール記録</CardTitle>
-                    <CardDescription>過去の架電記録の一覧です。</CardDescription>
+                    <CardDescription>架電履歴</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     {calls.length === 0 ? (

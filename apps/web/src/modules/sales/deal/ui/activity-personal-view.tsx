@@ -87,7 +87,7 @@ export function ActivityPersonalView({
                     <div>
                         <CardTitle className="text-base text-gray-900">担当者の状況</CardTitle>
                         <CardDescription>
-                            個人KPI、承認、次の行動を一画面で確認できます。
+                            個人KPI / 承認 / 次アクション
                         </CardDescription>
                     </div>
                     {showSelector ? (
@@ -109,7 +109,7 @@ export function ActivityPersonalView({
                     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
                         <PersonalKpiProgress data={dashboardData} />
                         <DashboardNarrativeCard
-                            description="今週の動きと次の優先度を、短い文章で整理しています。"
+                            description="今週の要点"
                             lines={buildNarrativeLines(
                                 selectedMemberName,
                                 dashboardData,

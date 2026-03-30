@@ -61,7 +61,7 @@ export function ContactList({ contacts, total, created = false, keyword, company
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">コンタクトディレクトリ</CardTitle>
-                    <CardDescription>登録されている担当者の一覧です。</CardDescription>
+                    <CardDescription>担当者一覧</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     {contacts.length === 0 ? (

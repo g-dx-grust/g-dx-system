@@ -33,19 +33,19 @@ const KPI_FIELD_GROUPS: KpiFieldGroup[] = [
     {
         title: '重点確認項目',
         description:
-            '面会・商談・契約・売上を先にそろえる構成です。新規 / 既存の実績内訳はダッシュボード側で確認できます。',
+            '月次KPI入力',
         fields: [
             {
                 name: 'newVisitTarget',
                 label: '面会数',
                 placeholder: '例 20',
-                helper: '月内に目線を合わせたい面会数を入力します。',
+                helper: '面会目標',
             },
             {
                 name: 'newNegotiationTarget',
                 label: '商談数',
                 placeholder: '例 10',
-                helper: '面会から先に進めたい商談数の目安を入力します。',
+                helper: '商談目標',
             },
             {
                 name: 'contractTarget',
@@ -57,7 +57,7 @@ const KPI_FIELD_GROUPS: KpiFieldGroup[] = [
                 name: 'revenueTarget',
                 label: '売上',
                 placeholder: '例 5000000',
-                helper: '管理上の基準にする売上金額を入力します。',
+                helper: '売上目標',
                 isRevenue: true,
             },
         ],
@@ -116,7 +116,7 @@ export function KpiTargetForm({
                     月次KPIの設定
                 </CardTitle>
                 <CardDescription>
-                    会社目標と個人KPIをこの画面で整理できます。見出しと補足を先に読み、必要な数字だけ静かにそろえられる構成にしています。
+                    会社目標 / 個人KPI
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -142,7 +142,7 @@ export function KpiTargetForm({
                         個人KPI
                     </h3>
                     <p className="mt-1 text-sm leading-6 text-gray-500">
-                        自分の月次目標を入力します。まず重点確認項目をそろえ、必要なときだけ補助入力項目を追加してください。
+                        個人KPI入力
                     </p>
                 </div>
 

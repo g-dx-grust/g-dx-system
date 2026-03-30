@@ -53,7 +53,7 @@ export default async function NewContractPage({ searchParams }: NewContractPageP
         .from(users)
         .where(isNull(users.deletedAt));
 
-    const userOptions = allUsers.map((u) => ({ id: u.id, name: u.name ?? '（名前なし）' }));
+    const userOptions = allUsers.map((u) => ({ id: u.id, name: u.name ?? '名前未設定' }));
 
     const defaultValues = searchParams?.dealId
         ? {
@@ -68,11 +68,9 @@ export default async function NewContractPage({ searchParams }: NewContractPageP
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-semibold text-gray-900">新規契約登録</h1>
+                    <h1 className="text-2xl font-semibold text-gray-900">契約登録</h1>
                     <p className="text-sm text-gray-500">
-                        {defaultValues?.dealId
-                            ? '案件から引き継いだ情報を確認し、追加情報を入力してください。'
-                            : '新しい契約を登録します。'}
+                        {defaultValues?.dealId ? '案件からの契約登録' : '契約登録'}
                     </p>
                 </div>
                 <Button asChild variant="outline">

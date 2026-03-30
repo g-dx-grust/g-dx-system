@@ -27,7 +27,7 @@ export function PersonalCompanyActionHighlights({
             <CardHeader className="pb-3">
                 <CardTitle className="text-base text-gray-900">先週アクションした会社</CardTitle>
                 <CardDescription>
-                    {memberName} が先週実施した訪問・オンライン商談・契約・アポイント獲得の会社一覧です。
+                    {memberName}の先週アクション企業
                 </CardDescription>
             </CardHeader>
             <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

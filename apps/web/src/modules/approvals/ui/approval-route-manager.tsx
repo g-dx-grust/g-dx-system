@@ -49,7 +49,7 @@ export function ApprovalRouteManager({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">
                     <h1 className="text-2xl font-semibold text-gray-900">承認ルート管理</h1>
-                    <p className="text-sm text-gray-500">承認種別ごとの承認者と順序を設定します。</p>
+                    <p className="text-sm text-gray-500">承認者 / 順序設定</p>
                 </div>
                 {canManage && (
                     <Button

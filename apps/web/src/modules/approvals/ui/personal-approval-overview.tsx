@@ -27,7 +27,7 @@ export function PersonalApprovalOverview({
                     <div>
                         <CardTitle className="text-base text-gray-900">承認</CardTitle>
                         <CardDescription>
-                            自分が対応する承認と、申請した案件の状況をまとめて確認できます。
+                            自分の承認状況
                         </CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm">

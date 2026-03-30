@@ -17,7 +17,7 @@ export function ContactDetailView({ contact, created = false, updated = false }:
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div className="space-y-1">
                     <h1 className="text-2xl font-semibold text-gray-900">{contact.name}</h1>
-                    <p className="text-sm text-gray-500">担当者の詳細情報です。</p>
+                    <p className="text-sm text-gray-500">担当者詳細</p>
                 </div>
                 <Button asChild variant="outline" className="px-5">
                     <Link href="/customers/contacts">一覧へ戻る</Link>
@@ -40,7 +40,7 @@ export function ContactDetailView({ contact, created = false, updated = false }:
                 <Card className="shadow-sm">
                     <CardHeader>
                         <CardTitle className="text-lg text-gray-900">基本情報</CardTitle>
-                        <CardDescription>このビジネスで参照可能なコンタクト情報です。</CardDescription>
+                        <CardDescription>基本情報</CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4 sm:grid-cols-2">
                         <OverviewItem label="部署" value={contact.department ?? '-'} />
@@ -53,7 +53,7 @@ export function ContactDetailView({ contact, created = false, updated = false }:
                 <Card className="shadow-sm">
                     <CardHeader>
                         <CardTitle className="text-lg text-gray-900">関連会社</CardTitle>
-                        <CardDescription>このコンタクトに紐づく会社です。</CardDescription>
+                        <CardDescription>関連会社</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {contact.linkedCompanies.length === 0 ? (
@@ -80,7 +80,7 @@ export function ContactDetailView({ contact, created = false, updated = false }:
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">コンタクトを編集</CardTitle>
-                    <CardDescription>コンタクトの基本情報を更新します。</CardDescription>
+                    <CardDescription>基本情報 / 編集</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form action={updateContactAction} className="grid gap-4 md:grid-cols-2">

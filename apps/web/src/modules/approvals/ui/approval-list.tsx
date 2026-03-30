@@ -59,7 +59,7 @@ export function ApprovalListView({ items, total, filters }: ApprovalListViewProp
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div className="space-y-1">
                     <h1 className="text-2xl font-semibold text-gray-900">承認一覧</h1>
-                    <p className="text-sm text-gray-500">申請中の承認と過去の判断履歴を確認できます。</p>
+                    <p className="text-sm text-gray-500">承認一覧</p>
                 </div>
                 <Button asChild variant="outline">
                     <Link href="/sales/approvals/routes">承認ルートを見る</Link>

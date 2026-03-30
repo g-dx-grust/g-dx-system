@@ -26,9 +26,9 @@ interface NewDealPageProps {
 function getErrorMessage(errorCode?: string): string | undefined {
     switch (errorCode) {
         case 'validation':
-            return '案件名・会社・ステージは必須です。';
+            return '会社・ステージは必須です。';
         case 'pipeline':
-            return '有効なパイプラインステージが見つかりませんでした。設定を確認してください。';
+            return '利用できるパイプラインが見つかりません。設定を確認してください。';
         default:
             return undefined;
     }
@@ -41,7 +41,12 @@ function isLostMasterStage(stage: Pick<MasterPipelineStageOption, 'key' | 'label
 
 function isWonMasterStage(stage: Pick<MasterPipelineStageOption, 'key' | 'label'>): boolean {
     const normalized = `${stage.key} ${stage.label}`.toLowerCase();
-    return normalized.includes('won') || normalized.includes('contract') || stage.label.includes('受注') || stage.label.includes('契約');
+    return (
+        normalized.includes('won') ||
+        normalized.includes('contract') ||
+        stage.label.includes('成約') ||
+        stage.label.includes('契約')
+    );
 }
 
 function buildStageOptions(
@@ -50,13 +55,13 @@ function buildStageOptions(
 ): Array<{ key: DealStageKey; label: string }> {
     const labelByKey = new Map<DealStageKey, string>();
 
-    const openPipelineStages = pipelineStages.filter((stage) => stage.key !== 'LOST' && stage.key !== 'CONTRACTED');
+    const openPipelineStages = pipelineStages.filter(
+        (stage) => stage.key !== 'LOST' && stage.key !== 'CONTRACTED',
+    );
     const openMasterStages = masterStages.filter(
         (stage) => !stage.isClosedStage && !isLostMasterStage(stage) && !isWonMasterStage(stage),
     );
 
-    // The persisted deal stage enum is still legacy. Use master labels where they can be
-    // aligned without changing the submit payload that Server Actions already expect.
     openPipelineStages.forEach((stage, index) => {
         labelByKey.set(stage.key, openMasterStages[index]?.label ?? stage.label);
     });
@@ -68,7 +73,10 @@ function buildStageOptions(
 
     const contractedStage = pipelineStages.find((stage) => stage.key === 'CONTRACTED');
     if (contractedStage) {
-        labelByKey.set(contractedStage.key, masterStages.find(isWonMasterStage)?.label ?? contractedStage.label);
+        labelByKey.set(
+            contractedStage.key,
+            masterStages.find(isWonMasterStage)?.label ?? contractedStage.label,
+        );
     }
 
     return pipelineStages.map((stage) => ({
@@ -125,10 +133,8 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-semibold text-gray-900">新規案件登録</h1>
-                    <p className="text-sm text-gray-500">
-                        新しい営業案件を登録します。
-                    </p>
+                    <h1 className="text-2xl font-semibold text-gray-900">案件登録</h1>
+                    <p className="text-sm text-gray-500">案件登録</p>
                 </div>
                 <Button asChild variant="outline">
                     <Link href="/sales/deals">一覧へ戻る</Link>

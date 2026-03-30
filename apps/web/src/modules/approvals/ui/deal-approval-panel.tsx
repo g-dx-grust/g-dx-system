@@ -41,7 +41,7 @@ export function DealApprovalPanel({ dealId, approvals, approvalRoutes, canCreate
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                     <div>
                         <CardTitle className="text-lg text-gray-900">承認</CardTitle>
-                        <CardDescription>この商談に紐づく承認申請と承認導線です。</CardDescription>
+                        <CardDescription>承認申請 / 承認ルート</CardDescription>
                     </div>
                     {canRead ? (
                         <div className="flex gap-2">

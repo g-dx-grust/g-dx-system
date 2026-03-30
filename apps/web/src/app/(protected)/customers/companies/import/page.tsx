@@ -24,10 +24,8 @@ export default async function CompanyImportPage() {
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-semibold text-gray-900">会社 CSV インポート</h1>
-                    <p className="text-sm text-gray-500">
-                        TSR 企業リスト CSV をアップロードし、重複チェック後に一括登録します。
-                    </p>
+                    <h1 className="text-2xl font-semibold text-gray-900">会社CSV取込</h1>
+                    <p className="text-sm text-gray-500">TSR CSV取込</p>
                 </div>
                 <Button asChild variant="outline">
                     <Link href="/customers/companies">一覧へ戻る</Link>

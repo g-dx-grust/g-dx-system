@@ -55,7 +55,7 @@ export function ContractCreateForm({ companies, users = [], errorMessage, defaul
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
-                <CardDescription>契約情報を入力して登録してください。</CardDescription>
+                <CardDescription>契約登録</CardDescription>
             </CardHeader>
             <CardContent>
                 {errorMessage && (

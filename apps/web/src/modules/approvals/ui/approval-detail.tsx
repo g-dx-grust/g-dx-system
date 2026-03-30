@@ -57,7 +57,7 @@ export function ApprovalDetailView({ detail, canDecide, decided = false }: Appro
                     <Card className="border-gray-200 shadow-sm">
                         <CardHeader>
                             <CardTitle className="text-base text-gray-900">申請情報</CardTitle>
-                            <CardDescription>承認の基本情報と判断履歴です。</CardDescription>
+                            <CardDescription>基本情報 / 履歴</CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-4 sm:grid-cols-2">
                             <ApprovalInfoItem label="承認種別" value={APPROVAL_TYPE_LABELS[detail.approvalType]} />
@@ -77,7 +77,7 @@ export function ApprovalDetailView({ detail, canDecide, decided = false }: Appro
                     <Card className="border-gray-200 shadow-sm">
                         <CardHeader>
                             <CardTitle className="text-base text-gray-900">チェック項目</CardTitle>
-                            <CardDescription>申請時に登録されたチェック内容です。</CardDescription>
+                            <CardDescription>チェック項目</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {detail.checkItems.length === 0 ? (
@@ -108,7 +108,7 @@ export function ApprovalDetailView({ detail, canDecide, decided = false }: Appro
                     <Card className="border-gray-200 shadow-sm">
                         <CardHeader>
                             <CardTitle className="text-base text-gray-900">申請スナップショット</CardTitle>
-                            <CardDescription>申請時点で保存された補足情報です。</CardDescription>
+                            <CardDescription>補足情報</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {snapshotEntries.length === 0 ? (
@@ -133,7 +133,7 @@ export function ApprovalDetailView({ detail, canDecide, decided = false }: Appro
                     <Card className="border-gray-200 shadow-sm">
                         <CardHeader>
                             <CardTitle className="text-base text-gray-900">判断</CardTitle>
-                            <CardDescription>申請中の承認のみ判断できます。</CardDescription>
+                            <CardDescription>承認操作</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
                             {detail.approvalStatus !== 'PENDING' ? (

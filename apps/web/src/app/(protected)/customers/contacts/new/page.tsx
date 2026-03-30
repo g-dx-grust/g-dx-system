@@ -16,9 +16,9 @@ interface NewContactPageProps {
 function getErrorMessage(errorCode?: string): string | undefined {
     switch (errorCode) {
         case 'validation':
-            return '会社名とコンタクト名は必須です。';
+            return '担当者名と会社は必須です。';
         case 'company':
-            return '選択した会社はこのビジネスで利用できません。';
+            return '選択した会社はこの事業スコープでは利用できません。';
         default:
             return undefined;
     }
@@ -44,10 +44,8 @@ export default async function NewContactPage({ searchParams }: NewContactPagePro
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
                 <div className="space-y-1">
-                    <h1 className="text-2xl font-semibold text-gray-900">コンタクトを登録</h1>
-                    <p className="text-sm text-gray-500">
-                        コンタクトを登録して会社に紐づけます。
-                    </p>
+                    <h1 className="text-2xl font-semibold text-gray-900">担当者登録</h1>
+                    <p className="text-sm text-gray-500">担当者登録</p>
                 </div>
                 <Button asChild variant="outline">
                     <Link href="/customers/contacts">一覧へ戻る</Link>

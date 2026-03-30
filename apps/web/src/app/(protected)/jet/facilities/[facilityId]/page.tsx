@@ -76,7 +76,7 @@ export default async function FacilityDetailPage({ params, searchParams }: Props
                 <Card className="shadow-sm">
                     <CardHeader>
                         <CardTitle className="text-lg text-gray-900">基本情報</CardTitle>
-                        <CardDescription>施設の基本情報です。</CardDescription>
+                        <CardDescription>基本情報</CardDescription>
                     </CardHeader>
                     <CardContent className="grid gap-4 sm:grid-cols-2">
                         <InfoItem label="施設名" value={facility.name} />
@@ -102,7 +102,7 @@ export default async function FacilityDetailPage({ params, searchParams }: Props
                 <Card className="shadow-sm">
                     <CardHeader>
                         <CardTitle className="text-lg text-gray-900">施設情報を編集</CardTitle>
-                        <CardDescription>基本情報を更新します。</CardDescription>
+                        <CardDescription>基本情報 / 編集</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <form action={updateFacilityAction} className="flex flex-col gap-3">
@@ -144,7 +144,7 @@ export default async function FacilityDetailPage({ params, searchParams }: Props
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">関連JET契約</CardTitle>
-                    <CardDescription>この施設に紐づく契約の一覧です。</CardDescription>
+                    <CardDescription>関連契約</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     {facility.relatedContracts.length === 0 ? (

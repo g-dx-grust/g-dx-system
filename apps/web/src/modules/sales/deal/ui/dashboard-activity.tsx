@@ -39,24 +39,24 @@ export function ActivityDashboard({
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <DashboardMetricCard
                     title="登録メンバー"
-                    description="案件の有無にかかわらず、事業部の稼働メンバーを含みます。"
+                    description="稼働メンバー数"
                     value={`${summary.byOwner.length.toLocaleString()}名`}
                 />
                 <DashboardMetricCard
                     title="今月活動総数"
-                    description="訪問・オンライン・通話などの合計件数です。"
+                    description="活動件数"
                     value={`${monthlyActivityTotal.toLocaleString()}件`}
-                    footnote="メンバー別の内訳は下の一覧で確認できます。"
+                    footnote="メンバー別内訳"
                 />
                 <DashboardMetricCard
                     title="進行中案件"
-                    description="現在追っている案件の件数と総額です。"
+                    description="進行中件数 / 金額"
                     value={`${summary.activeGroup.count.toLocaleString()}件`}
                     footnote={`進行中総額 ${formatDashboardAmount(summary.activeGroup.totalAmount)}`}
                 />
                 <DashboardMetricCard
                     title="契約済み案件"
-                    description="契約まで到達した案件の累計です。"
+                    description="契約累計"
                     value={`${summary.contractedGroup.count.toLocaleString()}件`}
                     footnote={`契約総額 ${formatDashboardAmount(summary.contractedGroup.totalAmount)}`}
                 />
@@ -69,7 +69,7 @@ export function ActivityDashboard({
                             担当者別の案件比較
                         </CardTitle>
                         <CardDescription>
-                            全案件・進行中・契約済みを同じ基準で見比べます。
+                            案件数 / 活動 / 金額
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -84,7 +84,7 @@ export function ActivityDashboard({
                         メンバー別の状況
                     </CardTitle>
                     <CardDescription>
-                        登録メンバー全員の案件数、今月活動、進行中金額を一覧で確認できます。
+                        メンバー一覧
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">

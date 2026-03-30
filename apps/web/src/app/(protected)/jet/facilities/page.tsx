@@ -31,7 +31,7 @@ export default async function JetFacilitiesPage({ searchParams }: Props) {
                         <MapPin className="h-6 w-6 text-gray-500" />
                         施設一覧
                     </h1>
-                    <p className="text-sm text-gray-500">節水事業の登録施設を管理します。</p>
+                    <p className="text-sm text-gray-500">JET施設一覧</p>
                 </div>
                 <Button asChild className="bg-blue-600 text-white hover:bg-blue-700">
                     <Link href="/jet/facilities/new">

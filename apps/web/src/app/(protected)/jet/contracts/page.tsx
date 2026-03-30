@@ -46,7 +46,7 @@ export default async function JetContractsPage() {
                     <FileText className="h-6 w-6 text-gray-500" />
                     JET 契約一覧
                 </h1>
-                <p className="text-sm text-gray-500">節水事業の契約をリベート・GDX紹介状態とあわせて管理します。</p>
+                <p className="text-sm text-gray-500">JET契約一覧</p>
             </div>
 
             <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">

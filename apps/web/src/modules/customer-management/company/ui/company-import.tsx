@@ -119,7 +119,7 @@ export function CompanyImport({ fieldMappings }: CompanyImportProps) {
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">CSV アップロード</CardTitle>
                     <CardDescription>
-                        TSR 企業リスト CSV を選択し、先頭 10 件のプレビューと重複判定を確認してから一括登録します。
+                        TSR CSVプレビュー / 重複確認
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">

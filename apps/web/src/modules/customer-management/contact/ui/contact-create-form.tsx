@@ -19,7 +19,7 @@ export function ContactCreateForm({ companies, defaultCompanyId, errorMessage }:
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
-                <CardDescription>担当者情報を入力して登録してください。</CardDescription>
+                <CardDescription>担当者登録</CardDescription>
             </CardHeader>
             <CardContent>
                 {errorMessage ? (

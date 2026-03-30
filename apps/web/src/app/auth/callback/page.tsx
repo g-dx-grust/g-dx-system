@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { LoginProgressStrip } from '@/components/auth/login-progress-strip';
 import { bootstrapUserAction } from '@/modules/auth/server-actions';
 
 export default function AuthCallbackPage() {
@@ -26,9 +27,16 @@ export default function AuthCallbackPage() {
     }, [router]);
 
     return (
-        <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-gray-50">
-            <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-gray-900" />
-            <p className="text-sm font-medium text-gray-600">認証情報を処理しています...</p>
+        <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#f4efe6] px-4">
+            <div className="pointer-events-none absolute inset-0">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.94),transparent_34%),radial-gradient(circle_at_top_right,rgba(191,219,254,0.32),transparent_28%),linear-gradient(135deg,#f4efe6_0%,#ece7dd_46%,#f8f4ed_100%)]" />
+                <div className="absolute left-[10%] top-16 h-72 w-72 rounded-full border border-white/35 bg-white/20 blur-3xl" />
+                <div className="absolute right-[-8%] top-20 h-80 w-80 rounded-full bg-[#d8e4ef]/70 blur-3xl" />
+            </div>
+
+            <div className="relative w-full max-w-[460px]">
+                <LoginProgressStrip />
+            </div>
         </div>
     );
 }

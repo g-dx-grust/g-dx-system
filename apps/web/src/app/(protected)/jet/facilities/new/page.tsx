@@ -31,7 +31,7 @@ export default async function NewFacilityPage() {
                         <MapPin className="h-6 w-6 text-gray-500" />
                         施設を登録
                     </h1>
-                    <p className="text-sm text-gray-500">節水事業の新規施設を登録します。</p>
+                    <p className="text-sm text-gray-500">JET施設登録</p>
                 </div>
                 <Button asChild variant="outline" className="px-5">
                     <Link href="/jet/facilities">一覧へ戻る</Link>
@@ -40,7 +40,7 @@ export default async function NewFacilityPage() {
 
             <Card className="max-w-2xl border-gray-200 shadow-sm">
                 <CardHeader>
-                    <CardDescription>必須項目を入力して施設を登録します。</CardDescription>
+                    <CardDescription>施設登録</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <form action={createFacilityAction} className="grid gap-4 md:grid-cols-2">

@@ -42,15 +42,13 @@ export default async function KpiSettingsPage() {
                 <h1 className="text-2xl font-semibold text-gray-900">
                     KPI設定
                 </h1>
-                <p className="mt-1 text-sm text-gray-500">
-                    月次の会社目標と個人KPIを同じ流れで確認できるように整えています。先に全体、次に個人の順で静かに入力してください。
-                </p>
+                <p className="mt-1 text-sm text-gray-500">KPI設定</p>
             </div>
 
             <TeamTargetOverview
                 summary={teamTargetSummary}
-                title="現在のチームKPI"
-                description="入力済みの月次KPIを合算し、チーム全体の目線を確認できます。会社目標とあわせて見比べやすい位置に置いています。"
+                title="チームKPI"
+                description="月次KPI / 入力状況"
             />
 
             <KpiTargetForm

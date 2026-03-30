@@ -27,7 +27,7 @@ export function CompanyCreateForm({ industries, leadSources, errorMessage }: Com
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
                 <CardDescription>
-                    会社情報を入力して登録してください。
+                    会社登録
                 </CardDescription>
             </CardHeader>
             <CardContent>

@@ -25,7 +25,7 @@ export default function DealsLoading() {
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">案件リスト</CardTitle>
-                    <CardDescription>現在のビジネスに紐づく案件を表示しています。</CardDescription>
+                    <CardDescription>案件一覧</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     <table className="min-w-full divide-y divide-gray-200 text-sm">

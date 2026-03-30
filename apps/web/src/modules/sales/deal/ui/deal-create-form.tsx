@@ -50,7 +50,7 @@ export function DealCreateForm({
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
                 <CardDescription>
-                    案件情報を入力して登録してください。
+                    案件登録
                 </CardDescription>
             </CardHeader>
             <CardContent>

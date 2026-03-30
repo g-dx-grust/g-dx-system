@@ -138,7 +138,7 @@ function RollingKpiTable({ blocks }: { blocks: PersonalRollingKpiBlock[] }) {
             <div className="mb-3">
                 <p className="text-sm font-semibold text-gray-900">期間別実績</p>
                 <p className="text-xs text-gray-500">
-                    今週・先週・今月・先月を、新規 / 既存の内訳つきで見返せます。
+                    期間別KPI
                 </p>
             </div>
             <div className="overflow-x-auto">
@@ -227,7 +227,7 @@ export function PersonalKpiProgress({ data, className }: PersonalKpiProgressProp
                     <div className="grid gap-4 xl:grid-cols-2">
                         <SummaryBlock
                             title="売上進捗"
-                            description="今月目標と週あたりの目安を並べています。"
+                            description="今月目標 / 週目安"
                             actualLabel={formatDashboardAmount(data.revenueActual)}
                             targetLabel={formatDashboardAmount(data.revenueTarget)}
                             weeklyLabel={formatDashboardAmount(
@@ -239,7 +239,7 @@ export function PersonalKpiProgress({ data, className }: PersonalKpiProgressProp
                         {contractItem ? (
                             <SummaryBlock
                                 title="契約進捗"
-                                description="契約目標に対する今月の到達状況です。"
+                                description="契約進捗"
                                 actualLabel={`${contractItem.actual.toLocaleString()}件`}
                                 targetLabel={`${contractItem.target.toLocaleString()}件`}
                                 weeklyLabel={formatWeeklyCount(

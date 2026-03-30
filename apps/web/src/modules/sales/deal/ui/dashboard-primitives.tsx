@@ -115,7 +115,7 @@ export function TeamTargetOverview({
     summary,
     rollingKpiData,
     title = 'チームKPIと進捗',
-    description = '月次KPIと現在の実績を、項目ごとに落ち着いて確認できます。',
+    description = '月次KPI / 実績',
     className,
 }: TeamTargetOverviewProps) {
     const thisMonthMetrics = rollingKpiData?.find(
@@ -130,7 +130,7 @@ export function TeamTargetOverview({
         {
             key: 'newVisitTarget',
             title: '新規面会数',
-            description: '月内に目指す新規面会の件数です。',
+            description: '新規面会目標',
             target: summary.totals.newVisitTarget,
             actual: thisMonthMetrics?.visitCount.bySegment.new ?? null,
             unit: '件',
@@ -138,7 +138,7 @@ export function TeamTargetOverview({
         {
             key: 'newNegotiationTarget',
             title: '新規商談数',
-            description: '月内に目指す新規商談の件数です。',
+            description: '新規商談目標',
             target: summary.totals.newNegotiationTarget,
             actual: thisMonthMetrics?.negotiationCount.bySegment.new ?? null,
             unit: '件',
@@ -146,7 +146,7 @@ export function TeamTargetOverview({
         {
             key: 'contractTarget',
             title: '契約数',
-            description: '月内に到達したい契約件数です。',
+            description: '契約目標',
             target: summary.totals.contractTarget,
             actual: thisMonthMetrics?.contractCount.total ?? null,
             unit: '件',
@@ -154,7 +154,7 @@ export function TeamTargetOverview({
         {
             key: 'revenueTarget',
             title: '売上',
-            description: '契約実績にもとづく月次売上の目標です。',
+            description: '月次売上目標',
             target: summary.totals.revenueTarget,
             actual: summary.revenueActual,
             unit: '円',

@@ -27,7 +27,7 @@ export default function CompaniesLoading() {
             <Card className="shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-lg text-gray-900">会社ディレクトリ</CardTitle>
-                    <CardDescription>登録されている会社の一覧です。</CardDescription>
+                    <CardDescription>会社一覧</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     <table className="min-w-full divide-y divide-gray-200 text-sm">

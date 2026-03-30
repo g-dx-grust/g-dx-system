@@ -35,16 +35,25 @@ export function DashboardMetricCard({
     return (
         <Card className={cn('border-gray-200 bg-white shadow-sm', className)}>
             <CardHeader className="space-y-1 pb-3">
-                <CardTitle className="text-sm font-semibold text-gray-900">{title}</CardTitle>
+                <CardTitle className="text-sm font-semibold text-gray-900">
+                    {title}
+                </CardTitle>
                 <CardDescription className="text-xs leading-5 text-gray-500">
                     {description}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
-                <p className={cn('text-2xl font-semibold tracking-tight text-gray-900', valueClassName)}>
+                <p
+                    className={cn(
+                        'text-2xl font-semibold tracking-tight text-gray-900',
+                        valueClassName,
+                    )}
+                >
                     {value}
                 </p>
-                {footnote ? <p className="text-xs leading-5 text-gray-500">{footnote}</p> : null}
+                {footnote ? (
+                    <p className="text-xs leading-5 text-gray-500">{footnote}</p>
+                ) : null}
             </CardContent>
         </Card>
     );
@@ -58,7 +67,7 @@ interface DashboardNarrativeCardProps {
 }
 
 export function DashboardNarrativeCard({
-    title = 'AIサマリー',
+    title = '状況メモ',
     description,
     lines,
     className,
@@ -66,7 +75,9 @@ export function DashboardNarrativeCard({
     return (
         <Card className={cn('border-gray-200 bg-white shadow-sm', className)}>
             <CardHeader className="space-y-1 pb-3">
-                <CardTitle className="text-sm font-semibold text-gray-900">{title}</CardTitle>
+                <CardTitle className="text-sm font-semibold text-gray-900">
+                    {title}
+                </CardTitle>
                 <CardDescription className="text-xs leading-5 text-gray-500">
                     {description}
                 </CardDescription>
@@ -90,64 +101,60 @@ interface TeamTargetOverviewProps {
     className?: string;
 }
 
+interface TeamMetricCard {
+    key: string;
+    title: string;
+    description: string;
+    target: number;
+    actual: number | null;
+    unit: string;
+    isRevenue?: boolean;
+}
+
 export function TeamTargetOverview({
     summary,
     rollingKpiData,
-    title = '今月の目標合計',
-    description = '登録済みの月次KPIを合算して確認できます。',
+    title = 'チームKPIと進捗',
+    description = '月次KPIと現在の実績を、項目ごとに落ち着いて確認できます。',
     className,
 }: TeamTargetOverviewProps) {
-    const thisMonthMetrics = rollingKpiData?.find((item) => item.period === 'thisMonth')?.metrics;
+    const thisMonthMetrics = rollingKpiData?.find(
+        (item) => item.period === 'thisMonth',
+    )?.metrics;
     const coverageText =
         summary.activeMemberCount > 0
             ? `${summary.membersWithTargetsCount} / ${summary.activeMemberCount}名が入力済み`
-            : '対象メンバーは未登録です';
+            : '対象メンバーは未設定です';
 
-    const metricCards = [
+    const metricCards: TeamMetricCard[] = [
         {
-            key: 'callTarget',
-            title: 'コール目標',
-            description: '月次の活動目標合計',
-            target: summary.totals.callTarget,
-            actual: thisMonthMetrics?.callCount.total,
+            key: 'newVisitTarget',
+            title: '新規面会数',
+            description: '月内に目指す新規面会の件数です。',
+            target: summary.totals.newVisitTarget,
+            actual: thisMonthMetrics?.visitCount.bySegment.new ?? null,
             unit: '件',
         },
         {
-            key: 'visitTarget',
-            title: '訪問目標',
-            description: '対面訪問の目標合計',
-            target: summary.totals.visitTarget,
-            actual: thisMonthMetrics?.visitCount.total,
-            unit: '件',
-        },
-        {
-            key: 'appointmentTarget',
-            title: 'アポイント目標',
-            description: '案件化の入口を確認',
-            target: summary.totals.appointmentTarget,
-            actual: thisMonthMetrics?.appointmentCount.total,
-            unit: '件',
-        },
-        {
-            key: 'negotiationTarget',
-            title: '商談化目標',
-            description: '提案化までの進み具合',
-            target: summary.totals.negotiationTarget,
-            actual: thisMonthMetrics?.negotiationCount.total,
+            key: 'newNegotiationTarget',
+            title: '新規商談数',
+            description: '月内に目指す新規商談の件数です。',
+            target: summary.totals.newNegotiationTarget,
+            actual: thisMonthMetrics?.negotiationCount.bySegment.new ?? null,
             unit: '件',
         },
         {
             key: 'contractTarget',
-            title: '契約目標',
-            description: '今月の契約到達件数',
+            title: '契約数',
+            description: '月内に到達したい契約件数です。',
             target: summary.totals.contractTarget,
-            actual: thisMonthMetrics?.contractCount.total,
+            actual: thisMonthMetrics?.contractCount.total ?? null,
             unit: '件',
         },
         {
             key: 'revenueTarget',
-            title: '売上目標',
-            description: '契約実績金額との比較',
+            title: '売上',
+            description: '契約実績にもとづく月次売上の目標です。',
             target: summary.totals.revenueTarget,
             actual: summary.revenueActual,
             unit: '円',
@@ -166,9 +173,9 @@ export function TeamTargetOverview({
                     {formatTargetMonthLabel(summary.targetMonth)} / {coverageText}
                 </p>
             </CardHeader>
-            <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <CardContent className="grid gap-3 md:grid-cols-2">
                 {metricCards.map((metric) => {
-                    const actual = metric.actual ?? null;
+                    const actual = metric.actual;
                     const progress =
                         metric.target > 0 && actual !== null
                             ? Math.min(100, Math.round((actual / metric.target) * 100))
@@ -178,21 +185,25 @@ export function TeamTargetOverview({
                         : `${metric.target.toLocaleString()}${metric.unit}`;
                     const actualLabel =
                         actual === null
-                            ? '実績は別画面で確認'
+                            ? '実績は表示できません'
                             : metric.isRevenue
-                                ? formatDashboardAmount(actual)
-                                : `${actual.toLocaleString()}${metric.unit}`;
+                              ? formatDashboardAmount(actual)
+                              : `${actual.toLocaleString()}${metric.unit}`;
 
                     return (
                         <section
                             key={metric.key}
                             className="rounded-xl border border-gray-200 bg-gray-50/70 px-4 py-4"
                         >
-                            <p className="text-sm font-semibold text-gray-900">{metric.title}</p>
+                            <p className="text-sm font-semibold text-gray-900">
+                                {metric.title}
+                            </p>
                             <p className="mt-1 text-xs leading-5 text-gray-500">
                                 {metric.description}
                             </p>
-                            <p className="mt-4 text-xl font-semibold text-gray-900">{targetLabel}</p>
+                            <p className="mt-4 text-xl font-semibold text-gray-900">
+                                {targetLabel}
+                            </p>
                             <div className="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500">
                                 <span>実績 {actualLabel}</span>
                                 {progress !== null ? <span>{progress}%</span> : null}

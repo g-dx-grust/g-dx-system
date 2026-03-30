@@ -26,9 +26,9 @@ function buildPeriodLabel(targetMonth: string): string {
 
 const KPI_ITEM_DEFS: Array<{ key: PersonalKpiItem['key']; label: string }> = [
     { key: 'callCount', label: 'コール数' },
-    { key: 'visitCount', label: '訪問数' },
+    { key: 'newVisitCount', label: '新規面会数' },
     { key: 'appointmentCount', label: 'アポイント数' },
-    { key: 'negotiationCount', label: '商談数' },
+    { key: 'newNegotiationCount', label: '新規商談数' },
     { key: 'contractCount', label: '成約数' },
 ];
 
@@ -49,20 +49,27 @@ const getPersonalDashboardDataCached = unstable_cache(
         ]);
 
         const hasTargets = target !== null;
+        const thisMonthMetrics = rollingKpis.find(
+            (block) => block.period === 'thisMonth',
+        )?.metrics;
 
         const actualsMap: Record<PersonalKpiItem['key'], number> = {
             callCount: actuals.callCount,
-            visitCount: actuals.visitCount,
+            newVisitCount: thisMonthMetrics?.visitCount.bySegment.new ?? 0,
             appointmentCount: actuals.appointmentCount,
-            negotiationCount: actuals.negotiationCount,
+            newNegotiationCount:
+                thisMonthMetrics?.negotiationCount.bySegment.new ?? 0,
             contractCount: actuals.contractCount,
         };
 
         const targetMap: Record<PersonalKpiItem['key'], number> = {
             callCount: target?.callTarget ?? 0,
-            visitCount: target?.visitTarget ?? 0,
+            newVisitCount: target?.newVisitTarget ?? target?.visitTarget ?? 0,
             appointmentCount: target?.appointmentTarget ?? 0,
-            negotiationCount: target?.negotiationTarget ?? 0,
+            newNegotiationCount:
+                target?.newNegotiationTarget ??
+                target?.negotiationTarget ??
+                0,
             contractCount: target?.contractTarget ?? 0,
         };
 

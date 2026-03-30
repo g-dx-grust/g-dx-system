@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import type {
     PersonalDashboardData,
+    PersonalKpiItem,
     PersonalRollingKpiBlock,
     KpiSegmentedCounts,
 } from '@g-dx/contracts';
@@ -32,12 +33,27 @@ function formatWeeklyCount(value: number): string {
 
 function getThisWeekMetricTotal(
     data: PersonalDashboardData,
-    key: keyof PersonalDashboardData['rollingKpis'][number]['metrics'],
+    key: PersonalKpiItem['key'],
 ): number {
-    return (
-        data.rollingKpis.find((block) => block.period === 'thisWeek')?.metrics[key].total ??
-        0
-    );
+    const thisWeekMetrics = data.rollingKpis.find(
+        (block) => block.period === 'thisWeek',
+    )?.metrics;
+    if (!thisWeekMetrics) return 0;
+
+    switch (key) {
+        case 'callCount':
+            return thisWeekMetrics.callCount.total;
+        case 'newVisitCount':
+            return thisWeekMetrics.visitCount.bySegment.new;
+        case 'appointmentCount':
+            return thisWeekMetrics.appointmentCount.total;
+        case 'newNegotiationCount':
+            return thisWeekMetrics.negotiationCount.bySegment.new;
+        case 'contractCount':
+            return thisWeekMetrics.contractCount.total;
+        default:
+            return 0;
+    }
 }
 
 interface SummaryBlockProps {

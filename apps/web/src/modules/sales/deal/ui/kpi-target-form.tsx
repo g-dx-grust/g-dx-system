@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { saveKpiTargetAction } from '@/modules/sales/deal/kpi-server-actions';
-import type { UserKpiTarget } from '@g-dx/contracts';
+import { BusinessGoalSettingsSection } from '@/modules/sales/deal/ui/business-goal-section';
+import type { BusinessScopeType, UserKpiTarget } from '@g-dx/contracts';
 
 interface KpiTargetFormProps {
     currentTarget: UserKpiTarget | null;
     currentMonth: string;
+    businessScope: BusinessScopeType;
+    canManageBusinessGoals: boolean;
 }
 
 interface KpiField {
@@ -28,52 +31,53 @@ interface KpiFieldGroup {
 
 const KPI_FIELD_GROUPS: KpiFieldGroup[] = [
     {
-        title: '活動の目標',
+        title: '重点確認項目',
         description:
-            '活動ダッシュボードと個人ダッシュボードでは、週あたりの目安にも自動換算されます。',
+            '面会・商談・契約・売上を先にそろえる構成です。新規 / 既存の実績内訳はダッシュボード側で確認できます。',
         fields: [
             {
-                name: 'callTarget',
-                label: 'コール目標',
-                placeholder: '例: 100',
-                helper: '見込み顧客への接触数の目安です。',
+                name: 'newVisitTarget',
+                label: '面会数',
+                placeholder: '例 20',
+                helper: '月内に目線を合わせたい面会数を入力します。',
             },
             {
-                name: 'visitTarget',
-                label: '訪問目標',
-                placeholder: '例: 20',
-                helper: '対面訪問の件数を入力します。',
+                name: 'newNegotiationTarget',
+                label: '商談数',
+                placeholder: '例 10',
+                helper: '面会から先に進めたい商談数の目安を入力します。',
             },
             {
-                name: 'appointmentTarget',
-                label: 'アポイント目標',
-                placeholder: '例: 15',
-                helper: '案件化の入口となる目標件数です。',
+                name: 'contractTarget',
+                label: '契約数',
+                placeholder: '例 5',
+                helper: '月内の契約完了件数の目線を合わせます。',
             },
             {
-                name: 'negotiationTarget',
-                label: '商談化目標',
-                placeholder: '例: 10',
-                helper: '提案や見積もりに進める件数の目安です。',
+                name: 'revenueTarget',
+                label: '売上',
+                placeholder: '例 5000000',
+                helper: '管理上の基準にする売上金額を入力します。',
+                isRevenue: true,
             },
         ],
     },
     {
-        title: '成果の目標',
-        description: '契約件数と売上は、今月の着地確認に使います。',
+        title: '補助入力項目',
+        description:
+            '活動量を見直したいときだけ、コール数とアポイント数もあわせて設定できます。',
         fields: [
             {
-                name: 'contractTarget',
-                label: '契約目標',
-                placeholder: '例: 5',
-                helper: '今月の契約到達件数です。',
+                name: 'callTarget',
+                label: 'コール数',
+                placeholder: '例 100',
+                helper: '必要な接触量の目安として使います。',
             },
             {
-                name: 'revenueTarget',
-                label: '売上目標',
-                placeholder: '例: 5000000',
-                helper: '円単位で入力します。',
-                isRevenue: true,
+                name: 'appointmentTarget',
+                label: 'アポイント数',
+                placeholder: '例 15',
+                helper: '初回接点の入り口として見ておきたい件数です。',
             },
         ],
     },
@@ -84,8 +88,10 @@ function getDefaultValue(target: UserKpiTarget | null, field: string): string {
     const map: Record<string, number> = {
         callTarget: target.callTarget,
         visitTarget: target.visitTarget,
+        newVisitTarget: target.newVisitTarget,
         appointmentTarget: target.appointmentTarget,
         negotiationTarget: target.negotiationTarget,
+        newNegotiationTarget: target.newNegotiationTarget,
         contractTarget: target.contractTarget,
         revenueTarget: target.revenueTarget,
     };
@@ -93,7 +99,12 @@ function getDefaultValue(target: UserKpiTarget | null, field: string): string {
     return value !== undefined && value > 0 ? String(value) : '';
 }
 
-export function KpiTargetForm({ currentTarget, currentMonth }: KpiTargetFormProps) {
+export function KpiTargetForm({
+    currentTarget,
+    currentMonth,
+    businessScope,
+    canManageBusinessGoals,
+}: KpiTargetFormProps) {
     const searchParams = useSearchParams();
     const saved = searchParams.get('saved') === '1';
     const hasError = searchParams.get('error') !== null;
@@ -101,33 +112,55 @@ export function KpiTargetForm({ currentTarget, currentMonth }: KpiTargetFormProp
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
-                <CardTitle className="text-base text-gray-900">月次KPI目標入力</CardTitle>
+                <CardTitle className="text-base text-gray-900">
+                    月次KPIの設定
+                </CardTitle>
                 <CardDescription>
-                    保存した目標値は、個人ダッシュボードで週あたり目安としても表示されます。
+                    会社目標と個人KPIをこの画面で整理できます。見出しと補足を先に読み、必要な数字だけ静かにそろえられる構成にしています。
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+                <BusinessGoalSettingsSection
+                    businessScope={businessScope}
+                    currentMonth={currentMonth}
+                    canManage={canManageBusinessGoals}
+                />
+
                 {saved ? (
                     <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                        目標を保存しました。
+                        個人KPIを保存しました。
                     </div>
                 ) : null}
                 {hasError ? (
                     <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                        入力内容にエラーがあります。再度確認してください。
+                        個人KPIの保存に失敗しました。時間を置いて再度お試しください。
                     </div>
                 ) : null}
 
-                <div className="rounded-lg border border-gray-200 bg-gray-50/70 px-4 py-4">
-                    <p className="text-sm font-semibold text-gray-900">入力の見方</p>
+                <div>
+                    <h3 className="text-base font-semibold text-gray-900">
+                        個人KPI
+                    </h3>
                     <p className="mt-1 text-sm leading-6 text-gray-500">
-                        月次目標を登録すると、個人ダッシュボードでは今週の実績と並べて見られるようになります。
+                        自分の月次目標を入力します。まず重点確認項目をそろえ、必要なときだけ補助入力項目を追加してください。
+                    </p>
+                </div>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50/70 px-4 py-4">
+                    <p className="text-sm font-semibold text-gray-900">
+                        入力の考え方
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-gray-500">
+                        会社目標との整合を見ながら、面会・商談・契約・売上を先に決めると全体の流れをそろえやすくなります。
                     </p>
                 </div>
 
                 <form action={saveKpiTargetAction} className="space-y-6">
                     <div className="space-y-1.5">
-                        <label className="block text-sm font-medium text-gray-700" htmlFor="targetMonth">
+                        <label
+                            className="block text-sm font-medium text-gray-700"
+                            htmlFor="targetMonth"
+                        >
                             対象月
                         </label>
                         <Input
@@ -151,21 +184,23 @@ export function KpiTargetForm({ currentTarget, currentMonth }: KpiTargetFormProp
                                 </p>
                             </div>
 
-                            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                            <div className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
                                 {group.fields.map((field) => (
                                     <div
                                         key={field.name}
-                                        className="rounded-lg border border-gray-200 bg-white px-4 py-4"
+                                        className="grid gap-3 px-4 py-4 md:grid-cols-[minmax(0,1fr)_220px] md:items-start"
                                     >
-                                        <label
-                                            className="block text-sm font-medium text-gray-700"
-                                            htmlFor={field.name}
-                                        >
-                                            {field.label}
-                                        </label>
-                                        <p className="mt-1 text-xs leading-5 text-gray-500">
-                                            {field.helper}
-                                        </p>
+                                        <div>
+                                            <label
+                                                className="block text-sm font-semibold text-gray-900"
+                                                htmlFor={field.name}
+                                            >
+                                                {field.label}
+                                            </label>
+                                            <p className="mt-1 text-sm leading-6 text-gray-500">
+                                                {field.helper}
+                                            </p>
+                                        </div>
                                         <Input
                                             id={field.name}
                                             name={field.name}
@@ -173,8 +208,10 @@ export function KpiTargetForm({ currentTarget, currentMonth }: KpiTargetFormProp
                                             min="0"
                                             step={field.isRevenue ? '1000' : '1'}
                                             placeholder={field.placeholder}
-                                            defaultValue={getDefaultValue(currentTarget, field.name)}
-                                            className="mt-3"
+                                            defaultValue={getDefaultValue(
+                                                currentTarget,
+                                                field.name,
+                                            )}
                                         />
                                     </div>
                                 ))}
@@ -184,7 +221,7 @@ export function KpiTargetForm({ currentTarget, currentMonth }: KpiTargetFormProp
 
                     <div className="pt-2 md:pt-0">
                         <Button type="submit" className="w-full md:w-auto">
-                            目標を保存
+                            個人KPIを保存
                         </Button>
                     </div>
                 </form>

@@ -4,6 +4,7 @@ import { and, eq, isNull, lte, gte, sql } from 'drizzle-orm';
 import type { BusinessScopeType } from '@g-dx/contracts';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
 import { AppError } from '@/shared/server/errors';
+import { hasSegmentTargetColumns } from './kpi-target-columns';
 
 export interface TeamKpiTargetSummary {
     targetMonth: string;
@@ -12,8 +13,10 @@ export interface TeamKpiTargetSummary {
     totals: {
         callTarget: number;
         visitTarget: number;
+        newVisitTarget: number;
         appointmentTarget: number;
         negotiationTarget: number;
+        newNegotiationTarget: number;
         contractTarget: number;
         revenueTarget: number;
     };
@@ -36,28 +39,57 @@ export async function getTeamKpiTargetSummaryByScope(
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
 
     const { startDate, endDate } = getMonthBounds(targetMonth);
+    const supportsSegmentTargets = await hasSegmentTargetColumns();
 
     const [targetTotalsRow, activeMemberRow, configuredMemberRow, revenueActualRow] =
         await Promise.all([
-            db
-                .select({
-                    callTarget: sql<number>`coalesce(sum(${userKpiTargets.callTarget}), 0)::int`,
-                    visitTarget: sql<number>`coalesce(sum(${userKpiTargets.visitTarget}), 0)::int`,
-                    appointmentTarget:
-                        sql<number>`coalesce(sum(${userKpiTargets.appointmentTarget}), 0)::int`,
-                    negotiationTarget:
-                        sql<number>`coalesce(sum(${userKpiTargets.negotiationTarget}), 0)::int`,
-                    contractTarget:
-                        sql<number>`coalesce(sum(${userKpiTargets.contractTarget}), 0)::int`,
-                    revenueTarget: sql<string>`coalesce(sum(${userKpiTargets.revenueTarget}), 0)`,
-                })
-                .from(userKpiTargets)
-                .where(
-                    and(
-                        eq(userKpiTargets.businessUnitId, businessUnit.id),
-                        eq(userKpiTargets.targetMonth, targetMonth),
-                    ),
-                ),
+            supportsSegmentTargets
+                ? db
+                      .select({
+                          callTarget: sql<number>`coalesce(sum(${userKpiTargets.callTarget}), 0)::int`,
+                          visitTarget: sql<number>`coalesce(sum(${userKpiTargets.visitTarget}), 0)::int`,
+                          newVisitTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.newVisitTarget}), 0)::int`,
+                          appointmentTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.appointmentTarget}), 0)::int`,
+                          negotiationTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.negotiationTarget}), 0)::int`,
+                          newNegotiationTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.newNegotiationTarget}), 0)::int`,
+                          contractTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.contractTarget}), 0)::int`,
+                          revenueTarget: sql<string>`coalesce(sum(${userKpiTargets.revenueTarget}), 0)`,
+                      })
+                      .from(userKpiTargets)
+                      .where(
+                          and(
+                              eq(userKpiTargets.businessUnitId, businessUnit.id),
+                              eq(userKpiTargets.targetMonth, targetMonth),
+                          ),
+                      )
+                : db
+                      .select({
+                          callTarget: sql<number>`coalesce(sum(${userKpiTargets.callTarget}), 0)::int`,
+                          visitTarget: sql<number>`coalesce(sum(${userKpiTargets.visitTarget}), 0)::int`,
+                          newVisitTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.visitTarget}), 0)::int`,
+                          appointmentTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.appointmentTarget}), 0)::int`,
+                          negotiationTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.negotiationTarget}), 0)::int`,
+                          newNegotiationTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.negotiationTarget}), 0)::int`,
+                          contractTarget:
+                              sql<number>`coalesce(sum(${userKpiTargets.contractTarget}), 0)::int`,
+                          revenueTarget: sql<string>`coalesce(sum(${userKpiTargets.revenueTarget}), 0)`,
+                      })
+                      .from(userKpiTargets)
+                      .where(
+                          and(
+                              eq(userKpiTargets.businessUnitId, businessUnit.id),
+                              eq(userKpiTargets.targetMonth, targetMonth),
+                          ),
+                      ),
             db
                 .select({
                     count: sql<number>`count(distinct ${userBusinessMemberships.userId})::int`,
@@ -102,8 +134,10 @@ export async function getTeamKpiTargetSummaryByScope(
         totals: {
             callTarget: Number(targetTotalsRow[0]?.callTarget ?? 0),
             visitTarget: Number(targetTotalsRow[0]?.visitTarget ?? 0),
+            newVisitTarget: Number(targetTotalsRow[0]?.newVisitTarget ?? 0),
             appointmentTarget: Number(targetTotalsRow[0]?.appointmentTarget ?? 0),
             negotiationTarget: Number(targetTotalsRow[0]?.negotiationTarget ?? 0),
+            newNegotiationTarget: Number(targetTotalsRow[0]?.newNegotiationTarget ?? 0),
             contractTarget: Number(targetTotalsRow[0]?.contractTarget ?? 0),
             revenueTarget: parseFloat(targetTotalsRow[0]?.revenueTarget ?? '0'),
         },

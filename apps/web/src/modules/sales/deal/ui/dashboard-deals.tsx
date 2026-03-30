@@ -1,9 +1,15 @@
 import Link from 'next/link';
-import type { DealDashboardSummary, DealStageKey, SalesRollingKpiGrid } from '@g-dx/contracts';
-import type { TeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { StageBarChart } from '@/components/charts/stage-bar-chart';
+import type {
+    BusinessScopeType,
+    DealDashboardSummary,
+    DealStageKey,
+    SalesRollingKpiGrid,
+} from '@g-dx/contracts';
 import { CompanyBarChart } from '@/components/charts/company-bar-chart';
+import { StageBarChart } from '@/components/charts/stage-bar-chart';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { TeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
+import { BusinessGoalOverviewCard } from './business-goal-section';
 import {
     DashboardMetricCard,
     DashboardNarrativeCard,
@@ -15,6 +21,8 @@ interface DealDashboardProps {
     summary: DealDashboardSummary;
     rollingKpiData: SalesRollingKpiGrid;
     teamTargetSummary: TeamKpiTargetSummary;
+    businessScope: BusinessScopeType;
+    canViewBusinessGoals: boolean;
 }
 
 const STAGE_BADGE: Record<DealStageKey, string> = {
@@ -37,14 +45,25 @@ const STAGE_BAR_COLORS: Record<DealStageKey, string> = {
     CONTRACTED: '#1e293b',
 };
 
+function getCurrentMonth(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+}
+
 function buildNarrativeLines(
     summary: DealDashboardSummary,
     rollingKpiData: SalesRollingKpiGrid,
     teamTargetSummary: TeamKpiTargetSummary,
 ): string[] {
-    const topStage = [...summary.byStage].sort((left, right) => right.count - left.count)[0];
-    const thisMonthMetrics = rollingKpiData.find((item) => item.period === 'thisMonth')?.metrics;
-    const overdueTargets = teamTargetSummary.activeMemberCount - teamTargetSummary.membersWithTargetsCount;
+    const topStage = [...summary.byStage].sort(
+        (left, right) => right.count - left.count,
+    )[0];
+    const thisMonthMetrics = rollingKpiData.find(
+        (item) => item.period === 'thisMonth',
+    )?.metrics;
+    const overdueTargets =
+        teamTargetSummary.activeMemberCount -
+        teamTargetSummary.membersWithTargetsCount;
     const nextActionTotal =
         summary.nextActionsToday.length +
         summary.nextActionsTomorrow.length +
@@ -52,17 +71,17 @@ function buildNarrativeLines(
 
     return [
         topStage && topStage.count > 0
-            ? `${topStage.stageName} が ${topStage.count}件で最も厚く、進行中案件は ${summary.activeGroup.count}件です。`
-            : '案件ステージの偏りはまだ小さく、これからの積み上げを確認する段階です。',
+            ? `${topStage.stageName}が${topStage.count}件で最多です。進行中案件は${summary.activeGroup.count}件です。`
+            : '進行中の案件はまだありません。次の打ち手を確認しながら立ち上がりを整えていきます。',
         thisMonthMetrics
-            ? `今月はアポイント ${thisMonthMetrics.appointmentCount.total}件、商談化 ${thisMonthMetrics.negotiationCount.total}件、契約 ${thisMonthMetrics.contractCount.total}件で推移しています。`
-            : '今月の活動実績は、活動ダッシュボードの期間別実績で確認できます。',
+            ? `今月は新規面会${thisMonthMetrics.visitCount.bySegment.new}件、新規商談${thisMonthMetrics.negotiationCount.bySegment.new}件、契約${thisMonthMetrics.contractCount.total}件で推移しています。`
+            : '今月の活動実績はまだ集計途中です。活動入力が進むとここに流れが反映されます。',
         nextActionTotal > 0
-            ? `今日から今週にかけて ${nextActionTotal}件のネクストアクションがあります。今日分から順に整えると進行が安定します。`
-            : '今週のネクストアクションは未登録です。次回予定の入力を揃えると見通しが立ちやすくなります。',
+            ? `今日から今週にかけて${nextActionTotal}件のネクストアクションがあります。日付の近いものから順に確認すると動きやすくなります。`
+            : '直近のネクストアクションは未設定です。次回接点の登録を進めると案件管理が安定します。',
         overdueTargets > 0
-            ? `月次目標が未入力のメンバーが ${overdueTargets}名います。入力を揃えると会社目標との比較が安定します。`
-            : '月次目標は登録メンバー分が揃っており、会社目標との比較がしやすい状態です。',
+            ? `今月のKPIが未入力のメンバーが${overdueTargets}名います。会社目標とあわせて入力をそろえると比較しやすくなります。`
+            : '今月のKPIは全員分そろっています。会社目標との位置関係も見比べやすい状態です。',
     ];
 }
 
@@ -70,8 +89,14 @@ export function DealDashboard({
     summary,
     rollingKpiData,
     teamTargetSummary,
+    businessScope,
+    canViewBusinessGoals,
 }: DealDashboardProps) {
-    const maxStageAmount = Math.max(...summary.byStage.map((stage) => stage.totalAmount), 1);
+    const currentMonth = getCurrentMonth();
+    const maxStageAmount = Math.max(
+        ...summary.byStage.map((stage) => stage.totalAmount),
+        1,
+    );
     const allNextActions = [
         ...summary.nextActionsToday,
         ...summary.nextActionsTomorrow,
@@ -79,7 +104,9 @@ export function DealDashboard({
     ];
     const winRate =
         summary.totalDeals > 0
-            ? Math.round((summary.contractedGroup.count / summary.totalDeals) * 100)
+            ? Math.round(
+                  (summary.contractedGroup.count / summary.totalDeals) * 100,
+              )
             : 0;
 
     const stageChartData = summary.byStage.map((stage) => ({
@@ -92,7 +119,7 @@ export function DealDashboard({
     const companyChartData = summary.byCompany.map((company) => ({
         companyName:
             company.companyName.length > 10
-                ? `${company.companyName.slice(0, 10)}…`
+                ? `${company.companyName.slice(0, 10)}...`
                 : company.companyName,
         totalAmount: company.totalAmount,
         activeDeals: company.activeDeals,
@@ -100,52 +127,67 @@ export function DealDashboard({
 
     return (
         <div className="space-y-6">
+            {canViewBusinessGoals ? (
+                <BusinessGoalOverviewCard
+                    businessScope={businessScope}
+                    currentMonth={currentMonth}
+                />
+            ) : null}
+
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
                 <TeamTargetOverview
                     summary={teamTargetSummary}
                     rollingKpiData={rollingKpiData}
-                    title="会社目標と実績比較"
-                    description="今月の月次目標合計と、現在の実績を同じ視点で並べています。"
+                    title="チームKPIと進捗"
+                    description="月次のチームKPIと現時点の実績を並べて確認できます。会社目標と個人入力の橋渡しになる位置づけです。"
                 />
 
                 <DashboardNarrativeCard
-                    description="案件の厚みと次の打ち手を、読み物として短く整理しています。"
-                    lines={buildNarrativeLines(summary, rollingKpiData, teamTargetSummary)}
+                    description="案件の流れと次の打ち手を、ひと呼吸で読み取れる短いメモにまとめています。"
+                    lines={buildNarrativeLines(
+                        summary,
+                        rollingKpiData,
+                        teamTargetSummary,
+                    )}
                 />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <DashboardMetricCard
-                    title="累計案件数"
-                    description="現在管理している案件全体の母数です。"
+                    title="総案件数"
+                    description="現在追っている案件全体の件数です。"
                     value={`${summary.totalDeals.toLocaleString()}件`}
-                    footnote={`受注率は ${winRate}% です。`}
+                    footnote={`成約率は ${winRate}% です。`}
                 />
                 <DashboardMetricCard
                     title="進行中案件"
-                    description="アポ獲得・商談中・アライアンスの合計です。"
+                    description="アポイント取得後から商談中までの進行中案件です。"
                     value={`${summary.activeGroup.count.toLocaleString()}件`}
-                    footnote={`進行中総額 ${formatDashboardAmount(summary.activeGroup.totalAmount)}`}
+                    footnote={`進行中金額 ${formatDashboardAmount(summary.activeGroup.totalAmount)}`}
                 />
                 <DashboardMetricCard
                     title="停滞案件"
-                    description="ペンディング・失注・アポキャンの確認対象です。"
+                    description="保留や失注など、見直しが必要な案件数です。"
                     value={`${summary.stalledGroup.count.toLocaleString()}件`}
-                    footnote={`対象総額 ${formatDashboardAmount(summary.stalledGroup.totalAmount)}`}
+                    footnote={`対象金額 ${formatDashboardAmount(summary.stalledGroup.totalAmount)}`}
                 />
                 <DashboardMetricCard
-                    title="契約済み"
-                    description="成約まで到達した案件の累計です。"
+                    title="成約済み"
+                    description="今期の成約済み案件の件数です。"
                     value={`${summary.contractedGroup.count.toLocaleString()}件`}
-                    footnote={`契約総額 ${formatDashboardAmount(summary.contractedGroup.totalAmount)}`}
+                    footnote={`成約金額 ${formatDashboardAmount(summary.contractedGroup.totalAmount)}`}
                 />
             </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
                 <Card className="border-gray-200 shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-base text-gray-900">フェーズ別案件数</CardTitle>
-                        <CardDescription>案件の厚みをステージごとに確認します。</CardDescription>
+                        <CardTitle className="text-base text-gray-900">
+                            フェーズ別の件数
+                        </CardTitle>
+                        <CardDescription>
+                            案件の偏りをステージ単位で確認できます。
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <StageBarChart data={stageChartData} />
@@ -154,12 +196,19 @@ export function DealDashboard({
 
                 <Card className="border-gray-200 shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-base text-gray-900">フェーズ別内訳</CardTitle>
-                        <CardDescription>件数と金額を同じ並びで比較します。</CardDescription>
+                        <CardTitle className="text-base text-gray-900">
+                            フェーズ別の金額
+                        </CardTitle>
+                        <CardDescription>
+                            件数だけでなく、金額の重心もあわせて確認します。
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
                         {summary.byStage.map((stage) => (
-                            <div key={stage.stageKey} className="space-y-2 rounded-lg border border-gray-100 px-3 py-3">
+                            <div
+                                key={stage.stageKey}
+                                className="space-y-2 rounded-lg border border-gray-100 px-3 py-3"
+                            >
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="space-y-1">
                                         <span
@@ -168,7 +217,7 @@ export function DealDashboard({
                                             {stage.stageName}
                                         </span>
                                         <p className="text-xs text-gray-500">
-                                            件数と金額の両方を確認できます。
+                                            件数と金額をあわせて確認できます。
                                         </p>
                                     </div>
                                     <div className="text-right">
@@ -186,7 +235,9 @@ export function DealDashboard({
                                         style={{
                                             width: `${
                                                 maxStageAmount > 0
-                                                    ? (stage.totalAmount / maxStageAmount) * 100
+                                                    ? (stage.totalAmount /
+                                                          maxStageAmount) *
+                                                      100
                                                     : 0
                                             }%`,
                                         }}
@@ -196,7 +247,7 @@ export function DealDashboard({
                         ))}
                         {summary.byStage.every((stage) => stage.count === 0) ? (
                             <p className="py-4 text-center text-sm text-gray-500">
-                                案件データがありません
+                                集計対象の案件はまだありません。
                             </p>
                         ) : null}
                     </CardContent>
@@ -210,7 +261,7 @@ export function DealDashboard({
                             会社別の進行中案件金額
                         </CardTitle>
                         <CardDescription>
-                            進行中案件の金額が大きい会社から確認できます。
+                            進行中案件の金額が大きい会社から順に確認できます。
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -221,13 +272,17 @@ export function DealDashboard({
 
             <Card className="border-gray-200 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-base text-gray-900">ネクストアクション</CardTitle>
-                    <CardDescription>今日・明日・今週の予定をまとめて確認します。</CardDescription>
+                    <CardTitle className="text-base text-gray-900">
+                        ネクストアクション
+                    </CardTitle>
+                    <CardDescription>
+                        今日から今週にかけての予定をまとめています。
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     {allNextActions.length === 0 ? (
                         <p className="py-4 text-center text-sm text-gray-500">
-                            次回アクション日が設定された案件はありません
+                            直近のアクションが設定された案件はありません。
                         </p>
                     ) : (
                         <>
@@ -238,7 +293,10 @@ export function DealDashboard({
                                     </p>
                                     <div className="space-y-2">
                                         {summary.nextActionsToday.map((item) => (
-                                            <NextActionRow key={item.dealId} item={item} />
+                                            <NextActionRow
+                                                key={item.dealId}
+                                                item={item}
+                                            />
                                         ))}
                                     </div>
                                 </div>
@@ -250,7 +308,10 @@ export function DealDashboard({
                                     </p>
                                     <div className="space-y-2">
                                         {summary.nextActionsTomorrow.map((item) => (
-                                            <NextActionRow key={item.dealId} item={item} />
+                                            <NextActionRow
+                                                key={item.dealId}
+                                                item={item}
+                                            />
                                         ))}
                                     </div>
                                 </div>
@@ -262,7 +323,10 @@ export function DealDashboard({
                                     </p>
                                     <div className="space-y-2">
                                         {summary.nextActionsThisWeek.map((item) => (
-                                            <NextActionRow key={item.dealId} item={item} />
+                                            <NextActionRow
+                                                key={item.dealId}
+                                                item={item}
+                                            />
                                         ))}
                                     </div>
                                 </div>
@@ -295,7 +359,9 @@ function NextActionRow({
         <div className="rounded-lg border border-gray-200 px-3 py-3 text-sm">
             <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                    <p className="text-sm font-semibold text-gray-900">{item.companyName}</p>
+                    <p className="text-sm font-semibold text-gray-900">
+                        {item.companyName}
+                    </p>
                     <Link
                         href={`/sales/deals/${item.dealId}`}
                         className="mt-1 block truncate text-sm text-gray-600 hover:underline"
@@ -304,18 +370,24 @@ function NextActionRow({
                     </Link>
                 </div>
                 <span
-                    className={`shrink-0 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE[item.stageKey]}`}
+                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE[item.stageKey]}`}
                 >
                     {item.stageName}
                 </span>
             </div>
             <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-gray-500">
                 <span>担当 {item.ownerName}</span>
-                {item.nextActionDate ? <span>予定 {item.nextActionDate}</span> : null}
-                {item.amount !== null ? <span>{formatDashboardAmount(item.amount)}</span> : null}
+                {item.nextActionDate ? (
+                    <span>予定 {item.nextActionDate}</span>
+                ) : null}
+                {item.amount !== null ? (
+                    <span>{formatDashboardAmount(item.amount)}</span>
+                ) : null}
             </div>
             {item.nextActionContent ? (
-                <p className="mt-2 text-xs leading-6 text-gray-600">{item.nextActionContent}</p>
+                <p className="mt-2 text-xs leading-6 text-gray-600">
+                    {item.nextActionContent}
+                </p>
             ) : null}
         </div>
     );

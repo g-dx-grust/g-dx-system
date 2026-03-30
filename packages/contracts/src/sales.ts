@@ -386,14 +386,21 @@ export interface UserKpiTarget {
     targetMonth: string;
     callTarget: number;
     visitTarget: number;
+    newVisitTarget: number;
     appointmentTarget: number;
     negotiationTarget: number;
+    newNegotiationTarget: number;
     contractTarget: number;
     revenueTarget: number;
 }
 
 export interface PersonalKpiItem {
-    key: 'callCount' | 'visitCount' | 'appointmentCount' | 'negotiationCount' | 'contractCount';
+    key:
+        | 'callCount'
+        | 'newVisitCount'
+        | 'appointmentCount'
+        | 'newNegotiationCount'
+        | 'contractCount';
     label: string;
     actual: number;
     target: number;
@@ -476,8 +483,10 @@ export interface SaveKpiTargetInput {
     targetMonth: string;
     callTarget: number;
     visitTarget: number;
+    newVisitTarget: number;
     appointmentTarget: number;
     negotiationTarget: number;
+    newNegotiationTarget: number;
     contractTarget: number;
     revenueTarget: number;
 }

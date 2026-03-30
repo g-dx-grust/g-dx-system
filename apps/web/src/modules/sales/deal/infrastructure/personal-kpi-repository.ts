@@ -23,6 +23,7 @@ import type {
     UserKpiTarget,
 } from '@g-dx/contracts';
 import { getRollingPeriodBounds, ALL_ROLLING_PERIODS, type RollingPeriodBounds } from './rolling-period';
+import { hasSegmentTargetColumns } from './kpi-target-columns';
 
 function getMonthBounds(targetMonth: string): { startDate: string; endDate: string } {
     const [year, month] = targetMonth.split('-').map(Number);
@@ -46,32 +47,63 @@ export async function upsertKpiTarget(
     businessUnitId: string,
     input: SaveKpiTargetInput,
 ): Promise<void> {
+    const supportsSegmentTargets = await hasSegmentTargetColumns();
+    const baseValues = {
+        userId,
+        businessUnitId,
+        targetMonth: input.targetMonth,
+        callTarget: input.callTarget,
+        visitTarget: input.visitTarget,
+        appointmentTarget: input.appointmentTarget,
+        negotiationTarget: input.negotiationTarget,
+        contractTarget: input.contractTarget,
+        revenueTarget: String(input.revenueTarget),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    };
+    const baseSet = {
+        callTarget: input.callTarget,
+        visitTarget: input.visitTarget,
+        appointmentTarget: input.appointmentTarget,
+        negotiationTarget: input.negotiationTarget,
+        contractTarget: input.contractTarget,
+        revenueTarget: String(input.revenueTarget),
+        updatedAt: new Date(),
+    };
+
+    if (supportsSegmentTargets) {
+        await db
+            .insert(userKpiTargets)
+            .values({
+                ...baseValues,
+                newVisitTarget: input.newVisitTarget,
+                newNegotiationTarget: input.newNegotiationTarget,
+            })
+            .onConflictDoUpdate({
+                target: [
+                    userKpiTargets.userId,
+                    userKpiTargets.businessUnitId,
+                    userKpiTargets.targetMonth,
+                ],
+                set: {
+                    ...baseSet,
+                    newVisitTarget: input.newVisitTarget,
+                    newNegotiationTarget: input.newNegotiationTarget,
+                },
+            });
+        return;
+    }
+
     await db
         .insert(userKpiTargets)
-        .values({
-            userId,
-            businessUnitId,
-            targetMonth: input.targetMonth,
-            callTarget: input.callTarget,
-            visitTarget: input.visitTarget,
-            appointmentTarget: input.appointmentTarget,
-            negotiationTarget: input.negotiationTarget,
-            contractTarget: input.contractTarget,
-            revenueTarget: String(input.revenueTarget),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        })
+        .values(baseValues)
         .onConflictDoUpdate({
-            target: [userKpiTargets.userId, userKpiTargets.businessUnitId, userKpiTargets.targetMonth],
-            set: {
-                callTarget: input.callTarget,
-                visitTarget: input.visitTarget,
-                appointmentTarget: input.appointmentTarget,
-                negotiationTarget: input.negotiationTarget,
-                contractTarget: input.contractTarget,
-                revenueTarget: String(input.revenueTarget),
-                updatedAt: new Date(),
-            },
+            target: [
+                userKpiTargets.userId,
+                userKpiTargets.businessUnitId,
+                userKpiTargets.targetMonth,
+            ],
+            set: baseSet,
         });
 }
 
@@ -80,16 +112,50 @@ export async function getKpiTargetRow(
     businessUnitId: string,
     targetMonth: string,
 ): Promise<UserKpiTarget | null> {
+    const whereClause = and(
+        eq(userKpiTargets.userId, userId),
+        eq(userKpiTargets.businessUnitId, businessUnitId),
+        eq(userKpiTargets.targetMonth, targetMonth),
+    );
+    const supportsSegmentTargets = await hasSegmentTargetColumns();
+
+    if (supportsSegmentTargets) {
+        const [row] = await db
+            .select()
+            .from(userKpiTargets)
+            .where(whereClause)
+            .limit(1);
+
+        if (!row) return null;
+        return {
+            userId: row.userId,
+            businessUnitId: row.businessUnitId,
+            targetMonth: row.targetMonth,
+            callTarget: row.callTarget,
+            visitTarget: row.visitTarget,
+            newVisitTarget: row.newVisitTarget,
+            appointmentTarget: row.appointmentTarget,
+            negotiationTarget: row.negotiationTarget,
+            newNegotiationTarget: row.newNegotiationTarget,
+            contractTarget: row.contractTarget,
+            revenueTarget: parseFloat(row.revenueTarget ?? '0'),
+        };
+    }
+
     const [row] = await db
-        .select()
+        .select({
+            userId: userKpiTargets.userId,
+            businessUnitId: userKpiTargets.businessUnitId,
+            targetMonth: userKpiTargets.targetMonth,
+            callTarget: userKpiTargets.callTarget,
+            visitTarget: userKpiTargets.visitTarget,
+            appointmentTarget: userKpiTargets.appointmentTarget,
+            negotiationTarget: userKpiTargets.negotiationTarget,
+            contractTarget: userKpiTargets.contractTarget,
+            revenueTarget: userKpiTargets.revenueTarget,
+        })
         .from(userKpiTargets)
-        .where(
-            and(
-                eq(userKpiTargets.userId, userId),
-                eq(userKpiTargets.businessUnitId, businessUnitId),
-                eq(userKpiTargets.targetMonth, targetMonth),
-            ),
-        )
+        .where(whereClause)
         .limit(1);
 
     if (!row) return null;
@@ -99,8 +165,10 @@ export async function getKpiTargetRow(
         targetMonth: row.targetMonth,
         callTarget: row.callTarget,
         visitTarget: row.visitTarget,
+        newVisitTarget: row.visitTarget,
         appointmentTarget: row.appointmentTarget,
         negotiationTarget: row.negotiationTarget,
+        newNegotiationTarget: row.negotiationTarget,
         contractTarget: row.contractTarget,
         revenueTarget: parseFloat(row.revenueTarget ?? '0'),
     };

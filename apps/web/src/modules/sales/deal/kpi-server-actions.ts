@@ -31,9 +31,11 @@ export async function saveKpiTargetAction(formData: FormData) {
     const input = {
         targetMonth,
         callTarget: readInt(formData, 'callTarget'),
-        visitTarget: readInt(formData, 'visitTarget'),
+        visitTarget: readInt(formData, 'newVisitTarget'),
+        newVisitTarget: readInt(formData, 'newVisitTarget'),
         appointmentTarget: readInt(formData, 'appointmentTarget'),
-        negotiationTarget: readInt(formData, 'negotiationTarget'),
+        negotiationTarget: readInt(formData, 'newNegotiationTarget'),
+        newNegotiationTarget: readInt(formData, 'newNegotiationTarget'),
         contractTarget: readInt(formData, 'contractTarget'),
         revenueTarget: readFloat(formData, 'revenueTarget'),
     };

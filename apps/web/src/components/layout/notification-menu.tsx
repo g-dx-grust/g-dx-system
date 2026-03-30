@@ -226,6 +226,7 @@ const NOTIFICATION_TYPE_LABELS: Record<string, string> = {
     APPROVAL_REJECTED: '却下',
     APPROVAL_RETURNED: '差し戻し',
     APPROVAL_DEADLINE: '期限通知',
+    KPI_SUBMITTED: 'KPI入力',
     CRM_SYNC_FAILED: 'CRM同期失敗',
     AI_GENERATION_COMPLETE: 'AI生成完了',
     AI_GENERATION_FAILED: 'AI生成失敗',

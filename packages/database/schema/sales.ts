@@ -198,8 +198,10 @@ export const userKpiTargets = pgTable('user_kpi_targets', {
     targetMonth: text('target_month').notNull(), // format: 'YYYY-MM'
     callTarget: integer('call_target').default(0).notNull(),
     visitTarget: integer('visit_target').default(0).notNull(),
+    newVisitTarget: integer('new_visit_target').default(0).notNull(),
     appointmentTarget: integer('appointment_target').default(0).notNull(),
     negotiationTarget: integer('negotiation_target').default(0).notNull(),
+    newNegotiationTarget: integer('new_negotiation_target').default(0).notNull(),
     contractTarget: integer('contract_target').default(0).notNull(),
     revenueTarget: numeric('revenue_target', { precision: 18, scale: 2 }).default('0').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),

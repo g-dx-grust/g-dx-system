@@ -43,8 +43,10 @@ export interface MemberKpiTarget {
     displayName: string;
     callTarget: number;
     visitTarget: number;
+    newVisitTarget: number;
     appointmentTarget: number;
     negotiationTarget: number;
+    newNegotiationTarget: number;
     contractTarget: number;
     revenueTarget: number;
 }
@@ -52,8 +54,10 @@ export interface MemberKpiTarget {
 export interface TeamKpiTotals {
     callTarget: number;
     visitTarget: number;
+    newVisitTarget: number;
     appointmentTarget: number;
     negotiationTarget: number;
+    newNegotiationTarget: number;
     contractTarget: number;
     revenueTarget: number;
 }

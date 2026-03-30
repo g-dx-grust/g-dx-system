@@ -1,11 +1,15 @@
+import { redirect } from 'next/navigation';
 import { getKpiTargetForMonth } from '@/modules/sales/deal/application/get-kpi-target-for-month';
 import { getTeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
 import { TeamTargetOverview } from '@/modules/sales/deal/ui/dashboard-primitives';
 import { KpiTargetForm } from '@/modules/sales/deal/ui/kpi-target-form';
 import { isAppError } from '@/shared/server/errors';
-import { redirect } from 'next/navigation';
+import { getAuthenticatedAppSession } from '@/shared/server/session';
 
 export default async function KpiSettingsPage() {
+    const session = await getAuthenticatedAppSession();
+    if (!session) redirect('/login');
+
     let currentTarget;
     let teamTargetSummary;
     try {
@@ -24,25 +28,37 @@ export default async function KpiSettingsPage() {
         throw error;
     }
 
+    const canManageBusinessGoals = session.user.roles.some(
+        (role) => role === 'SUPER_ADMIN' || role === 'ADMIN',
+    );
     const now = new Date();
-    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonth = `${now.getFullYear()}-${String(
+        now.getMonth() + 1,
+    ).padStart(2, '0')}`;
 
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-semibold text-gray-900">KPI目標設定</h1>
+                <h1 className="text-2xl font-semibold text-gray-900">
+                    KPI設定
+                </h1>
                 <p className="mt-1 text-sm text-gray-500">
-                    月次目標を入力し、チーム全体の目標合計とあわせて確認できます。
+                    月次の会社目標と個人KPIを同じ流れで確認できるように整えています。先に全体、次に個人の順で静かに入力してください。
                 </p>
             </div>
 
             <TeamTargetOverview
                 summary={teamTargetSummary}
-                title="月次目標の合計"
-                description="登録済みの月次目標を、入力状況とあわせて確認できます。"
+                title="現在のチームKPI"
+                description="入力済みの月次KPIを合算し、チーム全体の目線を確認できます。会社目標とあわせて見比べやすい位置に置いています。"
             />
 
-            <KpiTargetForm currentTarget={currentTarget} currentMonth={currentMonth} />
+            <KpiTargetForm
+                currentTarget={currentTarget}
+                currentMonth={currentMonth}
+                businessScope={session.activeBusinessScope}
+                canManageBusinessGoals={canManageBusinessGoals}
+            />
         </div>
     );
 }

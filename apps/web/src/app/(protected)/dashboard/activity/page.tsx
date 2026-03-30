@@ -6,11 +6,12 @@ import { getMonthlyActivityStats } from '@/modules/sales/deal/application/get-mo
 import { getPersonalActionList } from '@/modules/sales/deal/application/get-personal-action-list';
 import { getPersonalDashboardData } from '@/modules/sales/deal/application/get-personal-dashboard-data';
 import { getRollingKpi } from '@/modules/sales/deal/application/get-rolling-kpi';
+import { getTeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
 import { ActivityPersonalView } from '@/modules/sales/deal/ui/activity-personal-view';
 import { NextActionList } from '@/modules/sales/deal/ui/next-action-list';
 import { ActivityDashboard } from '@/modules/sales/deal/ui/dashboard-activity';
-import { MemberViewTabs } from '@/modules/sales/deal/ui/member-view-tabs';
 import { SalesKpiDashboard } from '@/modules/sales/deal/ui/sales-kpi-dashboard';
+import { TeamTargetOverview } from '@/modules/sales/deal/ui/dashboard-primitives';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession, getGrantedPermissionKeys } from '@/shared/server/session';
 
@@ -35,42 +36,52 @@ export default async function ActivityDashboardPage({
     let summary;
     let monthlyStats;
     let rollingKpiData;
+    let teamTargetSummary;
     try {
-        [summary, monthlyStats, rollingKpiData] = await Promise.all([
+        [summary, monthlyStats, rollingKpiData, teamTargetSummary] = await Promise.all([
             getDashboardSummary(),
             getMonthlyActivityStats(),
             getRollingKpi(),
+            getTeamKpiTargetSummary(),
         ]);
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
-        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (
+            isAppError(error, 'FORBIDDEN') ||
+            isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')
+        ) {
+            redirect('/unauthorized');
+        }
         throw error;
     }
 
     const memberOptions =
         summary.byOwner.length > 0
             ? summary.byOwner.map((owner) => ({
-                userId: owner.ownerUserId,
-                userName: owner.ownerName,
-                isCurrentUser: owner.ownerUserId === session.user.id,
-            }))
+                  userId: owner.ownerUserId,
+                  userName: owner.ownerName,
+                  isCurrentUser: owner.ownerUserId === session.user.id,
+              }))
             : [
-                {
-                    userId: session.user.id,
-                    userName: session.user.name,
-                    isCurrentUser: true,
-                },
-            ];
-    const defaultMemberId = memberOptions.some((option) => option.userId === session.user.id)
+                  {
+                      userId: session.user.id,
+                      userName: session.user.name,
+                      isCurrentUser: true,
+                  },
+              ];
+    const defaultMemberId = memberOptions.some(
+        (option) => option.userId === session.user.id,
+    )
         ? session.user.id
         : (memberOptions[0]?.userId ?? session.user.id);
     const selectedMemberId =
-        searchParams?.member && memberOptions.some((option) => option.userId === searchParams.member)
+        searchParams?.member &&
+        memberOptions.some((option) => option.userId === searchParams.member)
             ? searchParams.member
             : defaultMemberId;
-    const selectedMemberName = memberOptions.find(
-        (option) => option.userId === selectedMemberId,
-    )?.userName ?? session.user.name;
+    const selectedMemberName =
+        memberOptions.find((option) => option.userId === selectedMemberId)?.userName ??
+        session.user.name;
 
     let personalDashboardData = null;
     let personalActionItems = [];
@@ -78,26 +89,30 @@ export default async function ActivityDashboardPage({
     let requestedApprovals: ApprovalRequestListItem[] = [];
 
     try {
-        const [dashboardDataResult, actionItemsResult, pendingApprovalResult, requestedApprovalResult] =
-            await Promise.all([
-                canReadPersonalKpi
-                    ? getPersonalDashboardData({ userId: selectedMemberId })
-                    : Promise.resolve(null),
-                getPersonalActionList({ userId: selectedMemberId }),
-                canReadApprovals
-                    ? listApprovals({
-                        approvalStatus: 'PENDING',
-                        approverUserId: selectedMemberId,
-                        pageSize: 5,
-                    })
-                    : Promise.resolve(null),
-                canReadApprovals
-                    ? listApprovals({
-                        applicantUserId: selectedMemberId,
-                        pageSize: 5,
-                    })
-                    : Promise.resolve(null),
-            ]);
+        const [
+            dashboardDataResult,
+            actionItemsResult,
+            pendingApprovalResult,
+            requestedApprovalResult,
+        ] = await Promise.all([
+            canReadPersonalKpi
+                ? getPersonalDashboardData({ userId: selectedMemberId })
+                : Promise.resolve(null),
+            getPersonalActionList({ userId: selectedMemberId }),
+            canReadApprovals
+                ? listApprovals({
+                      approvalStatus: 'PENDING',
+                      approverUserId: selectedMemberId,
+                      pageSize: 5,
+                  })
+                : Promise.resolve(null),
+            canReadApprovals
+                ? listApprovals({
+                      applicantUserId: selectedMemberId,
+                      pageSize: 5,
+                  })
+                : Promise.resolve(null),
+        ]);
 
         personalDashboardData = dashboardDataResult;
         personalActionItems = actionItemsResult;
@@ -105,25 +120,48 @@ export default async function ActivityDashboardPage({
         requestedApprovals = requestedApprovalResult?.data ?? [];
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
-        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (
+            isAppError(error, 'FORBIDDEN') ||
+            isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')
+        ) {
+            redirect('/unauthorized');
+        }
         throw error;
     }
 
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-semibold text-gray-900">活動ダッシュボード</h1>
-                <p className="mt-1 text-sm text-gray-500">担当者ごとの活動量とローリングKPIを確認できます。</p>
+                <h1 className="text-2xl font-semibold text-gray-900">
+                    活動ダッシュボード
+                </h1>
+                <p className="mt-1 text-sm text-gray-500">
+                    チーム全体の目標、期間別実績、担当者ごとの動きを同じ流れで確認できます。
+                </p>
             </div>
 
-            <MemberViewTabs owners={summary.byOwner} monthlyStats={monthlyStats ?? []} />
+            <TeamTargetOverview
+                summary={teamTargetSummary}
+                rollingKpiData={rollingKpiData}
+                title="KPI目標合計"
+                description="活動ダッシュボードでは、月次目標合計と実績を先に確認できます。"
+            />
 
             <SalesKpiDashboard rollingKpiData={rollingKpiData} />
 
             <div className="grid gap-4 lg:grid-cols-3">
-                <NextActionList title="本日のネクストアクション" items={summary.nextActionsToday} />
-                <NextActionList title="明日のネクストアクション" items={summary.nextActionsTomorrow} />
-                <NextActionList title="今週のネクストアクション" items={summary.nextActionsThisWeek} />
+                <NextActionList
+                    title="本日のネクストアクション"
+                    items={summary.nextActionsToday}
+                />
+                <NextActionList
+                    title="明日のネクストアクション"
+                    items={summary.nextActionsTomorrow}
+                />
+                <NextActionList
+                    title="今週のネクストアクション"
+                    items={summary.nextActionsThisWeek}
+                />
             </div>
 
             <ActivityPersonalView

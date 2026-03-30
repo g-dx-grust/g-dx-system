@@ -4,7 +4,7 @@ import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
 import { db } from '@g-dx/database';
 import { users, roles, userRoleAssignments, userBusinessMemberships } from '@g-dx/database/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and, isNull, isNotNull } from 'drizzle-orm';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 
 export async function assignRoleAction(formData: FormData) {
@@ -41,6 +41,34 @@ export async function createUserAction(formData: FormData): Promise<{ success: b
     if (!name || !email) return { success: false, error: '名前とメールアドレスは必須です' };
 
     try {
+        // 同一 email のユーザーが既存かチェック（重複作成防止）
+        const [existingByEmail] = await db
+            .select({ id: users.id, larkOpenId: users.larkOpenId })
+            .from(users)
+            .where(and(eq(users.email, email), isNull(users.deletedAt)))
+            .limit(1);
+
+        if (existingByEmail) {
+            // larkOpenId あり → Lark ログイン済みユーザーと重複
+            // larkOpenId なし → 管理画面で既に作成済み
+            const hint = existingByEmail.larkOpenId
+                ? '（Lark ログイン済みユーザーと重複）'
+                : '（管理画面で既に作成済み）';
+            return { success: false, error: `同じメールアドレスのユーザーが既に存在します${hint}` };
+        }
+
+        // larkOpenId が指定された場合は重複チェック
+        if (larkOpenId) {
+            const [existingByLarkId] = await db
+                .select({ id: users.id })
+                .from(users)
+                .where(and(eq(users.larkOpenId, larkOpenId), isNull(users.deletedAt)))
+                .limit(1);
+            if (existingByLarkId) {
+                return { success: false, error: '指定した Lark Open ID は既に別ユーザーに紐付いています' };
+            }
+        }
+
         const [newUser] = await db.insert(users).values({
             larkOpenId,
             displayName: name,

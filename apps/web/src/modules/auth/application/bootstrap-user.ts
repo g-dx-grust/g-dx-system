@@ -163,6 +163,46 @@ async function ensureDefaultRoleAssignment(userId: string, businessUnitId: strin
 }
 
 export async function bootstrapUser(profile: BootstrapUserProfile) {
+    // 管理画面で larkOpenId なしで作成されたユーザーと Lark ログインユーザーの重複防止:
+    // まず email で既存ユーザーを検索し、larkOpenId が未設定であれば紐付けてから upsert する。
+    const [existingByEmail] = await db
+        .select({ id: users.id, larkOpenId: users.larkOpenId })
+        .from(users)
+        .where(
+            and(
+                eq(users.email, profile.email),
+                isNull(users.larkOpenId),
+                isNull(users.deletedAt),
+            )
+        )
+        .limit(1);
+
+    if (existingByEmail) {
+        // 管理画面で作成済みのユーザーに larkOpenId を紐付ける（ghost ユーザー解消）
+        await db
+            .update(users)
+            .set({
+                larkOpenId: profile.openId,
+                displayName: profile.name,
+                avatarUrl: profile.avatarUrl ?? null,
+                status: 'active',
+                lastLoginAt: new Date(),
+                updatedAt: new Date(),
+            })
+            .where(eq(users.id, existingByEmail.id));
+
+        const defaultBusinessMembership = await ensureDefaultBusinessMembership(existingByEmail.id);
+        await ensureDefaultRoleAssignment(existingByEmail.id, defaultBusinessMembership.id);
+        await issueSession(existingByEmail.id, defaultBusinessMembership.code);
+        await setActiveBusinessScopeCookie(defaultBusinessMembership.code);
+
+        return {
+            success: true,
+            user: { id: existingByEmail.id, displayName: profile.name, email: profile.email },
+            activeBusinessScope: defaultBusinessMembership.code,
+        };
+    }
+
     const [user] = await db
         .insert(users)
         .values({

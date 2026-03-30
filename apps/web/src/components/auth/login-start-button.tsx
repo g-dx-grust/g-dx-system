@@ -1,15 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const LOGIN_START_URL = '/api/v1/auth/lark/start';
-const AUTH_FLOW_STEPS = [
-    { label: '接続', caption: '認証先を準備' },
-    { label: '認証', caption: 'Larkへ移動' },
-    { label: '入室', caption: 'ダッシュボードへ' },
-];
+const AUTH_FLOW_LABELS = ['認証', '確認', '開始'];
 
 function LarkGlyph({ className = 'h-4 w-4' }: { className?: string }) {
     return (
@@ -36,38 +32,38 @@ export function LoginStartButton() {
 
         setIsStarting(true);
 
-        // Give the browser one frame to paint the pending state before leaving the page.
+        // Paint the calm pending state once before leaving the page.
         timeoutRef.current = window.setTimeout(() => {
             window.location.assign(LOGIN_START_URL);
         }, 80);
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-3">
             <Button
                 type="button"
                 onClick={handleClick}
                 disabled={isStarting}
-                className="group h-14 w-full rounded-2xl bg-[#1B4F72] px-4 text-white shadow-sm transition-all hover:bg-[#154060] hover:shadow-md disabled:cursor-wait disabled:bg-[#123851] disabled:opacity-100"
+                className="group h-12 w-full rounded-xl bg-slate-900 px-4 text-white shadow-sm transition-colors hover:bg-slate-800 disabled:cursor-wait disabled:bg-slate-900 disabled:opacity-100"
                 size="lg"
             >
                 <span className="flex w-full items-center gap-3 text-left">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/15">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-white/10">
                         <LarkGlyph />
                     </span>
 
                     <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold tracking-[0.01em] text-white">
-                            {isStarting ? 'Larkへ接続中' : 'Larkでログイン'}
+                        <span className="block text-sm font-semibold text-white">
+                            {isStarting ? '接続中' : 'Lark でログイン'}
                         </span>
-                        <span className="block text-[11px] text-white/75">
-                            {isStarting ? '認証画面を開いています' : '社内アカウントで続行'}
+                        <span className="block text-[11px] text-white/65">
+                            {isStarting ? '認証画面へ移動します' : '社内アカウントで認証'}
                         </span>
                     </span>
 
                     {isStarting ? (
-                        <span className="login-auth-button-meter shrink-0" aria-hidden="true">
-                            <span className="login-auth-button-meter-bar" />
+                        <span className="login-quiet-button-indicator shrink-0" aria-hidden="true">
+                            <span className="login-quiet-button-indicator-bar" />
                         </span>
                     ) : (
                         <ArrowRight className="h-4 w-4 shrink-0 text-white/75 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -76,78 +72,61 @@ export function LoginStartButton() {
             </Button>
 
             <div
-                className={`overflow-hidden transition-all duration-300 ${
-                    isStarting ? 'max-h-80 translate-y-0 opacity-100' : 'max-h-0 -translate-y-2 opacity-0'
+                className={`overflow-hidden transition-all duration-200 ${
+                    isStarting ? 'max-h-56 opacity-100' : 'max-h-0 opacity-0'
                 }`}
                 aria-live="polite"
             >
-                <div className="login-auth-panel rounded-[1.5rem] border border-sky-100/80 px-4 py-4 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.55)]">
-                    <div className="flex items-start justify-between gap-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
                         <div>
-                            <p className="text-sm font-semibold text-slate-900">認証ページを開いています</p>
-                            <p className="mt-1 text-xs leading-5 text-slate-500">
-                                ページが切り替わるまで、そのままお待ちください。
-                            </p>
+                            <p className="text-sm font-medium text-slate-900">接続準備中</p>
+                            <p className="text-xs text-slate-500">認証画面へ切り替わります。</p>
                         </div>
-                        <div className="rounded-full border border-sky-100 bg-white/75 px-3 py-1 text-[11px] font-semibold tracking-[0.18em] text-sky-700">
-                            認証中
-                        </div>
+                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-500">
+                            Lark
+                        </span>
                     </div>
 
-                    <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/70 bg-white/70 p-4 backdrop-blur-sm">
-                        <div className="relative flex items-center gap-3">
-                            <div className="flex w-16 shrink-0 flex-col items-center gap-2">
-                                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-slate-900 text-white shadow-lg shadow-slate-900/20">
-                                    <ShieldCheck className="h-5 w-5" />
+                    <div className="mt-4 rounded-xl border border-slate-200 bg-white px-4 py-4">
+                        <div className="flex items-center gap-4">
+                            <div className="flex w-14 shrink-0 flex-col items-center gap-2">
+                                <div className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-[11px] font-semibold text-white">
+                                    G-DX
                                 </div>
-                                <span className="text-[11px] font-semibold tracking-[0.2em] text-slate-500">G-DX</span>
                             </div>
 
                             <div className="relative flex-1">
-                                <div className="login-auth-rail" />
-                                <div className="login-auth-beam" />
-                                <div className="login-auth-travel" />
-
-                                <div className="absolute inset-x-3 top-1/2 flex -translate-y-1/2 items-center justify-between">
-                                    <span className="h-2.5 w-2.5 rounded-full bg-slate-300/90" />
-                                    <span className="h-2.5 w-2.5 rounded-full bg-sky-300/90 shadow-[0_0_0_4px_rgba(224,242,254,0.95)]" />
-                                    <span className="h-2.5 w-2.5 rounded-full bg-[#1B4F72]/40" />
-                                </div>
-
-                                <div className="mt-6 grid grid-cols-3 gap-2">
-                                    {AUTH_FLOW_STEPS.map((step, index) => (
-                                        <div
-                                            key={step.label}
-                                            className="login-auth-step rounded-2xl px-2 py-2 text-center"
-                                            style={{ animationDelay: `${index * 180}ms` }}
-                                        >
-                                            <div className="text-[11px] font-semibold text-slate-700">{step.label}</div>
-                                            <div className="mt-1 text-[10px] leading-4 text-slate-500">{step.caption}</div>
-                                        </div>
-                                    ))}
+                                <div className="login-quiet-line" />
+                                <div className="login-quiet-line-pulse" />
+                                <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-between px-1">
+                                    <span className="login-quiet-dot bg-slate-300" />
+                                    <span className="login-quiet-dot login-quiet-dot-active" />
+                                    <span className="login-quiet-dot bg-slate-300" />
                                 </div>
                             </div>
 
-                            <div className="flex w-16 shrink-0 flex-col items-center gap-2">
-                                <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#1B4F72] text-white shadow-lg shadow-[#1B4F72]/20">
-                                    <LarkGlyph className="h-5 w-5" />
+                            <div className="flex w-14 shrink-0 flex-col items-center gap-2">
+                                <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#1B4F72] text-white">
+                                    <LarkGlyph />
                                 </div>
-                                <span className="text-[11px] font-semibold tracking-[0.12em] text-[#1B4F72]">Lark</span>
                             </div>
                         </div>
 
-                        <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-white">
-                            <div>
-                                <p className="text-xs font-semibold tracking-[0.12em] text-sky-200">安全な認証</p>
-                                <p className="mt-1 text-sm font-medium">認証後にダッシュボードへ移動します</p>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs text-slate-300">
-                                <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_0_6px_rgba(74,222,128,0.18)]" />
-                                <span>処理中</span>
-                            </div>
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                            {AUTH_FLOW_LABELS.map((label, index) => (
+                                <div
+                                    key={label}
+                                    className={`rounded-lg border px-2 py-2 text-center text-[11px] ${
+                                        index === 1
+                                            ? 'border-slate-300 bg-slate-50 text-slate-700'
+                                            : 'border-slate-200 bg-white text-slate-400'
+                                    }`}
+                                >
+                                    {label}
+                                </div>
+                            ))}
                         </div>
-
-                        <span className="sr-only">Lark認証ページを開いています。ページが切り替わるまで、そのままお待ちください。</span>
                     </div>
                 </div>
             </div>

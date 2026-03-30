@@ -85,84 +85,59 @@ body {
     display: none;
   }
 
-  .login-auth-panel {
-    background-image:
-      radial-gradient(circle at top right, rgba(125, 211, 252, 0.2), transparent 36%),
-      radial-gradient(circle at bottom left, rgba(191, 219, 254, 0.32), transparent 38%),
-      linear-gradient(135deg, rgba(248, 250, 252, 0.94), rgba(239, 246, 255, 0.96));
-  }
-
-  .login-auth-button-meter {
+  .login-quiet-button-indicator {
     position: relative;
-    height: 0.4rem;
-    width: 3.25rem;
+    height: 0.35rem;
+    width: 2.75rem;
     overflow: hidden;
     border-radius: 9999px;
     background-color: rgba(255, 255, 255, 0.18);
   }
 
-  .login-auth-button-meter-bar {
+  .login-quiet-button-indicator-bar {
     position: absolute;
     inset: 0;
     border-radius: inherit;
-    background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.92) 45%, rgba(255, 255, 255, 0.18) 100%);
+    background-image: linear-gradient(90deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.88) 48%, rgba(255, 255, 255, 0.12) 100%);
     background-size: 180% 100%;
-    animation: login-auth-meter 1.25s linear infinite;
+    animation: login-quiet-shift 1.25s linear infinite;
   }
 
-  .login-auth-rail {
+  .login-quiet-line {
     position: relative;
-    height: 0.55rem;
+    height: 1px;
     width: 100%;
-    overflow: hidden;
-    border-radius: 9999px;
-    background-image: linear-gradient(90deg, rgba(148, 163, 184, 0.28), rgba(147, 197, 253, 0.78), rgba(27, 79, 114, 0.24));
+    background-color: rgba(203, 213, 225, 0.9);
   }
 
-  .login-auth-rail::after {
-    content: "";
+  .login-quiet-line-pulse {
     position: absolute;
-    inset: 0;
-    background-image: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.92) 26%, transparent 50%);
-    background-size: 160px 100%;
-    animation: login-auth-meter 1.75s linear infinite;
-  }
-
-  .login-auth-beam {
-    position: absolute;
-    top: 0.275rem;
+    top: 50%;
     left: 0;
-    height: 2.5rem;
-    width: 4.5rem;
-    transform: translate(-55%, -50%);
+    height: 1.25rem;
+    width: 5rem;
+    transform: translate(-35%, -50%);
     border-radius: 9999px;
-    background: radial-gradient(circle at center, rgba(56, 189, 248, 0.34) 0%, rgba(56, 189, 248, 0) 72%);
-    animation: login-auth-travel 1.75s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    background: radial-gradient(circle at center, rgba(148, 163, 184, 0.22) 0%, rgba(148, 163, 184, 0) 72%);
+    animation: login-quiet-travel 1.6s ease-in-out infinite;
   }
 
-  .login-auth-travel {
-    position: absolute;
-    top: 0.275rem;
-    left: 0;
-    height: 1rem;
-    width: 1rem;
-    transform: translate(0%, -50%);
+  .login-quiet-dot {
+    display: block;
+    height: 0.55rem;
+    width: 0.55rem;
     border-radius: 9999px;
-    border: 4px solid rgba(255, 255, 255, 0.96);
-    background-color: rgb(14 165 233);
-    box-shadow: 0 0 0 6px rgba(224, 242, 254, 0.95);
-    animation: login-auth-travel 1.75s cubic-bezier(0.22, 1, 0.36, 1) infinite;
   }
 
-  .login-auth-step {
-    border: 1px solid rgba(203, 213, 225, 0.76);
-    background: rgba(255, 255, 255, 0.74);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
-    animation: login-auth-step 1.75s ease-in-out infinite;
+  .login-quiet-dot-active {
+    border-radius: 9999px;
+    background-color: rgb(51 65 85);
+    box-shadow: 0 0 0 6px rgba(226, 232, 240, 0.9);
+    animation: login-quiet-breathe 1.6s ease-in-out infinite;
   }
 }
 
-@keyframes login-auth-meter {
+@keyframes login-quiet-shift {
   from {
     background-position: 180% 0;
   }
@@ -172,43 +147,39 @@ body {
   }
 }
 
-@keyframes login-auth-travel {
+@keyframes login-quiet-travel {
   0% {
     left: 0%;
     opacity: 0.2;
   }
 
-  18% {
+  20% {
     opacity: 1;
   }
 
   100% {
-    left: calc(100% - 1rem);
-    opacity: 0.95;
+    left: calc(100% - 3.75rem);
+    opacity: 0.75;
   }
 }
 
-@keyframes login-auth-step {
+@keyframes login-quiet-breathe {
   0%,
   100% {
-    transform: translateY(0);
-    border-color: rgba(203, 213, 225, 0.76);
-    background: rgba(255, 255, 255, 0.74);
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(226, 232, 240, 0.78);
   }
 
   50% {
-    transform: translateY(-2px);
-    border-color: rgba(125, 211, 252, 0.9);
-    background: rgba(240, 249, 255, 0.94);
+    transform: scale(1.08);
+    box-shadow: 0 0 0 7px rgba(226, 232, 240, 0.95);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-auth-button-meter-bar,
-  .login-auth-rail::after,
-  .login-auth-beam,
-  .login-auth-travel,
-  .login-auth-step {
+  .login-quiet-button-indicator-bar,
+  .login-quiet-line-pulse,
+  .login-quiet-dot-active {
     animation: none !important;
   }
 }

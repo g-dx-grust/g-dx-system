@@ -1,9 +1,10 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import type { ContractStatus } from '@g-dx/contracts';
 import { getContractDashboard } from '@/modules/sales/contract/application/get-contract-dashboard';
+import { DashboardMetricCard } from '@/modules/sales/deal/ui/dashboard-primitives';
 import { isAppError } from '@/shared/server/errors';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import Link from 'next/link';
-import type { ContractStatus } from '@g-dx/contracts';
 
 const STATUS_LABELS: Record<ContractStatus, string> = {
     CONTRACTED: '契約',
@@ -13,12 +14,20 @@ const STATUS_LABELS: Record<ContractStatus, string> = {
     SERVICE_ENDED: 'サービス終了',
 };
 
-const STATUS_COLORS: Record<ContractStatus, { card: string; badge: string }> = {
-    CONTRACTED: { card: 'border-gray-200 bg-gray-50', badge: 'bg-gray-200 text-gray-700' },
-    INVOICED: { card: 'border-gray-200 bg-gray-50', badge: 'bg-gray-300 text-gray-700' },
-    PAID: { card: 'border-gray-200 bg-white', badge: 'bg-gray-900 text-white' },
-    SERVICE_STARTED: { card: 'border-gray-200 bg-white', badge: 'bg-gray-700 text-white' },
-    SERVICE_ENDED: { card: 'border-gray-200 bg-gray-50', badge: 'bg-gray-100 text-gray-600' },
+const STATUS_DESCRIPTIONS: Record<ContractStatus, string> = {
+    CONTRACTED: '契約済みで、請求前の状態です。',
+    INVOICED: '請求書を発行し、入金待ちになっている状態です。',
+    PAID: '入金確認まで完了した契約です。',
+    SERVICE_STARTED: 'サービス提供が進行中の契約です。',
+    SERVICE_ENDED: 'サービス提供が完了した契約です。',
+};
+
+const STATUS_BADGES: Record<ContractStatus, string> = {
+    CONTRACTED: 'bg-gray-100 text-gray-700',
+    INVOICED: 'bg-gray-200 text-gray-700',
+    PAID: 'bg-gray-900 text-white',
+    SERVICE_STARTED: 'bg-gray-700 text-white',
+    SERVICE_ENDED: 'bg-gray-100 text-gray-600',
 };
 
 function formatAmount(amount: number): string {
@@ -33,75 +42,103 @@ export default async function PaymentDashboardPage() {
         summary = await getContractDashboard();
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
-        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (
+            isAppError(error, 'FORBIDDEN') ||
+            isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')
+        ) {
+            redirect('/unauthorized');
+        }
         throw error;
     }
 
     return (
         <div className="space-y-6">
-            <div className="flex items-end justify-between">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
-                    <h1 className="text-2xl font-semibold text-gray-900">入金関連ダッシュボード</h1>
-                    <p className="mt-1 text-sm text-gray-500">契約・請求・入金・サービス提供状況のトラッキング</p>
+                    <h1 className="text-2xl font-semibold text-gray-900">
+                        入金関連ダッシュボード
+                    </h1>
+                    <p className="mt-1 text-sm text-gray-500">
+                        契約、請求、入金、サービス提供の流れを落ち着いて追える構成にしています。
+                    </p>
                 </div>
                 <Link href="/sales/contracts" className="text-sm text-gray-600 hover:underline">
                     契約一覧を見る →
                 </Link>
             </div>
 
-            {/* Status cards */}
-            <div className="grid gap-4 md:grid-cols-5">
-                {summary.byStatus.map((s) => (
-                    <Card key={s.status} className={`shadow-sm ${STATUS_COLORS[s.status].card}`}>
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium">{s.label}</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="text-2xl font-semibold">{s.count}<span className="ml-1 text-sm font-normal">件</span></div>
-                            <div className="mt-1 text-xs font-medium">{formatAmount(s.totalAmount)}</div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            {/* Summary cards row */}
             <div className="grid gap-4 md:grid-cols-2">
-                <Card className="border-gray-200 bg-white shadow-sm">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-700">入金済み合計</CardTitle>
-                        <CardDescription className="text-xs text-gray-500">入金確認済みの総額</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-semibold text-gray-900">{formatAmount(summary.paidGroup.totalAmount)}</div>
-                        <div className="mt-1 text-sm text-gray-500">{summary.paidGroup.count}件</div>
-                    </CardContent>
-                </Card>
-                <Card className="border-gray-200 bg-white shadow-sm">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-700">サービス稼働中</CardTitle>
-                        <CardDescription className="text-xs text-gray-500">現在サービス提供中の契約</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-semibold text-gray-900">{summary.activeServiceGroup.count}<span className="ml-1 text-base font-normal">件</span></div>
-                        <div className="mt-1 text-sm text-gray-500">{formatAmount(summary.activeServiceGroup.totalAmount)}</div>
-                    </CardContent>
-                </Card>
+                <DashboardMetricCard
+                    title="入金済み合計"
+                    description="入金確認まで完了した契約の総額です。"
+                    value={formatAmount(summary.paidGroup.totalAmount)}
+                    footnote={`${summary.paidGroup.count.toLocaleString()}件`}
+                />
+                <DashboardMetricCard
+                    title="サービス稼働中"
+                    description="現在サービス提供中の契約件数と金額です。"
+                    value={`${summary.activeServiceGroup.count.toLocaleString()}件`}
+                    footnote={formatAmount(summary.activeServiceGroup.totalAmount)}
+                />
             </div>
 
-            {/* Recent contracts */}
             <Card className="border-gray-200 shadow-sm">
                 <CardHeader>
-                    <CardTitle className="text-base text-gray-900">最近の契約 (直近10件)</CardTitle>
-                    <CardDescription>登録日順</CardDescription>
+                    <CardTitle className="text-base text-gray-900">
+                        契約ステータス一覧
+                    </CardTitle>
+                    <CardDescription>
+                        何の状態かを先に確認し、そのうえで件数と金額を見られるようにしています。
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    {summary.byStatus.map((status) => (
+                        <section
+                            key={status.status}
+                            className="rounded-xl border border-gray-200 px-4 py-4"
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <span
+                                            className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGES[status.status]}`}
+                                        >
+                                            {STATUS_LABELS[status.status]}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs leading-5 text-gray-500">
+                                        {STATUS_DESCRIPTIONS[status.status]}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-semibold text-gray-900">
+                                        {status.count.toLocaleString()}件
+                                    </p>
+                                    <p className="text-xs text-gray-500">
+                                        {formatAmount(status.totalAmount)}
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+                    ))}
+                </CardContent>
+            </Card>
+
+            <Card className="border-gray-200 shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-base text-gray-900">最近の契約</CardTitle>
+                    <CardDescription>登録日順で直近10件を表示しています。</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                     {summary.recentContracts.length === 0 ? (
-                        <div className="py-8 text-center text-sm text-gray-500">契約データがありません</div>
+                        <div className="py-8 text-center text-sm text-gray-500">
+                            契約データがありません
+                        </div>
                     ) : (
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                                    <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500">
                                         <th className="px-4 py-3">タイトル</th>
                                         <th className="px-4 py-3">会社</th>
                                         <th className="px-4 py-3">ステータス</th>
@@ -110,21 +147,34 @@ export default async function PaymentDashboardPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {summary.recentContracts.map((c) => (
-                                        <tr key={c.id} className="hover:bg-gray-50">
+                                    {summary.recentContracts.map((contract) => (
+                                        <tr key={contract.id} className="hover:bg-gray-50">
                                             <td className="px-4 py-3">
-                                                <Link href={`/sales/contracts/${c.id}`} className="font-medium text-gray-900 hover:underline">
-                                                    {c.title}
+                                                <Link
+                                                    href={`/sales/contracts/${contract.id}`}
+                                                    className="font-medium text-gray-900 hover:underline"
+                                                >
+                                                    {contract.title}
                                                 </Link>
                                             </td>
-                                            <td className="px-4 py-3 text-gray-600">{c.company.name}</td>
+                                            <td className="px-4 py-3 text-gray-600">
+                                                {contract.company.name}
+                                            </td>
                                             <td className="px-4 py-3">
-                                                <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_COLORS[c.contractStatus].badge}`}>
-                                                    {STATUS_LABELS[c.contractStatus]}
+                                                <span
+                                                    className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGES[contract.contractStatus]}`}
+                                                >
+                                                    {STATUS_LABELS[contract.contractStatus]}
                                                 </span>
                                             </td>
-                                            <td className="px-4 py-3 text-gray-600">{c.amount !== null ? formatAmount(c.amount) : '-'}</td>
-                                            <td className="px-4 py-3 text-gray-600">{c.contractDate ?? '-'}</td>
+                                            <td className="px-4 py-3 text-gray-600">
+                                                {contract.amount !== null
+                                                    ? formatAmount(contract.amount)
+                                                    : '-'}
+                                            </td>
+                                            <td className="px-4 py-3 text-gray-600">
+                                                {contract.contractDate ?? '-'}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>

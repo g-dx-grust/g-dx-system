@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/deal-alerts",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/ai-weekly-summary",
+      "schedule": "0 13 * * 0"
     }
   ]
 }

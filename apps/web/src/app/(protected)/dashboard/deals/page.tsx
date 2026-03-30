@@ -1,6 +1,8 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getDashboardSummary } from '@/modules/sales/deal/application/get-dashboard-summary';
+import { getRollingKpi } from '@/modules/sales/deal/application/get-rolling-kpi';
+import { getTeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
 import { DashboardContentSkeleton } from '@/modules/sales/deal/ui/dashboard-loading-skeleton';
 import { DealDashboard } from '@/modules/sales/deal/ui/dashboard-deals';
 import { isAppError } from '@/shared/server/errors';
@@ -24,8 +26,19 @@ export default function DealDashboardPage() {
 
 async function DealDashboardContent() {
     try {
-        const summary = await getDashboardSummary();
-        return <DealDashboard summary={summary} />;
+        const [summary, rollingKpiData, teamTargetSummary] = await Promise.all([
+            getDashboardSummary(),
+            getRollingKpi(),
+            getTeamKpiTargetSummary(),
+        ]);
+
+        return (
+            <DealDashboard
+                summary={summary}
+                rollingKpiData={rollingKpiData}
+                teamTargetSummary={teamTargetSummary}
+            />
+        );
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (

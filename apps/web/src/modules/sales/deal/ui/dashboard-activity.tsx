@@ -1,6 +1,10 @@
 import type { DealDashboardSummary } from '@g-dx/contracts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { OwnerBarChart } from '@/components/charts/owner-bar-chart';
+import {
+    DashboardMetricCard,
+    formatDashboardAmount,
+} from './dashboard-primitives';
 
 interface MonthlyActivityStat {
     userId: string;
@@ -15,126 +19,208 @@ interface ActivityDashboardProps {
     monthlyStats?: MonthlyActivityStat[];
 }
 
-function formatAmount(amount: number): string {
-    if (amount >= 100_000_000) return `¥${(amount / 100_000_000).toFixed(1)}億`;
-    if (amount >= 10_000) return `¥${Math.round(amount / 10_000).toLocaleString()}万`;
-    return `¥${amount.toLocaleString()}`;
-}
-
-export function ActivityDashboard({ summary, monthlyStats = [] }: ActivityDashboardProps) {
-    const chartData = summary.byOwner.map((o) => ({
-        ownerName: o.ownerName,
-        totalDeals: o.totalDeals,
-        activeDeals: o.activeDeals,
-        contractedDeals: o.contractedDeals,
+export function ActivityDashboard({
+    summary,
+    monthlyStats = [],
+}: ActivityDashboardProps) {
+    const chartData = summary.byOwner.map((owner) => ({
+        ownerName: owner.ownerName,
+        totalDeals: owner.totalDeals,
+        activeDeals: owner.activeDeals,
+        contractedDeals: owner.contractedDeals,
     }));
+    const monthlyActivityTotal = monthlyStats.reduce(
+        (sum, stat) => sum + stat.totalCount,
+        0,
+    );
 
     return (
         <div className="space-y-6">
-            {/* Overall stats row */}
-            <div className="grid gap-4 md:grid-cols-3">
-                <Card className="border-gray-200 shadow-sm">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">担当者数</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-semibold text-gray-900">{summary.byOwner.length}<span className="ml-1 text-base font-normal text-gray-500">名</span></div>
-                    </CardContent>
-                </Card>
-                <Card className="border-gray-200 shadow-sm">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">全案件の進行中金額合計</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-semibold text-gray-900">{formatAmount(summary.activeGroup.totalAmount)}</div>
-                        <div className="mt-1 text-xs text-gray-500">進行中案件 {summary.activeGroup.count}件</div>
-                    </CardContent>
-                </Card>
-                <Card className="border-gray-200 shadow-sm">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-500">契約金額合計</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-semibold text-emerald-700">{formatAmount(summary.contractedGroup.totalAmount)}</div>
-                        <div className="mt-1 text-xs text-gray-500">契約済み {summary.contractedGroup.count}件</div>
-                    </CardContent>
-                </Card>
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <DashboardMetricCard
+                    title="登録メンバー"
+                    description="案件の有無にかかわらず、事業部の稼働メンバーを含みます。"
+                    value={`${summary.byOwner.length.toLocaleString()}名`}
+                />
+                <DashboardMetricCard
+                    title="今月活動総数"
+                    description="訪問・オンライン・通話などの合計件数です。"
+                    value={`${monthlyActivityTotal.toLocaleString()}件`}
+                    footnote="メンバー別の内訳は下の一覧で確認できます。"
+                />
+                <DashboardMetricCard
+                    title="進行中案件"
+                    description="現在追っている案件の件数と総額です。"
+                    value={`${summary.activeGroup.count.toLocaleString()}件`}
+                    footnote={`進行中総額 ${formatDashboardAmount(summary.activeGroup.totalAmount)}`}
+                />
+                <DashboardMetricCard
+                    title="契約済み案件"
+                    description="契約まで到達した案件の累計です。"
+                    value={`${summary.contractedGroup.count.toLocaleString()}件`}
+                    footnote={`契約総額 ${formatDashboardAmount(summary.contractedGroup.totalAmount)}`}
+                />
             </div>
 
-            {/* Owner bar chart */}
-            {chartData.length > 0 && (
+            {chartData.length > 0 ? (
                 <Card className="border-gray-200 shadow-sm">
                     <CardHeader>
-                        <CardTitle className="text-base text-gray-900">担当者別 案件数比較</CardTitle>
-                        <CardDescription>全案件・進行中・契約済みの比較</CardDescription>
+                        <CardTitle className="text-base text-gray-900">
+                            担当者別の案件比較
+                        </CardTitle>
+                        <CardDescription>
+                            全案件・進行中・契約済みを同じ基準で見比べます。
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
                         <OwnerBarChart data={chartData} />
                     </CardContent>
                 </Card>
-            )}
+            ) : null}
 
-            {/* Owner cards */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {summary.byOwner.length === 0 ? (
-                    <div className="col-span-full py-12 text-center text-sm text-gray-500">担当者データがありません</div>
-                ) : (
-                    summary.byOwner.map((owner) => {
-                        const winRate = owner.totalDeals > 0 ? Math.round((owner.contractedDeals / owner.totalDeals) * 100) : 0;
-                        const stat = monthlyStats.find((s) => s.userId === owner.ownerUserId);
-                        return (
-                            <Card key={owner.ownerUserId} className="border-gray-200 shadow-sm">
-                                <CardHeader className="pb-3">
-                                    <CardTitle className="text-base text-gray-900">{owner.ownerName}</CardTitle>
-                                    <CardDescription>担当者別活動状況</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div className="grid grid-cols-3 gap-2 text-center">
-                                        <div className="rounded-md bg-gray-50 px-2 py-2">
-                                            <div className="text-xl font-semibold text-gray-900">{owner.totalDeals}</div>
-                                            <div className="text-xs text-gray-500">全案件</div>
-                                        </div>
-                                        <div className="rounded-md bg-gray-100 px-2 py-2">
-                                            <div className="text-xl font-semibold text-gray-700">{owner.activeDeals}</div>
-                                            <div className="text-xs text-gray-500">進行中</div>
-                                        </div>
-                                        <div className="rounded-md bg-gray-100 px-2 py-2">
-                                            <div className="text-xl font-semibold text-gray-900">{owner.contractedDeals}</div>
-                                            <div className="text-xs text-gray-600">契約済</div>
-                                        </div>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        <div className="flex items-center justify-between text-sm">
-                                            <span className="text-gray-600">進行中金額</span>
-                                            <span className="font-medium text-gray-900">{formatAmount(owner.totalAmount)}</span>
-                                        </div>
-                                        <div className="flex items-center justify-between text-sm">
-                                            <span className="text-gray-600">受注率</span>
-                                            <span className="font-medium text-gray-900">{winRate}%</span>
-                                        </div>
-                                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
-                                            <div className="h-1.5 rounded-full bg-gray-700" style={{ width: `${winRate}%` }} />
-                                        </div>
-                                    </div>
-                                    <div className="rounded-md border border-gray-200 p-3">
-                                        <p className="mb-2 text-xs font-medium text-gray-500">活動件数（今月）</p>
-                                        <div className="grid grid-cols-2 gap-2 text-center text-xs">
-                                            <div className="rounded bg-gray-50 px-2 py-1.5">
-                                                <div className="font-semibold text-gray-900">{stat ? stat.visitCount : 0}</div>
-                                                <div className="text-gray-500">訪問</div>
+            <Card className="border-gray-200 shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-base text-gray-900">
+                        メンバー別の状況
+                    </CardTitle>
+                    <CardDescription>
+                        登録メンバー全員の案件数、今月活動、進行中金額を一覧で確認できます。
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="p-0">
+                    {summary.byOwner.length === 0 ? (
+                        <div className="px-6 py-10 text-center text-sm text-gray-500">
+                            担当者データがありません
+                        </div>
+                    ) : (
+                        <>
+                            <div className="divide-y divide-gray-100 md:hidden">
+                                {summary.byOwner.map((owner) => {
+                                    const stat = monthlyStats.find(
+                                        (item) => item.userId === owner.ownerUserId,
+                                    );
+                                    const winRate =
+                                        owner.totalDeals > 0
+                                            ? Math.round(
+                                                  (owner.contractedDeals / owner.totalDeals) * 100,
+                                              )
+                                            : 0;
+
+                                    return (
+                                        <section
+                                            key={owner.ownerUserId}
+                                            className="space-y-2 px-4 py-4"
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-900">
+                                                        {owner.ownerName}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">
+                                                        全案件 {owner.totalDeals}件 / 今月活動{' '}
+                                                        {stat?.totalCount ?? 0}件
+                                                    </p>
+                                                </div>
+                                                <span className="text-xs text-gray-500">
+                                                    受注率 {winRate}%
+                                                </span>
                                             </div>
-                                            <div className="rounded bg-gray-50 px-2 py-1.5">
-                                                <div className="font-semibold text-gray-900">{stat ? stat.onlineCount : 0}</div>
-                                                <div className="text-gray-500">オンライン</div>
+                                            <div className="grid grid-cols-3 gap-2 text-xs">
+                                                <div className="rounded-lg bg-gray-50 px-3 py-2">
+                                                    <p className="text-gray-500">進行中</p>
+                                                    <p className="mt-1 font-semibold text-gray-900">
+                                                        {owner.activeDeals}件
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-lg bg-gray-50 px-3 py-2">
+                                                    <p className="text-gray-500">契約済み</p>
+                                                    <p className="mt-1 font-semibold text-gray-900">
+                                                        {owner.contractedDeals}件
+                                                    </p>
+                                                </div>
+                                                <div className="rounded-lg bg-gray-50 px-3 py-2">
+                                                    <p className="text-gray-500">進行中金額</p>
+                                                    <p className="mt-1 font-semibold text-gray-900">
+                                                        {formatDashboardAmount(owner.totalAmount)}
+                                                    </p>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        );
-                    })
-                )}
-            </div>
+                                            <p className="text-xs text-gray-500">
+                                                訪問 {stat?.visitCount ?? 0}件 / オンライン{' '}
+                                                {stat?.onlineCount ?? 0}件
+                                            </p>
+                                        </section>
+                                    );
+                                })}
+                            </div>
+
+                            <div className="hidden overflow-x-auto md:block">
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500">
+                                            <th className="px-4 py-3">担当者</th>
+                                            <th className="px-4 py-3">案件状況</th>
+                                            <th className="px-4 py-3">今月活動</th>
+                                            <th className="px-4 py-3">進行中金額</th>
+                                            <th className="px-4 py-3 text-right">受注率</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {summary.byOwner.map((owner) => {
+                                            const stat = monthlyStats.find(
+                                                (item) => item.userId === owner.ownerUserId,
+                                            );
+                                            const winRate =
+                                                owner.totalDeals > 0
+                                                    ? Math.round(
+                                                          (owner.contractedDeals /
+                                                              owner.totalDeals) *
+                                                              100,
+                                                      )
+                                                    : 0;
+
+                                            return (
+                                                <tr
+                                                    key={owner.ownerUserId}
+                                                    className="align-top hover:bg-gray-50"
+                                                >
+                                                    <td className="px-4 py-3">
+                                                        <p className="font-medium text-gray-900">
+                                                            {owner.ownerName}
+                                                        </p>
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            全案件 {owner.totalDeals}件
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-gray-600">
+                                                        <p>進行中 {owner.activeDeals}件</p>
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            契約済み {owner.contractedDeals}件
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-gray-600">
+                                                        <p>{stat?.totalCount ?? 0}件</p>
+                                                        <p className="mt-1 text-xs text-gray-500">
+                                                            訪問 {stat?.visitCount ?? 0}件 / オンライン{' '}
+                                                            {stat?.onlineCount ?? 0}件
+                                                        </p>
+                                                    </td>
+                                                    <td className="px-4 py-3 text-gray-600">
+                                                        {formatDashboardAmount(owner.totalAmount)}
+                                                    </td>
+                                                    <td className="px-4 py-3 text-right font-medium text-gray-700">
+                                                        {winRate}%
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 }

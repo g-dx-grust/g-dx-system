@@ -101,8 +101,8 @@ async function ensureDefaultBusinessMembership(userId: string): Promise<Business
         .where(
             and(
                 eq(userBusinessMemberships.userId, userId),
-                eq(userBusinessMemberships.businessUnitId, defaultUnit.id)
-            )
+                eq(userBusinessMemberships.businessUnitId, defaultUnit.id),
+            ),
         )
         .limit(1);
 
@@ -140,8 +140,8 @@ async function ensureDefaultRoleAssignment(userId: string, businessUnitId: strin
                 eq(userRoleAssignments.userId, userId),
                 businessUnitId
                     ? or(isNull(userRoleAssignments.businessUnitId), eq(userRoleAssignments.businessUnitId, businessUnitId))
-                    : isNull(userRoleAssignments.businessUnitId)
-            )
+                    : isNull(userRoleAssignments.businessUnitId),
+            ),
         )
         .limit(1);
 
@@ -162,23 +162,196 @@ async function ensureDefaultRoleAssignment(userId: string, businessUnitId: strin
     });
 }
 
+async function syncGhostMembershipsAndRoles(canonicalUserId: string, email: string): Promise<void> {
+    if (!email) {
+        return;
+    }
+
+    const ghostUsers = await db
+        .select({
+            id: users.id,
+        })
+        .from(users)
+        .where(
+            and(
+                eq(users.email, email),
+                isNull(users.larkOpenId),
+                isNull(users.deletedAt),
+            ),
+        );
+
+    if (ghostUsers.length === 0) {
+        return;
+    }
+
+    const [canonicalRoleRows, canonicalMembershipRows] = await Promise.all([
+        db
+            .select({
+                roleId: userRoleAssignments.roleId,
+                businessUnitId: userRoleAssignments.businessUnitId,
+            })
+            .from(userRoleAssignments)
+            .where(eq(userRoleAssignments.userId, canonicalUserId)),
+        db
+            .select({
+                id: userBusinessMemberships.id,
+                businessUnitId: userBusinessMemberships.businessUnitId,
+                membershipStatus: userBusinessMemberships.membershipStatus,
+                isDefault: userBusinessMemberships.isDefault,
+            })
+            .from(userBusinessMemberships)
+            .where(eq(userBusinessMemberships.userId, canonicalUserId)),
+    ]);
+
+    const canonicalRoleKeys = new Set(
+        canonicalRoleRows.map((row) => `${row.roleId}:${row.businessUnitId ?? 'global'}`),
+    );
+    const canonicalMembershipByBusinessUnitId = new Map(
+        canonicalMembershipRows.map((row) => [row.businessUnitId, row]),
+    );
+
+    for (const ghostUser of ghostUsers) {
+        const [ghostRoleRows, ghostMembershipRows] = await Promise.all([
+            db
+                .select({
+                    roleId: userRoleAssignments.roleId,
+                    businessUnitId: userRoleAssignments.businessUnitId,
+                    grantedByUserId: userRoleAssignments.grantedByUserId,
+                    expiresAt: userRoleAssignments.expiresAt,
+                })
+                .from(userRoleAssignments)
+                .where(eq(userRoleAssignments.userId, ghostUser.id)),
+            db
+                .select({
+                    businessUnitId: userBusinessMemberships.businessUnitId,
+                    membershipStatus: userBusinessMemberships.membershipStatus,
+                    isDefault: userBusinessMemberships.isDefault,
+                })
+                .from(userBusinessMemberships)
+                .where(eq(userBusinessMemberships.userId, ghostUser.id)),
+        ]);
+
+        for (const roleRow of ghostRoleRows) {
+            const roleKey = `${roleRow.roleId}:${roleRow.businessUnitId ?? 'global'}`;
+            if (canonicalRoleKeys.has(roleKey)) {
+                continue;
+            }
+
+            await db.insert(userRoleAssignments).values({
+                userId: canonicalUserId,
+                roleId: roleRow.roleId,
+                businessUnitId: roleRow.businessUnitId,
+                grantedByUserId: roleRow.grantedByUserId,
+                expiresAt: roleRow.expiresAt,
+            });
+
+            canonicalRoleKeys.add(roleKey);
+        }
+
+        for (const membershipRow of ghostMembershipRows) {
+            const existingMembership = canonicalMembershipByBusinessUnitId.get(membershipRow.businessUnitId);
+
+            if (!existingMembership) {
+                await db.insert(userBusinessMemberships).values({
+                    userId: canonicalUserId,
+                    businessUnitId: membershipRow.businessUnitId,
+                    membershipStatus: membershipRow.membershipStatus,
+                    isDefault: membershipRow.isDefault,
+                });
+
+                canonicalMembershipByBusinessUnitId.set(membershipRow.businessUnitId, {
+                    id: '',
+                    businessUnitId: membershipRow.businessUnitId,
+                    membershipStatus: membershipRow.membershipStatus,
+                    isDefault: membershipRow.isDefault,
+                });
+                continue;
+            }
+
+            if (existingMembership.membershipStatus !== 'active' && membershipRow.membershipStatus === 'active') {
+                await db
+                    .update(userBusinessMemberships)
+                    .set({
+                        membershipStatus: 'active',
+                    })
+                    .where(eq(userBusinessMemberships.id, existingMembership.id));
+                existingMembership.membershipStatus = 'active';
+            }
+
+            if (!existingMembership.isDefault && membershipRow.isDefault) {
+                await db
+                    .update(userBusinessMemberships)
+                    .set({
+                        isDefault: true,
+                    })
+                    .where(eq(userBusinessMemberships.id, existingMembership.id));
+                existingMembership.isDefault = true;
+            }
+        }
+    }
+}
+
+async function finalizeBootstrap(userId: string, profile: BootstrapUserProfile) {
+    const defaultBusinessMembership = await ensureDefaultBusinessMembership(userId);
+    await ensureDefaultRoleAssignment(userId, defaultBusinessMembership.id);
+    await issueSession(userId, defaultBusinessMembership.code);
+    await setActiveBusinessScopeCookie(defaultBusinessMembership.code);
+
+    return {
+        success: true,
+        user: {
+            id: userId,
+            displayName: profile.name,
+            email: profile.email,
+        },
+        activeBusinessScope: defaultBusinessMembership.code,
+    };
+}
+
 export async function bootstrapUser(profile: BootstrapUserProfile) {
-    // 管理画面で larkOpenId なしで作成されたユーザーと Lark ログインユーザーの重複防止:
-    // まず email で既存ユーザーを検索し、larkOpenId が未設定であれば紐付けてから upsert する。
+    const now = new Date();
+
+    const [existingByOpenId] = await db
+        .select({
+            id: users.id,
+        })
+        .from(users)
+        .where(and(eq(users.larkOpenId, profile.openId), isNull(users.deletedAt)))
+        .limit(1);
+
+    if (existingByOpenId) {
+        await syncGhostMembershipsAndRoles(existingByOpenId.id, profile.email);
+
+        await db
+            .update(users)
+            .set({
+                displayName: profile.name,
+                email: profile.email,
+                avatarUrl: profile.avatarUrl ?? null,
+                status: 'active',
+                lastLoginAt: now,
+                updatedAt: now,
+            })
+            .where(eq(users.id, existingByOpenId.id));
+
+        return finalizeBootstrap(existingByOpenId.id, profile);
+    }
+
     const [existingByEmail] = await db
-        .select({ id: users.id, larkOpenId: users.larkOpenId })
+        .select({
+            id: users.id,
+        })
         .from(users)
         .where(
             and(
                 eq(users.email, profile.email),
                 isNull(users.larkOpenId),
                 isNull(users.deletedAt),
-            )
+            ),
         )
         .limit(1);
 
     if (existingByEmail) {
-        // 管理画面で作成済みのユーザーに larkOpenId を紐付ける（ghost ユーザー解消）
         await db
             .update(users)
             .set({
@@ -186,21 +359,12 @@ export async function bootstrapUser(profile: BootstrapUserProfile) {
                 displayName: profile.name,
                 avatarUrl: profile.avatarUrl ?? null,
                 status: 'active',
-                lastLoginAt: new Date(),
-                updatedAt: new Date(),
+                lastLoginAt: now,
+                updatedAt: now,
             })
             .where(eq(users.id, existingByEmail.id));
 
-        const defaultBusinessMembership = await ensureDefaultBusinessMembership(existingByEmail.id);
-        await ensureDefaultRoleAssignment(existingByEmail.id, defaultBusinessMembership.id);
-        await issueSession(existingByEmail.id, defaultBusinessMembership.code);
-        await setActiveBusinessScopeCookie(defaultBusinessMembership.code);
-
-        return {
-            success: true,
-            user: { id: existingByEmail.id, displayName: profile.name, email: profile.email },
-            activeBusinessScope: defaultBusinessMembership.code,
-        };
+        return finalizeBootstrap(existingByEmail.id, profile);
     }
 
     const [user] = await db
@@ -211,7 +375,7 @@ export async function bootstrapUser(profile: BootstrapUserProfile) {
             email: profile.email,
             avatarUrl: profile.avatarUrl ?? null,
             status: 'active',
-            lastLoginAt: new Date(),
+            lastLoginAt: now,
         })
         .onConflictDoUpdate({
             target: users.larkOpenId,
@@ -220,8 +384,8 @@ export async function bootstrapUser(profile: BootstrapUserProfile) {
                 email: profile.email,
                 avatarUrl: profile.avatarUrl ?? null,
                 status: 'active',
-                lastLoginAt: new Date(),
-                updatedAt: new Date(),
+                lastLoginAt: now,
+                updatedAt: now,
             },
         })
         .returning({
@@ -230,14 +394,10 @@ export async function bootstrapUser(profile: BootstrapUserProfile) {
             email: users.email,
         });
 
-    const defaultBusinessMembership = await ensureDefaultBusinessMembership(user.id);
-    await ensureDefaultRoleAssignment(user.id, defaultBusinessMembership.id);
-    await issueSession(user.id, defaultBusinessMembership.code);
-    await setActiveBusinessScopeCookie(defaultBusinessMembership.code);
-
-    return {
-        success: true,
-        user,
-        activeBusinessScope: defaultBusinessMembership.code,
-    };
+    return finalizeBootstrap(user.id, {
+        openId: profile.openId,
+        name: user.displayName ?? profile.name,
+        email: user.email ?? profile.email,
+        avatarUrl: profile.avatarUrl ?? null,
+    });
 }

@@ -37,7 +37,7 @@ const DEFAULT_DATABASE_URL = 'postgres://postgres:postgres@localhost:5432/gdx';
 const DEFAULT_REDIS_URL = 'redis://localhost:6379';
 const DEFAULT_APP_URL = 'http://localhost:3000';
 const DEFAULT_SESSION_SECRET = 'dev-session-secret-change-me';
-const DEFAULT_LARK_REDIRECT_URI = `${DEFAULT_APP_URL}/auth/callback`;
+const DEFAULT_LARK_REDIRECT_URI = `${DEFAULT_APP_URL}/api/v1/auth/lark/callback`;
 const DEFAULT_SENTRY_DSN = '';
 
 function readString(name: string, fallback = '', required = false): string {

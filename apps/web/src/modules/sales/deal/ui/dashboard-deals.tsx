@@ -155,25 +155,25 @@ export function DealDashboard({
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <DashboardMetricCard
                     title="総案件数"
-                    description="案件総数"
+                    description="現在管理中の全案件"
                     value={`${summary.totalDeals.toLocaleString()}件`}
-                    footnote={`成約率は ${winRate}% です。`}
+                    footnote={`成約率 ${winRate}%`}
                 />
                 <DashboardMetricCard
                     title="進行中案件"
-                    description="進行中案件"
+                    description="失注・成約を除く進行案件"
                     value={`${summary.activeGroup.count.toLocaleString()}件`}
                     footnote={`進行中金額 ${formatDashboardAmount(summary.activeGroup.totalAmount)}`}
                 />
                 <DashboardMetricCard
                     title="停滞案件"
-                    description="停滞案件"
+                    description="一定期間更新のない案件"
                     value={`${summary.stalledGroup.count.toLocaleString()}件`}
                     footnote={`対象金額 ${formatDashboardAmount(summary.stalledGroup.totalAmount)}`}
                 />
                 <DashboardMetricCard
                     title="成約済み"
-                    description="成約件数"
+                    description="契約完了済みの案件"
                     value={`${summary.contractedGroup.count.toLocaleString()}件`}
                     footnote={`成約金額 ${formatDashboardAmount(summary.contractedGroup.totalAmount)}`}
                 />

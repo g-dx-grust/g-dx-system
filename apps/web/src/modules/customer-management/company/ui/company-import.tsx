@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { AlertCircle, CheckCircle2, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Download, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { CompanyImportPreview, CompanyImportResult, TsrFieldMapping } from '../domain/company-import';
@@ -123,6 +123,23 @@ export function CompanyImport({ fieldMappings }: CompanyImportProps) {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-600">
+                            取込前にテンプレートをダウンロードして列名を確認してください。
+                        </p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            asChild
+                            className="shrink-0 gap-1.5 text-gray-700"
+                        >
+                            <a href="/api/v1/companies/import-template" download>
+                                <Download className="h-3.5 w-3.5" />
+                                CSVテンプレートDL
+                            </a>
+                        </Button>
+                    </div>
                     <div className="rounded-md border border-dashed border-gray-300 bg-gray-50 p-5">
                         <label className="grid gap-2 text-sm font-medium text-gray-700">
                             TSR CSV ファイル
@@ -154,7 +171,14 @@ export function CompanyImport({ fieldMappings }: CompanyImportProps) {
                             disabled={!file || isPending}
                             className="gap-2 bg-blue-600 px-6 text-white hover:bg-blue-700"
                         >
-                            <Upload className="h-4 w-4" />
+                            {isPending ? (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                            ) : (
+                                <Upload className="h-4 w-4" />
+                            )}
                             {isPending ? '解析中...' : 'プレビューを表示'}
                         </Button>
                         <Button
@@ -162,8 +186,14 @@ export function CompanyImport({ fieldMappings }: CompanyImportProps) {
                             variant="outline"
                             onClick={handleImport}
                             disabled={!file || !preview || isPending}
-                            className="px-6"
+                            className="gap-2 px-6"
                         >
+                            {isPending && (
+                                <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                </svg>
+                            )}
                             {isPending ? '実行中...' : '確認して一括インポート'}
                         </Button>
                     </div>
@@ -193,7 +223,9 @@ export function CompanyImport({ fieldMappings }: CompanyImportProps) {
                                     <tr key={`${mapping.tsrFieldName}-${mapping.systemTarget}`}>
                                         <td className="px-4 py-3">{mapping.tsrFieldName}</td>
                                         <td className="px-4 py-3 font-mono text-xs">{mapping.systemTarget}</td>
-                                        <td className="px-4 py-3">{mapping.priority}</td>
+                                        <td className="px-4 py-3">
+                                            <PriorityBadge priority={mapping.priority} />
+                                        </td>
                                         <td className="px-4 py-3">{mapping.note}</td>
                                     </tr>
                                 ))}
@@ -303,6 +335,31 @@ export function CompanyImport({ fieldMappings }: CompanyImportProps) {
             ) : null}
         </div>
     );
+}
+
+function PriorityBadge({ priority }: { priority: string }) {
+    switch (priority) {
+        case '必須':
+            return (
+                <span className="inline-flex rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                    必須
+                </span>
+            );
+        case '任意':
+            return (
+                <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                    任意
+                </span>
+            );
+        case '不要':
+            return (
+                <span className="inline-flex rounded-full bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-400">
+                    不要
+                </span>
+            );
+        default:
+            return <span className="text-xs text-gray-500">{priority}</span>;
+    }
 }
 
 function SummaryCard({ label, value }: { label: string; value: string }) {

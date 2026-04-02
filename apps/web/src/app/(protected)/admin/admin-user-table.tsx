@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { ShieldCheck, X, Plus, UserPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { assignRoleAction, removeRoleAction, createUserAction } from './server-actions';
 
 interface RoleOption {
@@ -174,7 +175,15 @@ export function AdminUserTable({ users, roleOptions, businessUnits, currentUserI
                                     キャンセル
                                 </Button>
                                 <Button type="submit" size="sm" disabled={isPending}>
-                                    {isPending ? '追加中...' : '追加する'}
+                                    {isPending ? (
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden>
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                                            </svg>
+                                            追加中...
+                                        </span>
+                                    ) : '追加する'}
                                 </Button>
                             </div>
                         </form>
@@ -244,9 +253,9 @@ export function AdminUserTable({ users, roleOptions, businessUnits, currentUserI
                                                     <form key={role.id} action={assignRoleAction}>
                                                         <input type="hidden" name="userId" value={user.id} />
                                                         <input type="hidden" name="roleId" value={role.id} />
-                                                        <Button type="submit" size="sm" variant="outline" className="h-7 text-xs">
+                                                        <SubmitButton size="sm" variant="outline" className="h-7 text-xs" pendingText="付与中...">
                                                             {ROLE_LABELS[role.code] ?? role.code}
-                                                        </Button>
+                                                        </SubmitButton>
                                                     </form>
                                                 ))}
                                             {roleOptions.filter((r) => !user.roles.some((ur) => ur.id === r.id)).length === 0 && (

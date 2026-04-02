@@ -1,14 +1,12 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { BusinessScope, type DealStageKey, type PipelineStageDefinition } from '@g-dx/contracts';
+import { BusinessScope } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import {
     listAcquisitionMethodOptions,
     listJetCreditStatusOptions,
     listJetDealStatusOptions,
     listJetStatus2Options,
-    listMasterPipelineStageOptions,
-    type MasterPipelineStageOption,
 } from '@/modules/master/infrastructure/form-master-repository';
 import { listCompanies } from '@/modules/customer-management/company/application/list-companies';
 import { getPipeline } from '@/modules/sales/deal/application/get-pipeline';
@@ -34,56 +32,6 @@ function getErrorMessage(errorCode?: string): string | undefined {
     }
 }
 
-function isLostMasterStage(stage: Pick<MasterPipelineStageOption, 'key' | 'label'>): boolean {
-    const normalized = `${stage.key} ${stage.label}`.toLowerCase();
-    return normalized.includes('lost') || stage.label.includes('失注');
-}
-
-function isWonMasterStage(stage: Pick<MasterPipelineStageOption, 'key' | 'label'>): boolean {
-    const normalized = `${stage.key} ${stage.label}`.toLowerCase();
-    return (
-        normalized.includes('won') ||
-        normalized.includes('contract') ||
-        stage.label.includes('成約') ||
-        stage.label.includes('契約')
-    );
-}
-
-function buildStageOptions(
-    pipelineStages: PipelineStageDefinition[],
-    masterStages: MasterPipelineStageOption[],
-): Array<{ key: DealStageKey; label: string }> {
-    const labelByKey = new Map<DealStageKey, string>();
-
-    const openPipelineStages = pipelineStages.filter(
-        (stage) => stage.key !== 'LOST' && stage.key !== 'CONTRACTED',
-    );
-    const openMasterStages = masterStages.filter(
-        (stage) => !stage.isClosedStage && !isLostMasterStage(stage) && !isWonMasterStage(stage),
-    );
-
-    openPipelineStages.forEach((stage, index) => {
-        labelByKey.set(stage.key, openMasterStages[index]?.label ?? stage.label);
-    });
-
-    const lostStage = pipelineStages.find((stage) => stage.key === 'LOST');
-    if (lostStage) {
-        labelByKey.set(lostStage.key, masterStages.find(isLostMasterStage)?.label ?? lostStage.label);
-    }
-
-    const contractedStage = pipelineStages.find((stage) => stage.key === 'CONTRACTED');
-    if (contractedStage) {
-        labelByKey.set(
-            contractedStage.key,
-            masterStages.find(isWonMasterStage)?.label ?? contractedStage.label,
-        );
-    }
-
-    return pipelineStages.map((stage) => ({
-        key: stage.key,
-        label: labelByKey.get(stage.key) ?? stage.label,
-    }));
-}
 
 export default async function NewDealPage({ searchParams }: NewDealPageProps) {
     const session = await getAuthenticatedAppSession();
@@ -100,7 +48,6 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
     let pipeline;
     let companies;
     let acquisitionMethods;
-    let masterStages;
     let jetDealStatuses;
     let jetCreditStatuses;
     let jetStatus2Options;
@@ -110,7 +57,6 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
             pipeline,
             companies,
             acquisitionMethods,
-            masterStages,
             jetDealStatuses,
             jetCreditStatuses,
             jetStatus2Options,
@@ -118,7 +64,6 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
             getPipeline(),
             listCompanies({ pageSize: 100 }),
             listAcquisitionMethodOptions(session.activeBusinessScope),
-            listMasterPipelineStageOptions(session.activeBusinessScope),
             isWaterSavingScope ? listJetDealStatusOptions() : Promise.resolve([]),
             isWaterSavingScope ? listJetCreditStatusOptions() : Promise.resolve([]),
             isWaterSavingScope ? listJetStatus2Options() : Promise.resolve([]),
@@ -142,7 +87,7 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
             </div>
             <DealCreateForm
                 companies={companies.data.map((company) => ({ id: company.id, name: company.name }))}
-                stages={buildStageOptions(pipeline.stages, masterStages)}
+                stages={pipeline.stages}
                 acquisitionMethods={acquisitionMethods}
                 showJetFields={isWaterSavingScope}
                 jetDealStatuses={jetDealStatuses}

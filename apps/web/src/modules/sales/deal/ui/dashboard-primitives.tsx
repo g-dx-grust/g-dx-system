@@ -52,7 +52,7 @@ export function DashboardMetricCard({
                     {value}
                 </p>
                 {footnote ? (
-                    <p className="text-xs leading-5 text-gray-500">{footnote}</p>
+                    <p className="text-sm leading-5 text-gray-500">{footnote}</p>
                 ) : null}
             </CardContent>
         </Card>

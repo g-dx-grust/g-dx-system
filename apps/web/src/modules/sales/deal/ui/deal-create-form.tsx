@@ -3,6 +3,7 @@ import type { DealStageKey } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { createDealAction } from '@/modules/sales/deal/server-actions';
 
 interface CompanyOption {
@@ -195,9 +196,9 @@ export function DealCreateForm({
                         <Button asChild variant="outline" className="w-full px-6 md:w-auto">
                             <Link href="/sales/deals">キャンセル</Link>
                         </Button>
-                        <Button type="submit" className="w-full bg-blue-600 px-6 text-white hover:bg-blue-700 md:w-auto">
+                        <SubmitButton className="w-full bg-blue-600 px-6 text-white hover:bg-blue-700 md:w-auto" pendingText="登録中...">
                             案件を登録
-                        </Button>
+                        </SubmitButton>
                     </div>
                 </form>
             </CardContent>

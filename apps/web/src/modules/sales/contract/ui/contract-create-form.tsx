@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { createContractAction } from '@/modules/sales/contract/server-actions';
 import type { ContractStatus } from '@g-dx/contracts';
 
@@ -211,7 +212,7 @@ export function ContractCreateForm({ companies, users = [], errorMessage, defaul
 
                     <div className="flex items-center justify-end gap-2 md:col-span-2">
                         <Button asChild variant="outline" className="px-6"><Link href="/sales/contracts">キャンセル</Link></Button>
-                        <Button type="submit" className="bg-blue-600 px-6 text-white hover:bg-blue-700">契約を登録</Button>
+                        <SubmitButton className="bg-blue-600 px-6 text-white hover:bg-blue-700" pendingText="登録中...">契約を登録</SubmitButton>
                     </div>
                 </form>
             </CardContent>

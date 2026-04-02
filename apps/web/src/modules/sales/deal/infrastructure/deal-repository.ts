@@ -191,6 +191,7 @@ export async function createDeal(input: CreateDealInput): Promise<CreatedDeal> {
         .where(and(
             eq(pipelines.businessUnitId, businessUnit.id),
             eq(pipelines.isDefault, true),
+            eq(pipelines.isActive, true),
             eq(pipelineStages.stageKey, input.stage),
         ))
         .limit(1);

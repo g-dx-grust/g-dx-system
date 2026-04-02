@@ -3,6 +3,7 @@ import type { ContractDetail, ContractStatus } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { SubmitButton } from '@/components/ui/submit-button';
 import { updateContractAction } from '@/modules/sales/contract/server-actions';
 
 interface UserOption {
@@ -330,9 +331,9 @@ export function ContractDetailView({ contract, users = [], created = false, upda
                         </label>
 
                         <div className="flex items-center justify-end md:col-span-2">
-                            <Button type="submit" className="bg-blue-600 px-8 text-white hover:bg-blue-700">
+                            <SubmitButton className="bg-blue-600 px-8 text-white hover:bg-blue-700" pendingText="保存中...">
                                 保存
-                            </Button>
+                            </SubmitButton>
                         </div>
                     </form>
                 </CardContent>

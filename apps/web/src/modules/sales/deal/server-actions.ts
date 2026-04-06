@@ -145,8 +145,11 @@ export async function createDealActivityAction(formData: FormData) {
     const session = await getAuthenticatedAppSession();
     if (!session) redirect('/login');
 
+    const meetingCountRaw = readString(formData, 'meetingCount');
+    const meetingCount = meetingCountRaw ? Math.max(1, parseInt(meetingCountRaw, 10)) : 1;
+
     try {
-        await createDealActivity({ dealId, activityType, activityDate, summary: readString(formData, 'summary') });
+        await createDealActivity({ dealId, activityType, activityDate, summary: readString(formData, 'summary'), meetingCount });
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');

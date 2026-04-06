@@ -14,7 +14,8 @@ export async function listDealActivities(dealId: string): Promise<DealActivityIt
             id: dealActivities.id, dealId: dealActivities.dealId,
             userId: dealActivities.userId, userName: users.displayName,
             activityType: dealActivities.activityType, activityDate: dealActivities.activityDate,
-            summary: dealActivities.summary, createdAt: dealActivities.createdAt,
+            summary: dealActivities.summary, meetingCount: dealActivities.meetingCount,
+            createdAt: dealActivities.createdAt,
         })
         .from(dealActivities)
         .innerJoin(users, eq(dealActivities.userId, users.id))
@@ -24,13 +25,14 @@ export async function listDealActivities(dealId: string): Promise<DealActivityIt
     return rows.map((r) => ({
         id: r.id, dealId: r.dealId, userId: r.userId, userName: r.userName ?? 'Unknown',
         activityType: r.activityType as DealActivityType, activityDate: r.activityDate ?? '',
-        summary: r.summary, createdAt: r.createdAt.toISOString(),
+        summary: r.summary, meetingCount: r.meetingCount ?? 1,
+        createdAt: r.createdAt.toISOString(),
     }));
 }
 
 export async function createDealActivity(input: {
     dealId: string; businessScope: BusinessScopeType;
-    userId: string; activityType: DealActivityType; activityDate: string; summary?: string;
+    userId: string; activityType: DealActivityType; activityDate: string; summary?: string; meetingCount?: number;
 }): Promise<void> {
     const businessUnit = await findBusinessUnitByScope(input.businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
@@ -43,6 +45,7 @@ export async function createDealActivity(input: {
         id: crypto.randomUUID(), dealId: input.dealId, businessUnitId: businessUnit.id,
         userId: input.userId, activityType: input.activityType, activityDate: input.activityDate,
         summary: input.summary ?? null,
+        meetingCount: Math.max(1, input.meetingCount ?? 1),
     });
 
     // Lark通知＋カレンダー: 活動ログ記録 (fire-and-forget)
@@ -101,6 +104,7 @@ export async function getMonthlyActivityStats(businessScope: BusinessScopeType, 
             userId: dealActivities.userId, userName: users.displayName,
             activityType: dealActivities.activityType,
             count: sql<number>`count(*)::int`,
+            meetingSum: sql<number>`sum(${dealActivities.meetingCount})::int`,
         })
         .from(dealActivities)
         .innerJoin(users, eq(dealActivities.userId, users.id))
@@ -114,7 +118,7 @@ export async function getMonthlyActivityStats(businessScope: BusinessScopeType, 
     const userMap = new Map<string, MonthlyActivityStat>();
     for (const row of rows) {
         const entry = userMap.get(row.userId) ?? { userId: row.userId, userName: row.userName ?? 'Unknown', visitCount: 0, onlineCount: 0, totalCount: 0 };
-        if (row.activityType === 'VISIT') entry.visitCount += row.count;
+        if (row.activityType === 'VISIT') entry.visitCount += (row.meetingSum ?? row.count);
         else if (row.activityType === 'ONLINE') entry.onlineCount += row.count;
         entry.totalCount += row.count;
         userMap.set(row.userId, entry);

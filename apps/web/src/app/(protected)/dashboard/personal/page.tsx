@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import type { ApprovalRequestListItem } from '@g-dx/contracts';
+import { Role } from '@g-dx/contracts';
 import { listApprovals } from '@/modules/approvals/application/list-approvals';
 import { getPersonalDashboardData } from '@/modules/sales/deal/application/get-personal-dashboard-data';
 import { getPersonalActionList } from '@/modules/sales/deal/application/get-personal-action-list';
@@ -15,6 +16,9 @@ export default async function PersonalDashboardPage() {
 
     const permissions = new Set(getGrantedPermissionKeys(session.user.roles));
     const canReadApprovals = permissions.has('approval.request.read');
+    const isAdminOrAbove = session.user.roles.some(
+        (r) => r === Role.SUPER_ADMIN || r === Role.ADMIN,
+    );
 
     let dashboardData;
     let actionItems;
@@ -83,6 +87,7 @@ export default async function PersonalDashboardPage() {
                 pendingApprovals={pendingApprovals}
                 requestedApprovals={requestedApprovals}
                 showSelector={false}
+                suppressTargetAlert={isAdminOrAbove}
             />
         </div>
     );

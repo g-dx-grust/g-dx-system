@@ -47,9 +47,18 @@ export function DealActivityLog({ dealId, activities, activityAdded = false, hid
                             日付
                             <Input name="activityDate" type="date" required defaultValue={new Date().toISOString().split('T')[0]} className="h-9 text-sm" />
                         </label>
-                        <label className="grid gap-1 text-xs text-gray-600 md:col-span-2">
+                        <label className="grid gap-1 text-xs text-gray-600">
+                            面会数
+                            <Input name="meetingCount" type="number" min="1" defaultValue="1" className="h-9 text-sm" />
+                        </label>
+                        <label className="grid gap-1 text-xs text-gray-600 md:col-span-4">
                             内容
-                            <Input name="summary" placeholder="活動の概要を記入..." className="h-9 text-sm" />
+                            <textarea
+                                name="summary"
+                                rows={2}
+                                placeholder="活動の概要を記入..."
+                                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
+                            />
                         </label>
                         <div className="flex items-end md:col-span-4">
                             <SubmitButton size="sm" pendingText="記録中..." className="bg-blue-600 px-5 text-white hover:bg-blue-700">記録</SubmitButton>
@@ -71,8 +80,9 @@ export function DealActivityLog({ dealId, activities, activityAdded = false, hid
                                     <div className="flex items-center gap-2 text-xs text-gray-500">
                                         <span>{a.activityDate}</span>
                                         <span>{a.userName}</span>
+                                        {a.meetingCount > 1 && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">面会 {a.meetingCount}件</span>}
                                     </div>
-                                    {a.summary && <p className="mt-0.5 text-sm text-gray-700">{a.summary}</p>}
+                                    {a.summary && <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-700">{a.summary}</p>}
                                 </div>
                             </div>
                         ))}
@@ -116,8 +126,17 @@ export function DealActivitySidebarForm({ dealId, recentActivities, activityAdde
                         <Input name="activityDate" type="date" required defaultValue={new Date().toISOString().split('T')[0]} className="h-8 text-sm" />
                     </label>
                     <label className="grid gap-1 text-xs font-medium text-gray-600">
+                        面会数
+                        <Input name="meetingCount" type="number" min="1" defaultValue="1" className="h-8 text-sm" />
+                    </label>
+                    <label className="grid gap-1 text-xs font-medium text-gray-600">
                         内容
-                        <Input name="summary" placeholder="活動の概要..." className="h-8 text-sm" />
+                        <textarea
+                            name="summary"
+                            rows={3}
+                            placeholder="活動の概要..."
+                            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
+                        />
                     </label>
                     <SubmitButton size="sm" pendingText="記録中..." className="w-full bg-blue-600 text-white hover:bg-blue-700">
                         記録する

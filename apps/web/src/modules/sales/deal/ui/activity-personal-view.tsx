@@ -27,6 +27,7 @@ interface ActivityPersonalViewProps {
     pendingApprovals: ApprovalRequestListItem[];
     requestedApprovals: ApprovalRequestListItem[];
     showSelector?: boolean;
+    suppressTargetAlert?: boolean;
 }
 
 function buildNarrativeLines(
@@ -79,6 +80,7 @@ export function ActivityPersonalView({
     pendingApprovals,
     requestedApprovals,
     showSelector = true,
+    suppressTargetAlert = false,
 }: ActivityPersonalViewProps) {
     return (
         <div className="space-y-4">
@@ -107,7 +109,7 @@ export function ActivityPersonalView({
             {dashboardData ? (
                 <>
                     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.8fr)]">
-                        <PersonalKpiProgress data={dashboardData} />
+                        <PersonalKpiProgress data={dashboardData} suppressTargetAlert={suppressTargetAlert} />
                         <DashboardNarrativeCard
                             description="今週の要点"
                             lines={buildNarrativeLines(

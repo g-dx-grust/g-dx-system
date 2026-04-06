@@ -314,6 +314,7 @@ export interface DealActivityItem {
     activityType: DealActivityType;
     activityDate: string;
     summary: string | null;
+    meetingCount: number;
     createdAt: string;
 }
 
@@ -322,6 +323,7 @@ export interface CreateDealActivityRequest {
     activityType: DealActivityType;
     activityDate: string;
     summary?: string;
+    meetingCount?: number;
 }
 
 // ─── JET Facility & JET Contract ─────────────────────────────────────────────

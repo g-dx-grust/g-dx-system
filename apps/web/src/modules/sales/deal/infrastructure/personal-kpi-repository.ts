@@ -196,6 +196,7 @@ export async function getPersonalActuals(
             .select({
                 activityType: dealActivities.activityType,
                 cnt: sql<number>`count(*)::int`,
+                meetingSum: sql<number>`sum(${dealActivities.meetingCount})::int`,
             })
             .from(dealActivities)
             .where(
@@ -277,7 +278,7 @@ export async function getPersonalActuals(
     let visitCount = 0;
     for (const row of activityCounts) {
         if (row.activityType === 'CALL') activityCallCount = row.cnt;
-        else if (row.activityType === 'VISIT') visitCount = row.cnt;
+        else if (row.activityType === 'VISIT') visitCount = row.meetingSum ?? row.cnt;
     }
     // コールシステム経由の架電数を加算（二重カウントなし: 別入力経路）
     const callCount = activityCallCount + (callLogCount[0]?.cnt ?? 0);
@@ -381,6 +382,7 @@ async function getPersonalPeriodMetrics(
 
     // 1. Activities from deal_activities (CALL, VISIT, ONLINE)
     //    Segment: at activity_date, were there other deals for the same company?
+    //    For VISIT activities, sum meeting_count; for others count records.
     const activityRows = await db.execute<ActivityRow>(sql`
         SELECT
             da.activity_type,
@@ -392,7 +394,10 @@ async function getPersonalPeriodMetrics(
                 AND d2.id != da.deal_id
                 AND d2.created_at::date < da.activity_date
             ) THEN 'existing' ELSE 'new' END AS segment,
-            COUNT(*)::int AS cnt
+            CASE WHEN da.activity_type = 'VISIT'
+                THEN SUM(COALESCE(da.meeting_count, 1))::int
+                ELSE COUNT(*)::int
+            END AS cnt
         FROM deal_activities da
         JOIN deals d ON da.deal_id = d.id
         WHERE da.user_id = ${userId}

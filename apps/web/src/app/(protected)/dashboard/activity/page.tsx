@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import type { ApprovalRequestListItem } from '@g-dx/contracts';
+import { Role } from '@g-dx/contracts';
 import { listApprovals } from '@/modules/approvals/application/list-approvals';
 import { getDashboardSummary } from '@/modules/sales/deal/application/get-dashboard-summary';
 import { getMonthlyActivityStats } from '@/modules/sales/deal/application/get-monthly-activity-stats';
@@ -32,6 +33,9 @@ export default async function ActivityDashboardPage({
     const permissions = new Set(getGrantedPermissionKeys(session.user.roles));
     const canReadApprovals = permissions.has('approval.request.read');
     const canReadPersonalKpi = permissions.has('dashboard.kpi.read');
+    const isAdminOrAbove = session.user.roles.some(
+        (r) => r === Role.SUPER_ADMIN || r === Role.ADMIN,
+    );
 
     let summary;
     let monthlyStats;
@@ -171,6 +175,7 @@ export default async function ActivityDashboardPage({
                 canReadApprovals={canReadApprovals}
                 pendingApprovals={pendingApprovals}
                 requestedApprovals={requestedApprovals}
+                suppressTargetAlert={isAdminOrAbove}
             />
 
             <ActivityDashboard summary={summary} monthlyStats={monthlyStats} />

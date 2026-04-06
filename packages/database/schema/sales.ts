@@ -184,6 +184,7 @@ export const dealActivities = pgTable('deal_activities', {
     activityType: text('activity_type').notNull(), // VISIT | ONLINE | CALL | EMAIL | OTHER
     activityDate: date('activity_date').notNull(),
     summary: text('summary'),
+    meetingCount: integer('meeting_count').notNull().default(1),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
     dealIdx: index('deal_activities_deal_idx').on(table.dealId),

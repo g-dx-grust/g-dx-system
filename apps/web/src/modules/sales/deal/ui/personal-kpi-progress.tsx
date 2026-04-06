@@ -13,6 +13,7 @@ import { formatDashboardAmount } from './dashboard-primitives';
 interface PersonalKpiProgressProps {
     data: PersonalDashboardData;
     className?: string;
+    suppressTargetAlert?: boolean;
 }
 
 function achievementBadgeVariant(pct: number): 'success' | 'default' | 'warning' {
@@ -186,7 +187,7 @@ function RollingKpiTable({ blocks }: { blocks: PersonalRollingKpiBlock[] }) {
     );
 }
 
-export function PersonalKpiProgress({ data, className }: PersonalKpiProgressProps) {
+export function PersonalKpiProgress({ data, className, suppressTargetAlert = false }: PersonalKpiProgressProps) {
     const contractItem = data.kpiItems.find((item) => item.key === 'contractCount');
     const activityItems = data.kpiItems.filter((item) => item.key !== 'contractCount');
     const weeksInMonth = getWeeksInMonth(data.targetMonth);
@@ -212,7 +213,7 @@ export function PersonalKpiProgress({ data, className }: PersonalKpiProgressProp
                 </CardHeader>
 
                 <CardContent className="space-y-6">
-                    {!data.hasTargets ? (
+                    {!data.hasTargets && !suppressTargetAlert ? (
                         <div className="rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-800">
                             今月の目標が設定されていません。
                             <Link

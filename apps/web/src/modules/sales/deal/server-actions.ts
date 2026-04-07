@@ -6,7 +6,6 @@ import { createDeal } from '@/modules/sales/deal/application/create-deal';
 import { updateDeal } from '@/modules/sales/deal/application/update-deal';
 import { changeDealStage } from '@/modules/sales/deal/application/change-deal-stage';
 import { createDealActivity } from '@/modules/sales/deal/application/create-deal-activity';
-import { updateDeal } from '@/modules/sales/deal/application/update-deal';
 import { saveLarkSettings } from '@/modules/sales/deal/application/save-lark-settings';
 import { getDashboardScopeTag } from '@/modules/sales/deal/infrastructure/dashboard-cache';
 import { getDealNextActionSnapshot } from '@/modules/sales/deal/infrastructure/deal-repository';

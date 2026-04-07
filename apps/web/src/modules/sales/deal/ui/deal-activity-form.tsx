@@ -173,6 +173,22 @@ export function ActivityForm({ dealId, compact = false }: ActivityFormProps) {
                     className="w-full resize-y rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                 />
             </label>
+            <label className={fieldLabelClassName}>
+                次回アクション日
+                <Input
+                    name="nextActionDate"
+                    type="date"
+                    className={inputClassName}
+                />
+            </label>
+            <label className={compact ? fieldLabelClassName : `${fieldLabelClassName} md:col-span-3`}>
+                次回アクション内容
+                <Input
+                    name="nextActionContent"
+                    placeholder={compact ? '次回の行動...' : '提案書を送付・訪問など'}
+                    className={inputClassName}
+                />
+            </label>
             <div className={submitWrapperClassName}>
                 <SubmitButton
                     size="sm"

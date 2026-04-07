@@ -6,6 +6,7 @@ import { createDeal } from '@/modules/sales/deal/application/create-deal';
 import { updateDeal } from '@/modules/sales/deal/application/update-deal';
 import { changeDealStage } from '@/modules/sales/deal/application/change-deal-stage';
 import { createDealActivity } from '@/modules/sales/deal/application/create-deal-activity';
+import { updateDeal } from '@/modules/sales/deal/application/update-deal';
 import { saveLarkSettings } from '@/modules/sales/deal/application/save-lark-settings';
 import { getDashboardScopeTag } from '@/modules/sales/deal/infrastructure/dashboard-cache';
 import { getDealNextActionSnapshot } from '@/modules/sales/deal/infrastructure/deal-repository';
@@ -184,6 +185,9 @@ export async function createDealActivityAction(formData: FormData) {
             ? (negotiationOutcomeRaw as NegotiationOutcome)
             : undefined;
 
+    const nextActionDate = readString(formData, 'nextActionDate') ?? null;
+    const nextActionContent = readString(formData, 'nextActionContent') ?? null;
+
     try {
         await createDealActivity({
             dealId,
@@ -197,6 +201,9 @@ export async function createDealActivityAction(formData: FormData) {
             negotiationOutcome,
             competitorInfo: readString(formData, 'competitorInfo'),
         });
+        if (nextActionDate !== null || nextActionContent !== null) {
+            await updateDeal(dealId, { nextActionDate, nextActionContent });
+        }
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');

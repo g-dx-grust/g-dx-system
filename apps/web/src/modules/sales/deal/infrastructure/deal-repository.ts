@@ -1554,3 +1554,11 @@ export async function getDealsWithTodayNextAction(todayStr: string): Promise<Dea
             ownerName: r.ownerName ?? 'Unknown',
         }));
 }
+
+// ─── Delete ───────────────────────────────────────────────────────────────────
+
+export async function deleteDeal(dealId: string): Promise<void> {
+    await db.update(deals)
+        .set({ deletedAt: new Date() })
+        .where(and(eq(deals.id, dealId), isNull(deals.deletedAt)));
+}

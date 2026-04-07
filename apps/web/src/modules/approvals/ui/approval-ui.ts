@@ -40,6 +40,7 @@ export const APPROVAL_STATUS_OPTIONS: ApprovalStatusValue[] = [
 export function formatApprovalDateTime(value: string | null | undefined): string {
     if (!value) return '-';
     return new Date(value).toLocaleString('ja-JP', {
+        timeZone: 'Asia/Tokyo',
         year: 'numeric',
         month: 'short',
         day: 'numeric',
@@ -54,6 +55,7 @@ export function formatApprovalDate(value: string | null | undefined): string {
     const date = value.includes('T') ? new Date(value) : new Date(`${value}T00:00:00`);
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString('ja-JP', {
+        timeZone: 'Asia/Tokyo',
         year: 'numeric',
         month: 'short',
         day: 'numeric',

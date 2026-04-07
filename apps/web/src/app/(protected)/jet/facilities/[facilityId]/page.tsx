@@ -93,8 +93,8 @@ export default async function FacilityDetailPage({ params, searchParams }: Props
                             className="sm:col-span-2"
                         />
                         {facility.memo && <InfoItem label="メモ" value={facility.memo} className="sm:col-span-2" />}
-                        <InfoItem label="登録日" value={new Date(facility.createdAt).toLocaleDateString('ja-JP')} />
-                        <InfoItem label="更新日" value={new Date(facility.updatedAt).toLocaleDateString('ja-JP')} />
+                        <InfoItem label="登録日" value={new Date(facility.createdAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })} />
+                        <InfoItem label="更新日" value={new Date(facility.updatedAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })} />
                     </CardContent>
                 </Card>
 

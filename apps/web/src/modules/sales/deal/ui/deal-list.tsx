@@ -21,6 +21,7 @@ interface DealListProps {
     dealStatus?: string;
     users?: UserOption[];
     created?: boolean;
+    deleted?: boolean;
 }
 
 const STAGE_LABELS: Record<DealStageKey, string> = {
@@ -57,7 +58,7 @@ const NEXT_ACTION_STATUS_LABELS: Record<string, string> = {
     ALL: 'すべて',
 };
 
-export function DealList({ deals, total, keyword, stage, ownerUserId, amountMin, amountMax, nextActionStatus, dealStatus, users = [], created = false }: DealListProps) {
+export function DealList({ deals, total, keyword, stage, ownerUserId, amountMin, amountMax, nextActionStatus, dealStatus, users = [], created = false, deleted = false }: DealListProps) {
     const hasAdvancedFilter = !!(amountMin || amountMax || nextActionStatus || dealStatus);
     const hasAnyFilter = !!(keyword || stage || ownerUserId || hasAdvancedFilter);
 
@@ -177,6 +178,12 @@ export function DealList({ deals, total, keyword, stage, ownerUserId, amountMin,
             {created ? (
                 <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                     案件を作成しました。
+                </div>
+            ) : null}
+
+            {deleted ? (
+                <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                    案件を削除しました。
                 </div>
             ) : null}
 

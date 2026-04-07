@@ -18,6 +18,7 @@ interface DealsPageProps {
         nextActionStatus?: string;
         dealStatus?: string;
         created?: string;
+        deleted?: string;
     };
 }
 
@@ -86,6 +87,7 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
             dealStatus={searchParams?.dealStatus}
             users={userOptions}
             created={searchParams?.created === '1'}
+            deleted={searchParams?.deleted === '1'}
         />
     );
 }

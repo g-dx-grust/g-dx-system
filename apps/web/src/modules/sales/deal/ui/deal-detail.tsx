@@ -23,6 +23,7 @@ import { updateDealAction, changeDealStageAction, saveLarkSettingsAction } from 
 import { linkAllianceToDealFromDealPageAction, unlinkAllianceFromDealFromDealPageAction } from '@/modules/sales/alliance/server-actions';
 import { DealActivityLog, DealActivitySidebarForm } from './deal-activity-log';
 import { DealNextActionWarning } from './deal-next-action-warning';
+import { DealDeleteButton } from './deal-delete-button';
 import type { DealStageHistoryItem } from '../infrastructure/deal-repository';
 
 interface UserOption {
@@ -64,6 +65,7 @@ interface DealDetailViewProps {
     canEditHearing: boolean;
     canCreateApproval: boolean;
     canReadApprovals: boolean;
+    canDelete?: boolean;
     users?: UserOption[];
     linkedAlliances?: DealLinkedAlliance[];
     availableAlliances?: DealAllianceOption[];
@@ -150,6 +152,7 @@ export function DealDetailView({
     canEditHearing,
     canCreateApproval,
     canReadApprovals,
+    canDelete = false,
     users = [],
     linkedAlliances = [],
     availableAlliances = [],
@@ -171,9 +174,12 @@ export function DealDetailView({
                         {deal.company.name} &middot; 担当: {deal.ownerUser.name}
                     </p>
                 </div>
-                <Button asChild variant="outline" className="px-5">
-                    <Link href="/sales/deals">一覧へ戻る</Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                    {canDelete && <DealDeleteButton dealId={deal.id} dealName={deal.name} />}
+                    <Button asChild variant="outline" className="px-5">
+                        <Link href="/sales/deals">一覧へ戻る</Link>
+                    </Button>
+                </div>
             </div>
 
             {updated ? (
@@ -256,8 +262,8 @@ export function DealDetailView({
                                 {deal.memo ? (
                                     <InfoItem label="メモ" value={deal.memo} className="sm:col-span-2" />
                                 ) : null}
-                                <InfoItem label="作成日時" value={new Date(deal.createdAt).toLocaleString('ja-JP')} />
-                                <InfoItem label="更新日時" value={new Date(deal.updatedAt).toLocaleString('ja-JP')} />
+                                <InfoItem label="作成日時" value={new Date(deal.createdAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })} />
+                                <InfoItem label="更新日時" value={new Date(deal.updatedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })} />
                             </CardContent>
                         </Card>
 
@@ -567,7 +573,7 @@ export function DealDetailView({
                                                     }
                                                 </p>
                                                 <div className="flex items-center gap-3 text-xs text-gray-500">
-                                                    <span>{new Date(item.changedAt).toLocaleString('ja-JP')}</span>
+                                                    <span>{new Date(item.changedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })}</span>
                                                     {item.changedByName && <span>· {item.changedByName}</span>}
                                                     {item.snapshotAmount !== null && (
                                                         <span>· ¥{item.snapshotAmount.toLocaleString()}</span>

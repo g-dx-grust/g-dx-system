@@ -51,6 +51,7 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
     const canCreateApproval = permissions.has('approval.request.create');
     const canEditHearing = permissions.has('sales.hearing.update');
     const canReadHearing = permissions.has('sales.hearing.read');
+    const canDelete = permissions.has('sales.deal.update_critical');
 
     // ビジネスユニットのユーザー一覧を取得
     const businessUnit = await db
@@ -136,6 +137,7 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
             canEditHearing={canEditHearing}
             canCreateApproval={canCreateApproval}
             canReadApprovals={canReadApprovals}
+            canDelete={canDelete}
             users={userOptions}
             linkedAlliances={linkedAlliances}
             availableAlliances={availableAlliances}

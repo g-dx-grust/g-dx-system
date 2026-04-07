@@ -121,8 +121,8 @@ export function AllianceDetailView({
                         {alliance.notes ? (
                             <InfoItem label="備考" value={alliance.notes} className="sm:col-span-2" />
                         ) : null}
-                        <InfoItem label="登録日時" value={new Date(alliance.createdAt).toLocaleString('ja-JP')} />
-                        <InfoItem label="更新日時" value={new Date(alliance.updatedAt).toLocaleString('ja-JP')} />
+                        <InfoItem label="登録日時" value={new Date(alliance.createdAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })} />
+                        <InfoItem label="更新日時" value={new Date(alliance.updatedAt).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' })} />
                     </CardContent>
                 </Card>
 

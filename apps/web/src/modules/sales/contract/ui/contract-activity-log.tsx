@@ -45,7 +45,7 @@ export function ContractActivityLog({ contractId, activities, activityAdded = fa
                     </label>
                     <label className="grid gap-1 text-xs text-gray-600">
                         日付
-                        <Input name="activityDate" type="date" required defaultValue={new Date().toISOString().split('T')[0]} className="h-9 text-sm" />
+                        <Input name="activityDate" type="date" required defaultValue={new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' })} className="h-9 text-sm" />
                     </label>
                     <label className="grid gap-1 text-xs text-gray-600 md:col-span-3">
                         内容

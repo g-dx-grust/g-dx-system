@@ -213,6 +213,7 @@ function resolveNotificationHref(item: NotificationItem): string | null {
 
 function formatNotificationDate(value: string): string {
     return new Date(value).toLocaleString('ja-JP', {
+        timeZone: 'Asia/Tokyo',
         month: 'short',
         day: 'numeric',
         hour: '2-digit',

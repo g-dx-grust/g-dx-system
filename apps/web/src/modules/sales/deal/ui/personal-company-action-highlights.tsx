@@ -13,6 +13,7 @@ function formatActionDate(value: string): string {
     if (Number.isNaN(date.getTime())) return value;
 
     return date.toLocaleDateString('ja-JP', {
+        timeZone: 'Asia/Tokyo',
         month: 'numeric',
         day: 'numeric',
     });

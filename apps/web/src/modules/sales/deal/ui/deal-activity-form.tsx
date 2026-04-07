@@ -35,7 +35,7 @@ export function ActivityForm({ dealId, compact = false }: ActivityFormProps) {
         ? 'grid gap-1 text-xs font-medium text-gray-600'
         : 'grid gap-1 text-xs text-gray-600 md:col-span-4';
     const submitWrapperClassName = compact ? '' : 'flex items-end md:col-span-4';
-    const today = new Date().toISOString().split('T')[0];
+    const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Asia/Tokyo' });
 
     return (
         <form

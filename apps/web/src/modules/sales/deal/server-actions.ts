@@ -6,6 +6,7 @@ import { createDeal } from '@/modules/sales/deal/application/create-deal';
 import { updateDeal } from '@/modules/sales/deal/application/update-deal';
 import { changeDealStage } from '@/modules/sales/deal/application/change-deal-stage';
 import { createDealActivity } from '@/modules/sales/deal/application/create-deal-activity';
+import { deleteDeal } from '@/modules/sales/deal/application/delete-deal';
 import { saveLarkSettings } from '@/modules/sales/deal/application/save-lark-settings';
 import { getDashboardScopeTag } from '@/modules/sales/deal/infrastructure/dashboard-cache';
 import { getDealNextActionSnapshot } from '@/modules/sales/deal/infrastructure/deal-repository';
@@ -237,4 +238,23 @@ export async function saveLarkSettingsAction(formData: FormData) {
 
     revalidatePath(`/sales/deals/${dealId}`);
     redirect(`/sales/deals/${dealId}?larkSaved=1`);
+}
+
+export async function deleteDealAction(formData: FormData) {
+    const dealId = readString(formData, 'dealId');
+    if (!dealId) redirect('/sales/deals');
+    const session = await getAuthenticatedAppSession();
+    if (!session) redirect('/login');
+
+    try {
+        await deleteDeal(dealId);
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+
+    revalidatePath('/sales/deals');
+    revalidateDashboardPaths(session.activeBusinessScope);
+    redirect('/sales/deals?deleted=1');
 }

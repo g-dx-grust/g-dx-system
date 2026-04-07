@@ -115,7 +115,7 @@ export function AllianceList({ alliances, total, keyword, status, created = fals
                                     </td>
                                     <td className="px-4 py-3 text-right text-gray-600">{alliance.linkedDealCount}</td>
                                     <td className="px-4 py-3 text-gray-500">
-                                        {new Date(alliance.createdAt).toLocaleDateString('ja-JP')}
+                                        {new Date(alliance.createdAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })}
                                     </td>
                                 </tr>
                             ))}

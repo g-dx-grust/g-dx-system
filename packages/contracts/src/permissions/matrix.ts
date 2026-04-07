@@ -42,7 +42,10 @@ export type PermissionKey =
     | 'export.detail'
     | 'import.customer'
     | 'import.sales'
-    | 'dashboard.personal.kpi_write';
+    | 'dashboard.personal.kpi_write'
+    | 'sales.alliance.read'
+    | 'sales.alliance.create'
+    | 'sales.alliance.update';
 
 export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, PermissionLevelType>> = {
     [Role.SUPER_ADMIN]: {
@@ -88,6 +91,9 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'import.customer': 'Y',
         'import.sales': 'Y',
         'dashboard.personal.kpi_write': 'Y',
+        'sales.alliance.read': 'Y',
+        'sales.alliance.create': 'Y',
+        'sales.alliance.update': 'Y',
     },
     [Role.ADMIN]: {
         'auth.user.manage': 'Y',
@@ -132,6 +138,9 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'import.customer': 'Y',
         'import.sales': 'Y',
         'dashboard.personal.kpi_write': 'Y',
+        'sales.alliance.read': 'Y',
+        'sales.alliance.create': 'Y',
+        'sales.alliance.update': 'Y',
     },
     [Role.MANAGER]: {
         'auth.user.manage': 'N',
@@ -176,6 +185,9 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'import.customer': 'N',
         'import.sales': 'N',
         'dashboard.personal.kpi_write': 'Y',
+        'sales.alliance.read': 'Y',
+        'sales.alliance.create': 'Y',
+        'sales.alliance.update': 'Y',
     },
     [Role.OPERATOR]: {
         'auth.user.manage': 'N',
@@ -220,6 +232,9 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'import.customer': 'N',
         'import.sales': 'N',
         'dashboard.personal.kpi_write': 'Y',
+        'sales.alliance.read': 'Y',
+        'sales.alliance.create': 'Y',
+        'sales.alliance.update': 'Y',
     },
     [Role.VIEWER]: {
         'auth.user.manage': 'N',
@@ -264,6 +279,9 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'import.customer': 'N',
         'import.sales': 'N',
         'dashboard.personal.kpi_write': 'N',
+        'sales.alliance.read': 'Y',
+        'sales.alliance.create': 'N',
+        'sales.alliance.update': 'N',
     },
     [Role.IS_MEMBER]: {
         'auth.user.manage': 'N',
@@ -308,6 +326,9 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'import.customer': 'N',
         'import.sales': 'N',
         'dashboard.personal.kpi_write': 'N',
+        'sales.alliance.read': 'N',
+        'sales.alliance.create': 'N',
+        'sales.alliance.update': 'N',
     },
     [Role.TECH]: {
         'auth.user.manage': 'N',
@@ -352,5 +373,8 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'import.customer': 'N',
         'import.sales': 'N',
         'dashboard.personal.kpi_write': 'N',
+        'sales.alliance.read': 'N',
+        'sales.alliance.create': 'N',
+        'sales.alliance.update': 'N',
     },
 };

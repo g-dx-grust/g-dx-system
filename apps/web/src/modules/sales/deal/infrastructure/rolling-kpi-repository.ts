@@ -14,6 +14,7 @@ function emptyMetrics(): Record<RollingKpiMetricKey, KpiSegmentedCounts> {
         callCount: emptySegmented(),
         visitCount: emptySegmented(),
         onlineCount: emptySegmented(),
+        newVisitCount: emptySegmented(),
         appointmentCount: emptySegmented(),
         negotiationCount: emptySegmented(),
         contractCount: emptySegmented(),
@@ -35,6 +36,7 @@ async function getTeamPeriodMetrics(
 
     type SegRow = { segment: string; cnt: number };
     type ActivityRow = { activity_type: string; segment: string; cnt: number };
+    type NewVisitRow = { activity_type: string; cnt: number };
 
     // 1. Activities from deal_activities (CALL, VISIT, ONLINE) — all users in BU
     const activityRows = await db.execute<ActivityRow>(sql`
@@ -48,13 +50,34 @@ async function getTeamPeriodMetrics(
                 AND d2.id != da.deal_id
                 AND d2.created_at::date < da.activity_date
             ) THEN 'existing' ELSE 'new' END AS segment,
-            COUNT(*)::int AS cnt
+            CASE
+                WHEN da.activity_type = 'VISIT'
+                    THEN SUM(COALESCE(da.meeting_count, 1))::int
+                ELSE COUNT(*)::int
+            END AS cnt
         FROM deal_activities da
         JOIN deals d ON da.deal_id = d.id
         WHERE da.business_unit_id = ${businessUnitId}
         AND da.activity_date >= ${startDate}
         AND da.activity_date <= ${endDate}
         GROUP BY da.activity_type, 2
+    `);
+
+    const newVisitRows = await db.execute<NewVisitRow>(sql`
+        SELECT
+            da.activity_type,
+            CASE
+                WHEN da.activity_type = 'VISIT'
+                    THEN SUM(COALESCE(da.meeting_count, 1))::int
+                ELSE COUNT(*)::int
+            END AS cnt
+        FROM deal_activities da
+        WHERE da.business_unit_id = ${businessUnitId}
+        AND da.activity_type IN ('VISIT', 'ONLINE')
+        AND da.visit_category = 'NEW'
+        AND da.activity_date >= ${startDate}
+        AND da.activity_date <= ${endDate}
+        GROUP BY da.activity_type
     `);
 
     for (const row of activityRows.rows) {
@@ -70,6 +93,12 @@ async function getTeamPeriodMetrics(
             metrics.onlineCount.total += cnt;
             metrics.onlineCount.bySegment[seg] += cnt;
         }
+    }
+
+    for (const row of newVisitRows.rows) {
+        const cnt = Number(row.cnt);
+        metrics.newVisitCount.total += cnt;
+        metrics.newVisitCount.bySegment.new += cnt;
     }
 
     // 2. Call logs (all users in BU)

@@ -29,6 +29,7 @@ interface DealCreateFormProps {
     jetDealStatuses: SelectOption[];
     jetCreditStatuses: SelectOption[];
     jetStatus2Options: SelectOption[];
+    allianceOptions?: SelectOption[];
     errorMessage?: string;
 }
 
@@ -43,6 +44,7 @@ export function DealCreateForm({
     jetDealStatuses,
     jetCreditStatuses,
     jetStatus2Options,
+    allianceOptions = [],
     errorMessage,
 }: DealCreateFormProps) {
     const defaultStage = stages[0]?.key;
@@ -181,6 +183,18 @@ export function DealCreateForm({
                         ソース
                         <Input name="source" placeholder="例: インバウンド、紹介、広告など" />
                     </label>
+
+                    {allianceOptions.length > 0 ? (
+                        <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
+                            アライアンス（任意）
+                            <select name="allianceId" defaultValue="" className={selectClassName}>
+                                <option value="">-- アライアンスなし --</option>
+                                {allianceOptions.map((a) => (
+                                    <option key={a.value} value={a.value}>{a.label}</option>
+                                ))}
+                            </select>
+                        </label>
+                    ) : null}
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                         メモ

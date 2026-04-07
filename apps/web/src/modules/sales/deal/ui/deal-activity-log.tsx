@@ -1,24 +1,84 @@
-import type { DealActivityItem, DealActivityType } from '@g-dx/contracts';
+import type {
+    DealActivityItem,
+    MeetingTargetType,
+    NegotiationOutcome,
+    VisitCategory,
+} from '@g-dx/contracts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { SubmitButton } from '@/components/ui/submit-button';
-import { createDealActivityAction } from '@/modules/sales/deal/server-actions';
-
-export const ACTIVITY_LABELS: Record<DealActivityType, string> = {
-    VISIT: '訪問', ONLINE: 'オンライン', CALL: '電話', EMAIL: 'メール', OTHER: 'その他',
-};
-export const ACTIVITY_COLORS: Record<DealActivityType, string> = {
-    VISIT: 'bg-gray-200 text-gray-700', ONLINE: 'bg-gray-300 text-gray-700',
-    CALL: 'bg-gray-900 text-white', EMAIL: 'bg-gray-200 text-gray-600', OTHER: 'bg-gray-100 text-gray-600',
-};
-const ACTIVITY_TYPES: DealActivityType[] = ['VISIT', 'ONLINE', 'CALL', 'EMAIL', 'OTHER'];
+import { ActivityForm } from './deal-activity-form';
+import {
+    ACTIVITY_COLORS,
+    ACTIVITY_LABELS,
+    NEGOTIATION_OUTCOME_BADGE_COLORS,
+    NEGOTIATION_OUTCOME_LABELS,
+    TARGET_TYPE_LABELS,
+    VISIT_CATEGORY_BADGE_COLORS,
+    VISIT_CATEGORY_LABELS,
+} from './deal-activity-shared';
 
 interface DealActivityLogProps {
     dealId: string;
     activities: DealActivityItem[];
     activityAdded?: boolean;
     hideForm?: boolean;
+}
+
+function MeetingCategoryMeta({
+    visitCategory,
+    targetType,
+    compact = false,
+}: {
+    visitCategory: VisitCategory | null;
+    targetType: MeetingTargetType | null;
+    compact?: boolean;
+}) {
+    if (!visitCategory && !targetType) return null;
+
+    return (
+        <>
+            {visitCategory ? (
+                <span
+                    className={`inline-flex rounded-full px-2 py-0.5 font-medium ${compact ? 'text-[10px]' : 'text-xs'} ${VISIT_CATEGORY_BADGE_COLORS[visitCategory]}`}
+                >
+                    {VISIT_CATEGORY_LABELS[visitCategory]}
+                </span>
+            ) : null}
+            {targetType ? (
+                <span className={compact ? 'text-[10px] text-gray-500' : 'text-[11px] text-gray-500'}>
+                    {TARGET_TYPE_LABELS[targetType]}
+                </span>
+            ) : null}
+        </>
+    );
+}
+
+function NegotiationMeta({
+    isNegotiation,
+    negotiationOutcome,
+    compact = false,
+}: {
+    isNegotiation: boolean;
+    negotiationOutcome: NegotiationOutcome | null;
+    compact?: boolean;
+}) {
+    if (!isNegotiation) return null;
+
+    return (
+        <>
+            <span
+                className={`inline-flex rounded-full px-2 py-0.5 font-medium ${compact ? 'text-[10px]' : 'text-xs'} bg-violet-100 text-violet-700`}
+            >
+                商談
+            </span>
+            {negotiationOutcome ? (
+                <span
+                    className={`inline-flex rounded-full px-2 py-0.5 font-medium ${compact ? 'text-[10px]' : 'text-xs'} ${NEGOTIATION_OUTCOME_BADGE_COLORS[negotiationOutcome]}`}
+                >
+                    {NEGOTIATION_OUTCOME_LABELS[negotiationOutcome]}
+                </span>
+            ) : null}
+        </>
+    );
 }
 
 export function DealActivityLog({ dealId, activities, activityAdded = false, hideForm = false }: DealActivityLogProps) {
@@ -35,35 +95,7 @@ export function DealActivityLog({ dealId, activities, activityAdded = false, hid
 
                 {/* インライン追加フォーム（サイドバー使用時は非表示） */}
                 {!hideForm && (
-                    <form action={createDealActivityAction} className="grid gap-3 rounded-md border border-gray-200 bg-gray-50 p-3 md:grid-cols-4">
-                        <input type="hidden" name="dealId" value={dealId} />
-                        <label className="grid gap-1 text-xs text-gray-600">
-                            種別
-                            <select name="activityType" required className="h-9 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                                {ACTIVITY_TYPES.map((t) => <option key={t} value={t}>{ACTIVITY_LABELS[t]}</option>)}
-                            </select>
-                        </label>
-                        <label className="grid gap-1 text-xs text-gray-600">
-                            日付
-                            <Input name="activityDate" type="date" required defaultValue={new Date().toISOString().split('T')[0]} className="h-9 text-sm" />
-                        </label>
-                        <label className="grid gap-1 text-xs text-gray-600">
-                            面会数
-                            <Input name="meetingCount" type="number" min="1" defaultValue="1" className="h-9 text-sm" />
-                        </label>
-                        <label className="grid gap-1 text-xs text-gray-600 md:col-span-4">
-                            内容
-                            <textarea
-                                name="summary"
-                                rows={2}
-                                placeholder="活動の概要を記入..."
-                                className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
-                            />
-                        </label>
-                        <div className="flex items-end md:col-span-4">
-                            <SubmitButton size="sm" pendingText="記録中..." className="bg-blue-600 px-5 text-white hover:bg-blue-700">記録</SubmitButton>
-                        </div>
-                    </form>
+                    <ActivityForm dealId={dealId} />
                 )}
 
                 {/* 一覧 */}
@@ -72,18 +104,29 @@ export function DealActivityLog({ dealId, activities, activityAdded = false, hid
                 ) : (
                     <div className="space-y-2">
                         {activities.map((a) => (
-                            <div key={a.id} className="flex items-start gap-3 rounded-md border border-gray-100 px-3 py-2.5">
-                                <span className={`mt-0.5 shrink-0 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ACTIVITY_COLORS[a.activityType]}`}>
-                                    {ACTIVITY_LABELS[a.activityType]}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <div key={a.id} className="rounded-md border border-gray-100 px-3 py-2.5">
+                                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ACTIVITY_COLORS[a.activityType]}`}>
+                                        {ACTIVITY_LABELS[a.activityType]}
+                                    </span>
+                                    <MeetingCategoryMeta
+                                        visitCategory={a.visitCategory}
+                                        targetType={a.targetType}
+                                    />
+                                    <NegotiationMeta
+                                        isNegotiation={a.isNegotiation}
+                                        negotiationOutcome={a.negotiationOutcome}
+                                    />
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
                                         <span>{a.activityDate}</span>
                                         <span>{a.userName}</span>
                                         {a.meetingCount > 1 && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">面会 {a.meetingCount}件</span>}
                                     </div>
-                                    {a.summary && <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-700">{a.summary}</p>}
                                 </div>
+                                {a.summary && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{a.summary}</p>}
+                                {a.competitorInfo ? (
+                                    <p className="mt-1 text-xs text-gray-500">競合情報: {a.competitorInfo}</p>
+                                ) : null}
                             </div>
                         ))}
                     </div>
@@ -113,47 +156,31 @@ export function DealActivitySidebarForm({ dealId, recentActivities, activityAdde
                         記録しました。
                     </div>
                 )}
-                <form action={createDealActivityAction} className="space-y-3">
-                    <input type="hidden" name="dealId" value={dealId} />
-                    <label className="grid gap-1 text-xs font-medium text-gray-600">
-                        種別
-                        <select name="activityType" required className="h-8 rounded-md border border-gray-300 bg-white px-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
-                            {ACTIVITY_TYPES.map((t) => <option key={t} value={t}>{ACTIVITY_LABELS[t]}</option>)}
-                        </select>
-                    </label>
-                    <label className="grid gap-1 text-xs font-medium text-gray-600">
-                        日付
-                        <Input name="activityDate" type="date" required defaultValue={new Date().toISOString().split('T')[0]} className="h-8 text-sm" />
-                    </label>
-                    <label className="grid gap-1 text-xs font-medium text-gray-600">
-                        面会数
-                        <Input name="meetingCount" type="number" min="1" defaultValue="1" className="h-8 text-sm" />
-                    </label>
-                    <label className="grid gap-1 text-xs font-medium text-gray-600">
-                        内容
-                        <textarea
-                            name="summary"
-                            rows={3}
-                            placeholder="活動の概要..."
-                            className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-y"
-                        />
-                    </label>
-                    <SubmitButton size="sm" pendingText="記録中..." className="w-full bg-blue-600 text-white hover:bg-blue-700">
-                        記録する
-                    </SubmitButton>
-                </form>
+                <ActivityForm dealId={dealId} compact />
 
                 {/* 直近の活動（最新5件） */}
                 {recentActivities.length > 0 && (
                     <div className="space-y-1.5 border-t border-gray-100 pt-3">
                         <p className="text-[11px] font-medium uppercase tracking-wider text-gray-400">直近の活動</p>
                         {recentActivities.slice(0, 5).map((a) => (
-                            <div key={a.id} className="flex items-start gap-2">
-                                <span className={`mt-0.5 shrink-0 inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ACTIVITY_COLORS[a.activityType]}`}>
-                                    {ACTIVITY_LABELS[a.activityType]}
-                                </span>
-                                <div className="min-w-0">
+                            <div key={a.id} className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <span className={`inline-flex rounded-full px-1.5 py-0.5 text-[10px] font-medium ${ACTIVITY_COLORS[a.activityType]}`}>
+                                        {ACTIVITY_LABELS[a.activityType]}
+                                    </span>
+                                    <MeetingCategoryMeta
+                                        visitCategory={a.visitCategory}
+                                        targetType={a.targetType}
+                                        compact
+                                    />
+                                    <NegotiationMeta
+                                        isNegotiation={a.isNegotiation}
+                                        negotiationOutcome={a.negotiationOutcome}
+                                        compact
+                                    />
                                     <p className="text-[10px] text-gray-400">{a.activityDate}</p>
+                                </div>
+                                <div className="min-w-0">
                                     {a.summary && (
                                         <p className="line-clamp-1 text-xs text-gray-600">{a.summary}</p>
                                     )}

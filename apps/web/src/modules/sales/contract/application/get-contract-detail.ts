@@ -7,7 +7,7 @@ export async function getContractDetail(contractId: string) {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
     assertPermission(session, 'sales.contract.read');
-    const contract = await getContractById(contractId);
+    const contract = await getContractById(contractId, session.activeBusinessScope);
     if (!contract) throw new AppError('NOT_FOUND');
     return contract;
 }

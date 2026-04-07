@@ -1,10 +1,12 @@
 import { db } from '@g-dx/database';
 import { auditLogs } from '@g-dx/database/schema';
-import { businessUnits, companies, contacts, contracts, deals, users } from '@g-dx/database/schema';
+import { businessUnits, companies, contacts, contractActivities, contracts, deals, users } from '@g-dx/database/schema';
 import { and, desc, eq, ilike, isNull, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type {
     BusinessScopeType,
+    ContractActivityItem,
+    ContractActivityType,
     ContractDetail,
     ContractDashboardSummary,
     ContractListItem,
@@ -21,6 +23,30 @@ function nextAuditId() {
     return crypto.randomUUID();
 }
 
+async function getBusinessUnitOrThrow(businessScope: BusinessScopeType) {
+    const businessUnit = await findBusinessUnitByScope(businessScope);
+    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+    return businessUnit;
+}
+
+async function verifyContractScope(contractId: string, businessUnitId: string): Promise<void> {
+    const [contract] = await db
+        .select({ id: contracts.id })
+        .from(contracts)
+        .where(
+            and(
+                eq(contracts.id, contractId),
+                eq(contracts.businessUnitId, businessUnitId),
+                isNull(contracts.deletedAt),
+            ),
+        )
+        .limit(1);
+
+    if (!contract) {
+        throw new AppError('NOT_FOUND', 'Contract was not found in the active business scope.');
+    }
+}
+
 // ─── List ─────────────────────────────────────────────────────────────────────
 
 export interface ContractListFilters {
@@ -32,8 +58,7 @@ export async function listContracts(
     businessScope: BusinessScopeType,
     filters: ContractListFilters = {},
 ): Promise<{ data: ContractListItem[]; total: number }> {
-    const businessUnit = await findBusinessUnitByScope(businessScope);
-    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+    const businessUnit = await getBusinessUnitOrThrow(businessScope);
 
     const rows = await db
         .select({
@@ -94,7 +119,11 @@ export async function listContracts(
 
 // ─── Detail ───────────────────────────────────────────────────────────────────
 
-export async function getContractById(contractId: string): Promise<ContractDetail | null> {
+export async function getContractById(
+    contractId: string,
+    businessScope: BusinessScopeType,
+): Promise<ContractDetail | null> {
+    const businessUnit = await getBusinessUnitOrThrow(businessScope);
     const fsUsers = alias(users, 'fs_users');
     const isUsers = alias(users, 'is_users');
 
@@ -140,7 +169,13 @@ export async function getContractById(contractId: string): Promise<ContractDetai
         .leftJoin(contacts, eq(contracts.primaryContactId, contacts.id))
         .leftJoin(fsUsers, eq(contracts.fsInChargeUserId, fsUsers.id))
         .leftJoin(isUsers, eq(contracts.isInChargeUserId, isUsers.id))
-        .where(and(eq(contracts.id, contractId), isNull(contracts.deletedAt)))
+        .where(
+            and(
+                eq(contracts.id, contractId),
+                eq(contracts.businessUnitId, businessUnit.id),
+                isNull(contracts.deletedAt),
+            ),
+        )
         .limit(1);
 
     if (rows.length === 0) return null;
@@ -262,6 +297,7 @@ export async function createContract(input: CreateContractInput): Promise<{ id: 
 // ─── Update ───────────────────────────────────────────────────────────────────
 
 export interface UpdateContractInput {
+    businessScope: BusinessScopeType;
     contractId: string;
     title?: string;
     contractNumber?: string | null;
@@ -286,8 +322,8 @@ export interface UpdateContractInput {
 }
 
 export async function updateContract(input: UpdateContractInput): Promise<void> {
-    const existing = await getContractById(input.contractId);
-    if (!existing) throw new AppError('NOT_FOUND');
+    const businessUnit = await getBusinessUnitOrThrow(input.businessScope);
+    await verifyContractScope(input.contractId, businessUnit.id);
 
     const updatedAt = new Date();
 
@@ -316,14 +352,19 @@ export async function updateContract(input: UpdateContractInput): Promise<void> 
             updatedAt,
             updatedByUserId: input.actorUserId,
         })
-        .where(eq(contracts.id, input.contractId));
+        .where(
+            and(
+                eq(contracts.id, input.contractId),
+                eq(contracts.businessUnitId, businessUnit.id),
+                isNull(contracts.deletedAt),
+            ),
+        );
 }
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
 export async function getContractDashboardSummary(businessScope: BusinessScopeType): Promise<ContractDashboardSummary> {
-    const businessUnit = await findBusinessUnitByScope(businessScope);
-    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+    const businessUnit = await getBusinessUnitOrThrow(businessScope);
 
     const allContracts = await db
         .select({
@@ -424,4 +465,84 @@ export async function getContractDashboardSummary(businessScope: BusinessScopeTy
         activeServiceGroup: { count: activeServiceCount, totalAmount: activeServiceAmount },
         recentContracts,
     };
+}
+
+// ─── Contract Activities ──────────────────────────────────────────────────────
+
+export async function listContractActivities(
+    contractId: UUID,
+    businessScope: BusinessScopeType,
+): Promise<ContractActivityItem[]> {
+    const businessUnit = await getBusinessUnitOrThrow(businessScope);
+    await verifyContractScope(contractId, businessUnit.id);
+
+    const rows = await db
+        .select({
+            id: contractActivities.id,
+            contractId: contractActivities.contractId,
+            userId: contractActivities.userId,
+            userName: users.displayName,
+            activityType: contractActivities.activityType,
+            activityDate: contractActivities.activityDate,
+            summary: contractActivities.summary,
+            createdAt: contractActivities.createdAt,
+        })
+        .from(contractActivities)
+        .innerJoin(users, eq(contractActivities.userId, users.id))
+        .where(
+            and(
+                eq(contractActivities.contractId, contractId),
+                eq(contractActivities.businessUnitId, businessUnit.id),
+            ),
+        )
+        .orderBy(desc(contractActivities.createdAt));
+
+    return rows.map((r) => ({
+        id: r.id,
+        contractId: r.contractId,
+        userId: r.userId,
+        userName: r.userName ?? 'Unknown',
+        activityType: r.activityType as ContractActivityType,
+        activityDate: r.activityDate ?? '',
+        summary: r.summary,
+        createdAt: r.createdAt.toISOString(),
+    }));
+}
+
+export async function createContractActivity(input: {
+    contractId: string;
+    businessScope: BusinessScopeType;
+    userId: string;
+    activityType: ContractActivityType;
+    activityDate: string;
+    summary?: string;
+}): Promise<{ id: string }> {
+    const businessUnit = await getBusinessUnitOrThrow(input.businessScope);
+    await verifyContractScope(input.contractId, businessUnit.id);
+
+    const id = nextId();
+
+    await db.transaction(async (tx) => {
+        await tx.insert(contractActivities).values({
+            id,
+            contractId: input.contractId,
+            businessUnitId: businessUnit.id,
+            userId: input.userId,
+            activityType: input.activityType,
+            activityDate: input.activityDate,
+            summary: input.summary ?? null,
+        });
+
+        await tx.insert(auditLogs).values({
+            id: Date.now(),
+            tableName: 'contract_activities',
+            recordPk: id,
+            action: 'INSERT',
+            actorUserId: input.userId,
+            sourceType: 'web',
+            afterData: { contractId: input.contractId, activityType: input.activityType, activityDate: input.activityDate },
+        });
+    });
+
+    return { id };
 }

@@ -185,10 +185,50 @@ export const dealActivities = pgTable('deal_activities', {
     activityDate: date('activity_date').notNull(),
     summary: text('summary'),
     meetingCount: integer('meeting_count').notNull().default(1),
+    visitCategory: text('visit_category'), // NEW | REPEAT
+    targetType: text('target_type'), // INDIVIDUAL | CORPORATE
+    isNegotiation: boolean('is_negotiation').notNull().default(false),
+    negotiationOutcome: text('negotiation_outcome'), // POSITIVE | NEUTRAL | NEGATIVE | PENDING
+    competitorInfo: text('competitor_info'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
     dealIdx: index('deal_activities_deal_idx').on(table.dealId),
     businessUnitIdx: index('deal_activities_business_unit_idx').on(table.businessUnitId),
+}));
+
+// ─── アライアンス管理 ────────────────────────────────────────────────────────
+export const alliances = pgTable('alliances', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    businessUnitId: uuid('business_unit_id').notNull().references(() => businessUnits.id),
+    name: text('name').notNull(),
+    allianceType: text('alliance_type').notNull().default('COMPANY'),
+    contactPersonName: text('contact_person_name'),
+    contactPersonRole: text('contact_person_role'),
+    contactPersonEmail: text('contact_person_email'),
+    contactPersonPhone: text('contact_person_phone'),
+    agreementSummary: text('agreement_summary'),
+    relationshipStatus: text('relationship_status').notNull().default('PROSPECT'),
+    notes: text('notes'),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => ({
+    businessUnitIdx: index('alliances_business_unit_idx').on(table.businessUnitId),
+    statusIdx: index('alliances_status_idx').on(table.relationshipStatus),
+}));
+
+export const allianceDealLinks = pgTable('alliance_deal_links', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    allianceId: uuid('alliance_id').notNull().references(() => alliances.id),
+    dealId: uuid('deal_id').notNull().references(() => deals.id),
+    referralType: text('referral_type').notNull().default('INTRODUCER'),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+    uniqueAllianceDeal: unique('alliance_deal_links_alliance_id_deal_id_unique').on(table.allianceId, table.dealId),
+    allianceIdx: index('alliance_deal_links_alliance_idx').on(table.allianceId),
+    dealIdx: index('alliance_deal_links_deal_idx').on(table.dealId),
 }));
 
 // ─── 個人 KPI 目標 ───────────────────────────────────────────────────────────

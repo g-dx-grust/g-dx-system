@@ -10,6 +10,7 @@ import {
 } from '@/modules/master/infrastructure/form-master-repository';
 import { listCompanies } from '@/modules/customer-management/company/application/list-companies';
 import { getPipeline } from '@/modules/sales/deal/application/get-pipeline';
+import { listAllianceOptions } from '@/modules/sales/alliance/infrastructure/alliance-repository';
 import { DealCreateForm } from '@/modules/sales/deal/ui/deal-create-form';
 import { isAppError } from '@/shared/server/errors';
 import { assertPermission } from '@/shared/server/authorization';
@@ -51,6 +52,7 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
     let jetDealStatuses;
     let jetCreditStatuses;
     let jetStatus2Options;
+    let allianceOptionsRaw: { id: string; name: string }[] = [];
 
     try {
         [
@@ -60,6 +62,7 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
             jetDealStatuses,
             jetCreditStatuses,
             jetStatus2Options,
+            allianceOptionsRaw,
         ] = await Promise.all([
             getPipeline(),
             listCompanies({ pageSize: 100 }),
@@ -67,6 +70,7 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
             isWaterSavingScope ? listJetDealStatusOptions() : Promise.resolve([]),
             isWaterSavingScope ? listJetCreditStatusOptions() : Promise.resolve([]),
             isWaterSavingScope ? listJetStatus2Options() : Promise.resolve([]),
+            listAllianceOptions(session.activeBusinessScope),
         ]);
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
@@ -93,6 +97,7 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
                 jetDealStatuses={jetDealStatuses}
                 jetCreditStatuses={jetCreditStatuses}
                 jetStatus2Options={jetStatus2Options}
+                allianceOptions={allianceOptionsRaw.map((a) => ({ value: a.id, label: a.name }))}
                 errorMessage={getErrorMessage(searchParams?.error)}
             />
         </div>

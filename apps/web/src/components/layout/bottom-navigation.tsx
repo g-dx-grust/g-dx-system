@@ -19,6 +19,7 @@ import {
     Target,
     TrendingUp,
     User,
+    Users,
     X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,7 @@ const primaryTabs = [
 
 const moreItems = [
     { name: '契約', href: '/sales/contracts', icon: ScrollText },
+    { name: 'アライアンス', href: '/sales/alliances', icon: Users },
     { name: '承認', href: '/sales/approvals', icon: ShieldCheck },
     { name: '会社コール', href: '/calls/company-list', icon: Building2 },
     { name: '履歴', href: '/calls/history', icon: History },

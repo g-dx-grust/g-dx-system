@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import type { ContractDetail, ContractStatus } from '@g-dx/contracts';
+import type { ContractActivityItem, ContractDetail, ContractStatus } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { SubmitButton } from '@/components/ui/submit-button';
 import { updateContractAction } from '@/modules/sales/contract/server-actions';
+import { ContractActivityLog } from '@/modules/sales/contract/ui/contract-activity-log';
 
 interface UserOption {
     id: string;
@@ -16,6 +17,8 @@ interface ContractDetailViewProps {
     users?: UserOption[];
     created?: boolean;
     updated?: boolean;
+    activities?: ContractActivityItem[];
+    activityAdded?: boolean;
 }
 
 const STATUS_LABELS: Record<ContractStatus, string> = {
@@ -74,7 +77,7 @@ function formatAmount(amount: number): string {
     return `¥${amount.toLocaleString()}`;
 }
 
-export function ContractDetailView({ contract, users = [], created = false, updated = false }: ContractDetailViewProps) {
+export function ContractDetailView({ contract, users = [], created = false, updated = false, activities = [], activityAdded = false }: ContractDetailViewProps) {
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -338,6 +341,8 @@ export function ContractDetailView({ contract, users = [], created = false, upda
                     </form>
                 </CardContent>
             </Card>
+
+            <ContractActivityLog contractId={contract.id} activities={activities} activityAdded={activityAdded} />
         </div>
     );
 }

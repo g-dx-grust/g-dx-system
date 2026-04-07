@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type {
     BusinessScopeType,
+    DashboardAlert,
     DealDashboardSummary,
     DealStageKey,
     SalesRollingKpiGrid,
@@ -10,6 +11,7 @@ import { StageBarChart } from '@/components/charts/stage-bar-chart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
 import { BusinessGoalOverviewCard } from './business-goal-section';
+import { DashboardAlerts } from './dashboard-alerts';
 import {
     DashboardMetricCard,
     DashboardNarrativeCard,
@@ -21,6 +23,7 @@ interface DealDashboardProps {
     summary: DealDashboardSummary;
     rollingKpiData: SalesRollingKpiGrid;
     teamTargetSummary: TeamKpiTargetSummary;
+    alerts: DashboardAlert[];
     businessScope: BusinessScopeType;
     canViewBusinessGoals: boolean;
 }
@@ -74,7 +77,7 @@ function buildNarrativeLines(
             ? `${topStage.stageName}が${topStage.count}件で最多です。進行中案件は${summary.activeGroup.count}件です。`
             : '進行中の案件はまだありません。次の打ち手を確認しながら立ち上がりを整えていきます。',
         thisMonthMetrics
-            ? `今月は新規面会${thisMonthMetrics.visitCount.bySegment.new}件、新規商談${thisMonthMetrics.negotiationCount.bySegment.new}件、契約${thisMonthMetrics.contractCount.total}件で推移しています。`
+            ? `今月は新規面会${thisMonthMetrics.newVisitCount.total}件、新規商談${thisMonthMetrics.negotiationCount.bySegment.new}件、契約${thisMonthMetrics.contractCount.total}件で推移しています。`
             : '今月の活動実績はまだ集計途中です。活動入力が進むとここに流れが反映されます。',
         nextActionTotal > 0
             ? `今日から今週にかけて${nextActionTotal}件のネクストアクションがあります。日付の近いものから順に確認すると動きやすくなります。`
@@ -89,6 +92,7 @@ export function DealDashboard({
     summary,
     rollingKpiData,
     teamTargetSummary,
+    alerts,
     businessScope,
     canViewBusinessGoals,
 }: DealDashboardProps) {
@@ -133,6 +137,8 @@ export function DealDashboard({
                     currentMonth={currentMonth}
                 />
             ) : null}
+
+            <DashboardAlerts alerts={alerts} />
 
             <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
                 <TeamTargetOverview

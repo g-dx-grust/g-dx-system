@@ -6,8 +6,12 @@ import { getDealActivities } from '@/modules/sales/deal/application/list-deal-ac
 import { listApprovals } from '@/modules/approvals/application/list-approvals';
 import { getApprovalRoutes } from '@/modules/approvals/application/list-approval-routes';
 import { getHearing, getHearingCompletion } from '@/modules/sales/hearing/application/get-hearing';
+import { listAlliancesForDeal, listAllianceOptions } from '@/modules/sales/alliance/infrastructure/alliance-repository';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession, getGrantedPermissionKeys } from '@/shared/server/session';
+import { db } from '@g-dx/database';
+import { users, userBusinessMemberships, businessUnits } from '@g-dx/database/schema';
+import { and, eq, isNull } from 'drizzle-orm';
 
 interface DealDetailPageProps {
     params: { dealId: string };
@@ -16,9 +20,12 @@ interface DealDetailPageProps {
         created?: string;
         staged?: string;
         activityAdded?: string;
+        noNextAction?: string;
         larkSaved?: string;
         approvalCreated?: string;
         hearingSaved?: string;
+        allianceLinked?: string;
+        allianceUnlinked?: string;
     };
 }
 
@@ -44,6 +51,30 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
     const canCreateApproval = permissions.has('approval.request.create');
     const canEditHearing = permissions.has('sales.hearing.update');
     const canReadHearing = permissions.has('sales.hearing.read');
+
+    // ビジネスユニットのユーザー一覧を取得
+    const businessUnit = await db
+        .select({ id: businessUnits.id })
+        .from(businessUnits)
+        .where(eq(businessUnits.code, session.activeBusinessScope))
+        .limit(1)
+        .then((rows) => rows[0]);
+
+    const userOptions = businessUnit
+        ? await db
+              .select({ id: users.id, name: users.displayName })
+              .from(users)
+              .innerJoin(userBusinessMemberships, eq(userBusinessMemberships.userId, users.id))
+              .where(
+                  and(
+                      eq(userBusinessMemberships.businessUnitId, businessUnit.id),
+                      eq(userBusinessMemberships.membershipStatus, 'active'),
+                      eq(users.status, 'active'),
+                      isNull(users.deletedAt),
+                  )
+              )
+              .then((rows) => rows.map((r) => ({ id: r.id, name: r.name ?? '名前未設定' })))
+        : [];
 
     let deal;
     let pipeline;
@@ -75,6 +106,14 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
         throw error;
     }
 
+    const [linkedAlliances, allianceOptions] = await Promise.all([
+        listAlliancesForDeal(params.dealId, session.activeBusinessScope),
+        listAllianceOptions(session.activeBusinessScope),
+    ]);
+
+    const linkedAllianceIds = new Set(linkedAlliances.map((a) => a.allianceId));
+    const availableAlliances = allianceOptions.filter((a) => !linkedAllianceIds.has(a.id));
+
     return (
         <DealDetailView
             deal={deal}
@@ -84,9 +123,12 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
             updated={searchParams?.updated === '1' || searchParams?.created === '1'}
             staged={searchParams?.staged === '1'}
             activityAdded={searchParams?.activityAdded === '1'}
+            noNextAction={searchParams?.noNextAction === '1'}
             larkSaved={searchParams?.larkSaved === '1'}
             approvalCreated={searchParams?.approvalCreated === '1'}
             hearingSaved={searchParams?.hearingSaved === '1'}
+            allianceLinked={searchParams?.allianceLinked === '1'}
+            allianceUnlinked={searchParams?.allianceUnlinked === '1'}
             hearingRecord={hearingRecord}
             hearingCompletion={hearingCompletion}
             approvalRequests={approvalRequests}
@@ -94,6 +136,9 @@ export default async function DealDetailPage({ params, searchParams }: DealDetai
             canEditHearing={canEditHearing}
             canCreateApproval={canCreateApproval}
             canReadApprovals={canReadApprovals}
+            users={userOptions}
+            linkedAlliances={linkedAlliances}
+            availableAlliances={availableAlliances}
         />
     );
 }

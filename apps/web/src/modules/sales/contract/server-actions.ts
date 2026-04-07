@@ -3,10 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createContract } from '@/modules/sales/contract/application/create-contract';
+import { createContractActivity } from '@/modules/sales/contract/application/create-contract-activity';
 import { updateContract } from '@/modules/sales/contract/application/update-contract';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
-import type { ContractStatus } from '@g-dx/contracts';
+import type { ContractActivityType, ContractStatus } from '@g-dx/contracts';
 
 function readString(formData: FormData, key: string): string | undefined {
     const value = formData.get(key);
@@ -125,4 +126,30 @@ export async function updateContractAction(formData: FormData) {
     revalidatePath('/sales/contracts');
     revalidatePath(`/sales/contracts/${contractId}`);
     redirect(`/sales/contracts/${contractId}?updated=1`);
+}
+
+export async function createContractActivityAction(formData: FormData) {
+    const contractId = readString(formData, 'contractId');
+    const activityType = readString(formData, 'activityType') as ContractActivityType | undefined;
+    const activityDate = readString(formData, 'activityDate');
+
+    if (!contractId || !activityType || !activityDate) {
+        redirect(`/sales/contracts`);
+    }
+
+    try {
+        await createContractActivity({
+            contractId,
+            activityType,
+            activityDate,
+            summary: readString(formData, 'summary'),
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+
+    revalidatePath(`/sales/contracts/${contractId}`);
+    redirect(`/sales/contracts/${contractId}?activityAdded=1`);
 }

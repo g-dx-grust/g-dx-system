@@ -1,0 +1,149 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { createAlliance } from '@/modules/sales/alliance/application/create-alliance';
+import { updateAlliance } from '@/modules/sales/alliance/application/update-alliance';
+import { linkDealToAlliance, unlinkDealFromAlliance } from '@/modules/sales/alliance/application/link-deal';
+import { isAppError } from '@/shared/server/errors';
+import type { AllianceReferralType, AllianceStatus, AllianceType } from '@g-dx/contracts';
+
+function readString(formData: FormData, key: string): string | undefined {
+    const value = formData.get(key);
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+}
+
+export async function createAllianceAction(formData: FormData) {
+    const name = readString(formData, 'name');
+    if (!name) redirect('/sales/alliances/new?error=validation');
+
+    try {
+        const result = await createAlliance({
+            name,
+            allianceType: (readString(formData, 'allianceType') as AllianceType | undefined) ?? 'COMPANY',
+            contactPersonName: readString(formData, 'contactPersonName'),
+            contactPersonRole: readString(formData, 'contactPersonRole'),
+            contactPersonEmail: readString(formData, 'contactPersonEmail'),
+            contactPersonPhone: readString(formData, 'contactPersonPhone'),
+            agreementSummary: readString(formData, 'agreementSummary'),
+            relationshipStatus: (readString(formData, 'relationshipStatus') as AllianceStatus | undefined) ?? 'PROSPECT',
+            notes: readString(formData, 'notes'),
+        });
+        revalidatePath('/sales/alliances');
+        redirect(`/sales/alliances/${result.id}?created=1`);
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+}
+
+export async function updateAllianceAction(formData: FormData) {
+    const allianceId = readString(formData, 'allianceId');
+    if (!allianceId) redirect('/sales/alliances');
+
+    try {
+        await updateAlliance(allianceId, {
+            name: readString(formData, 'name'),
+            allianceType: readString(formData, 'allianceType') as AllianceType | undefined,
+            contactPersonName: readString(formData, 'contactPersonName') ?? null,
+            contactPersonRole: readString(formData, 'contactPersonRole') ?? null,
+            contactPersonEmail: readString(formData, 'contactPersonEmail') ?? null,
+            contactPersonPhone: readString(formData, 'contactPersonPhone') ?? null,
+            agreementSummary: readString(formData, 'agreementSummary') ?? null,
+            relationshipStatus: readString(formData, 'relationshipStatus') as AllianceStatus | undefined,
+            notes: readString(formData, 'notes') ?? null,
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (isAppError(error, 'NOT_FOUND')) redirect('/sales/alliances');
+        throw error;
+    }
+
+    revalidatePath('/sales/alliances');
+    revalidatePath(`/sales/alliances/${allianceId}`);
+    redirect(`/sales/alliances/${allianceId}?updated=1`);
+}
+
+export async function linkAllianceToDealAction(formData: FormData) {
+    const allianceId = readString(formData, 'allianceId');
+    const dealId = readString(formData, 'dealId');
+    const referralType = readString(formData, 'referralType') as AllianceReferralType | undefined;
+
+    if (!allianceId || !dealId || !referralType) {
+        redirect(`/sales/alliances`);
+    }
+
+    try {
+        await linkDealToAlliance({ allianceId, dealId, referralType, note: readString(formData, 'note') });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+
+    revalidatePath(`/sales/alliances/${allianceId}`);
+    revalidatePath(`/sales/deals/${dealId}`);
+    redirect(`/sales/alliances/${allianceId}?linked=1`);
+}
+
+export async function unlinkAllianceFromDealAction(formData: FormData) {
+    const allianceId = readString(formData, 'allianceId');
+    const dealId = readString(formData, 'dealId');
+
+    if (!allianceId || !dealId) redirect('/sales/alliances');
+
+    try {
+        await unlinkDealFromAlliance(allianceId, dealId);
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+
+    revalidatePath(`/sales/alliances/${allianceId}`);
+    revalidatePath(`/sales/deals/${dealId}`);
+    redirect(`/sales/alliances/${allianceId}?unlinked=1`);
+}
+
+export async function unlinkAllianceFromDealFromDealPageAction(formData: FormData) {
+    const allianceId = readString(formData, 'allianceId');
+    const dealId = readString(formData, 'dealId');
+
+    if (!allianceId || !dealId) redirect('/sales/deals');
+
+    try {
+        await unlinkDealFromAlliance(allianceId, dealId);
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+
+    revalidatePath(`/sales/alliances/${allianceId}`);
+    revalidatePath(`/sales/deals/${dealId}`);
+    redirect(`/sales/deals/${dealId}?allianceUnlinked=1`);
+}
+
+export async function linkAllianceToDealFromDealPageAction(formData: FormData) {
+    const allianceId = readString(formData, 'allianceId');
+    const dealId = readString(formData, 'dealId');
+    const referralType = readString(formData, 'referralType') as AllianceReferralType | undefined;
+
+    if (!allianceId || !dealId || !referralType) redirect('/sales/deals');
+
+    try {
+        await linkDealToAlliance({ allianceId, dealId, referralType, note: readString(formData, 'note') });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+
+    revalidatePath(`/sales/alliances/${allianceId}`);
+    revalidatePath(`/sales/deals/${dealId}`);
+    redirect(`/sales/deals/${dealId}?allianceLinked=1`);
+}

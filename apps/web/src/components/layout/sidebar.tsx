@@ -19,6 +19,7 @@ import {
     Target,
     TrendingUp,
     User,
+    Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -44,6 +45,7 @@ const commonNavigation = [
         items: [
             { name: '商談', href: '/sales/deals', icon: Briefcase },
             { name: '契約', href: '/sales/contracts', icon: ScrollText },
+            { name: 'アライアンス', href: '/sales/alliances', icon: Users },
             { name: '承認', href: '/sales/approvals', icon: ShieldCheck },
         ],
     },

@@ -14,7 +14,7 @@ import {
 } from '@g-dx/database/schema';
 import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from 'drizzle-orm';
 import { unstable_cache } from 'next/cache';
-import type { BusinessScopeType, DealCompanyStat, DealDashboardSummary, DealDetail, DealListItem, DealNextActionItem, DealOwnerStat, DealStageSummary, DealStageKey, DealStatus } from '@g-dx/contracts';
+import type { BusinessScopeType, DashboardAlert, DealCompanyStat, DealDashboardSummary, DealDetail, DealListItem, DealNextActionItem, DealOwnerStat, DealStageSummary, DealStageKey, DealStatus } from '@g-dx/contracts';
 import { sendGroupMessage, buildStageChangeMessage } from '@/lib/lark/larkMessaging';
 import { createCalendarEvent, buildNextActionCalendarParams } from '@/lib/lark/larkCalendar';
 import type {
@@ -45,6 +45,11 @@ export async function listDeals(filters: DealListFilters): Promise<DealListResul
     const businessUnit = await findBusinessUnitByScope(filters.businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
 
+    const today = new Date().toISOString().slice(0, 10);
+    const endOfWeekDate = new Date();
+    endOfWeekDate.setDate(endOfWeekDate.getDate() + (7 - endOfWeekDate.getDay()));
+    const endOfWeek = endOfWeekDate.toISOString().slice(0, 10);
+
     const whereClause = and(
         eq(deals.businessUnitId, businessUnit.id),
         isNull(deals.deletedAt),
@@ -52,6 +57,18 @@ export async function listDeals(filters: DealListFilters): Promise<DealListResul
         filters.stage ? eq(pipelineStages.stageKey, filters.stage) : undefined,
         filters.ownerUserId ? eq(deals.ownerUserId, filters.ownerUserId) : undefined,
         filters.companyId ? eq(deals.companyId, filters.companyId) : undefined,
+        filters.amountMin !== undefined ? sql`${deals.amount}::numeric >= ${filters.amountMin}` : undefined,
+        filters.amountMax !== undefined ? sql`${deals.amount}::numeric <= ${filters.amountMax}` : undefined,
+        filters.dealStatus ? eq(deals.dealStatus, filters.dealStatus) : undefined,
+        filters.nextActionStatus === 'NOT_SET' ? isNull(deals.nextActionDate) : undefined,
+        filters.nextActionStatus === 'OVERDUE' ? and(isNotNull(deals.nextActionDate), sql`${deals.nextActionDate} <= ${today}`) : undefined,
+        filters.nextActionStatus === 'THIS_WEEK'
+            ? and(
+                  isNotNull(deals.nextActionDate),
+                  sql`${deals.nextActionDate} >= ${today}`,
+                  sql`${deals.nextActionDate} <= ${endOfWeek}`,
+              )
+            : undefined,
     );
 
     const [rows, [{ total }]] = await Promise.all([
@@ -169,6 +186,22 @@ export async function getDealDetail(dealId: string, businessScope: BusinessScope
         larkCalendarId: row.larkCalendarId ?? null,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
+    };
+}
+
+export async function getDealNextActionSnapshot(dealId: string): Promise<{
+    nextActionDate: string | null;
+}> {
+    const [row] = await db
+        .select({
+            nextActionDate: deals.nextActionDate,
+        })
+        .from(deals)
+        .where(and(eq(deals.id, dealId), isNull(deals.deletedAt)))
+        .limit(1);
+
+    return {
+        nextActionDate: row?.nextActionDate ?? null,
     };
 }
 
@@ -638,6 +671,232 @@ const CONTRACTED_STAGES: readonly DealStageKey[] = ['CONTRACTED'];
 
 function buildTextListSql(values: readonly string[]) {
     return sql.join(values.map((value) => sql`${value}`), sql`, `);
+}
+
+const TOKYO_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+});
+
+const DASHBOARD_ALERT_TYPE_ORDER: Record<DashboardAlert['type'], number> = {
+    NO_NEXT_ACTION: 0,
+    OVERDUE_ACTION: 1,
+    NO_OWNER: 2,
+    STALE_DEAL: 3,
+    SLA_EXCEEDED: 4,
+};
+
+const DASHBOARD_ALERT_SEVERITY_ORDER: Record<DashboardAlert['severity'], number> = {
+    HIGH: 0,
+    MEDIUM: 1,
+};
+
+function formatTokyoDate(date: Date): string {
+    const parts = TOKYO_DATE_FORMATTER.formatToParts(date);
+    const year = parts.find((part) => part.type === 'year')?.value ?? '0000';
+    const month = parts.find((part) => part.type === 'month')?.value ?? '01';
+    const day = parts.find((part) => part.type === 'day')?.value ?? '01';
+    return `${year}-${month}-${day}`;
+}
+
+function parseDateOnlyUtc(value: string): Date {
+    return new Date(`${value}T00:00:00.000Z`);
+}
+
+function diffDateOnlyDays(laterDate: string, earlierDate: string): number {
+    return Math.floor(
+        (parseDateOnlyUtc(laterDate).getTime() - parseDateOnlyUtc(earlierDate).getTime()) /
+            (24 * 60 * 60 * 1000),
+    );
+}
+
+function createDashboardAlert(
+    deal: {
+        id: string;
+        title: string;
+        companyName: string;
+        ownerName: string | null;
+    },
+    type: DashboardAlert['type'],
+    severity: DashboardAlert['severity'],
+    detail: string,
+): DashboardAlert {
+    return {
+        type,
+        severity,
+        dealId: deal.id,
+        dealName: deal.title,
+        companyName: deal.companyName,
+        ownerName: deal.ownerName,
+        detail,
+    };
+}
+
+export async function getDashboardAlerts(
+    businessScope: BusinessScopeType,
+    options: {
+        ownerUserId?: string;
+        includeTeam?: boolean;
+    } = {},
+): Promise<DashboardAlert[]> {
+    const businessUnit = await findBusinessUnitByScope(businessScope);
+    if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+
+    if (!options.includeTeam && !options.ownerUserId) {
+        return [];
+    }
+
+    const dealRows = await db
+        .select({
+            id: deals.id,
+            title: deals.title,
+            ownerUserId: deals.ownerUserId,
+            ownerName: users.displayName,
+            companyName: companies.displayName,
+            nextActionDate: deals.nextActionDate,
+            currentStageId: deals.currentStageId,
+            slaDays: pipelineStages.slaDays,
+            createdAt: deals.createdAt,
+        })
+        .from(deals)
+        .innerJoin(companies, eq(deals.companyId, companies.id))
+        .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+        .leftJoin(users, eq(deals.ownerUserId, users.id))
+        .where(and(
+            eq(deals.businessUnitId, businessUnit.id),
+            isNull(deals.deletedAt),
+            eq(deals.dealStatus, 'open'),
+            options.includeTeam ? undefined : eq(deals.ownerUserId, options.ownerUserId!),
+        ));
+
+    if (dealRows.length === 0) {
+        return [];
+    }
+
+    const dealIds = dealRows.map((deal) => deal.id);
+    const currentStageByDealId = new Map(
+        dealRows.map((deal) => [deal.id, deal.currentStageId]),
+    );
+
+    const [activityRows, stageHistoryRows] = await Promise.all([
+        db
+            .select({
+                dealId: dealActivities.dealId,
+                activityDate: dealActivities.activityDate,
+                createdAt: dealActivities.createdAt,
+            })
+            .from(dealActivities)
+            .where(and(
+                eq(dealActivities.businessUnitId, businessUnit.id),
+                inArray(dealActivities.dealId, dealIds),
+            ))
+            .orderBy(desc(dealActivities.activityDate), desc(dealActivities.createdAt)),
+        db
+            .select({
+                dealId: dealStageHistory.dealId,
+                toStageId: dealStageHistory.toStageId,
+                changedAt: dealStageHistory.changedAt,
+            })
+            .from(dealStageHistory)
+            .where(inArray(dealStageHistory.dealId, dealIds))
+            .orderBy(desc(dealStageHistory.changedAt)),
+    ]);
+
+    const lastActivityDateByDealId = new Map<string, string>();
+    for (const row of activityRows) {
+        if (!lastActivityDateByDealId.has(row.dealId)) {
+            lastActivityDateByDealId.set(row.dealId, row.activityDate);
+        }
+    }
+
+    const stageEnteredDateByDealId = new Map<string, string>();
+    for (const row of stageHistoryRows) {
+        if (stageEnteredDateByDealId.has(row.dealId)) {
+            continue;
+        }
+        if (currentStageByDealId.get(row.dealId) !== row.toStageId) {
+            continue;
+        }
+        stageEnteredDateByDealId.set(row.dealId, formatTokyoDate(row.changedAt));
+    }
+
+    const todayStr = formatTokyoDate(new Date());
+    const alerts: DashboardAlert[] = [];
+
+    for (const deal of dealRows) {
+        const baseDeal = {
+            id: deal.id,
+            title: deal.title,
+            companyName: deal.companyName,
+            ownerName: deal.ownerName ?? null,
+        };
+
+        if (!deal.ownerUserId || !deal.ownerName) {
+            alerts.push(createDashboardAlert(baseDeal, 'NO_OWNER', 'MEDIUM', '担当者未設定'));
+        }
+
+        if (!deal.nextActionDate) {
+            alerts.push(createDashboardAlert(baseDeal, 'NO_NEXT_ACTION', 'HIGH', '次回アクション未設定'));
+        } else if (deal.nextActionDate < todayStr) {
+            const overdueDays = diffDateOnlyDays(todayStr, deal.nextActionDate);
+            alerts.push(
+                createDashboardAlert(
+                    baseDeal,
+                    'OVERDUE_ACTION',
+                    'HIGH',
+                    `期限超過: ${overdueDays}日`,
+                ),
+            );
+        }
+
+        const createdDate = formatTokyoDate(deal.createdAt);
+        const lastActivityDate = lastActivityDateByDealId.get(deal.id) ?? null;
+        const latestTouchDate = lastActivityDate ?? createdDate;
+        const staleDays = diffDateOnlyDays(todayStr, latestTouchDate);
+        if (staleDays >= 14) {
+            alerts.push(
+                createDashboardAlert(
+                    baseDeal,
+                    'STALE_DEAL',
+                    'MEDIUM',
+                    lastActivityDate
+                        ? `最新活動: ${staleDays}日前`
+                        : `活動記録なし: ${staleDays}日前に作成`,
+                ),
+            );
+        }
+
+        if (deal.slaDays !== null) {
+            const stageEnteredDate = stageEnteredDateByDealId.get(deal.id) ?? createdDate;
+            const stageAgeDays = diffDateOnlyDays(todayStr, stageEnteredDate);
+            if (stageAgeDays > deal.slaDays) {
+                alerts.push(
+                    createDashboardAlert(
+                        baseDeal,
+                        'SLA_EXCEEDED',
+                        'MEDIUM',
+                        `SLA超過: ${stageAgeDays - deal.slaDays}日`,
+                    ),
+                );
+            }
+        }
+    }
+
+    return alerts.sort((left, right) => {
+        const severityDiff =
+            DASHBOARD_ALERT_SEVERITY_ORDER[left.severity] -
+            DASHBOARD_ALERT_SEVERITY_ORDER[right.severity];
+        if (severityDiff !== 0) return severityDiff;
+
+        const typeDiff =
+            DASHBOARD_ALERT_TYPE_ORDER[left.type] -
+            DASHBOARD_ALERT_TYPE_ORDER[right.type];
+        if (typeDiff !== 0) return typeDiff;
+
+        return left.companyName.localeCompare(right.companyName, 'ja');
+    });
 }
 
 async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<DealDashboardSummary> {

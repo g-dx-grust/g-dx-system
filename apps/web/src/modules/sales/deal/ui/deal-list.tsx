@@ -4,11 +4,22 @@ import type { DealListItem, DealStageKey } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
+interface UserOption {
+    id: string;
+    name: string;
+}
+
 interface DealListProps {
     deals: DealListItem[];
     total: number;
     keyword?: string;
     stage?: string;
+    ownerUserId?: string;
+    amountMin?: string;
+    amountMax?: string;
+    nextActionStatus?: string;
+    dealStatus?: string;
+    users?: UserOption[];
     created?: boolean;
 }
 
@@ -32,7 +43,24 @@ const STAGE_COLORS: Record<DealStageKey, string> = {
     CONTRACTED: 'bg-gray-900 text-white',
 };
 
-export function DealList({ deals, total, keyword, stage, created = false }: DealListProps) {
+const DEAL_STATUS_LABELS: Record<string, string> = {
+    open: '進行中',
+    won: '成約',
+    lost: '失注',
+    archived: 'アーカイブ',
+};
+
+const NEXT_ACTION_STATUS_LABELS: Record<string, string> = {
+    NOT_SET: '未設定',
+    OVERDUE: '期限超過',
+    THIS_WEEK: '今週中',
+    ALL: 'すべて',
+};
+
+export function DealList({ deals, total, keyword, stage, ownerUserId, amountMin, amountMax, nextActionStatus, dealStatus, users = [], created = false }: DealListProps) {
+    const hasAdvancedFilter = !!(amountMin || amountMax || nextActionStatus || dealStatus);
+    const hasAnyFilter = !!(keyword || stage || ownerUserId || hasAdvancedFilter);
+
     return (
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
@@ -49,34 +77,99 @@ export function DealList({ deals, total, keyword, stage, created = false }: Deal
 
             <Card className="shadow-sm">
                 <CardContent className="pt-6">
-                    <form action="/sales/deals" className="flex flex-col gap-3 md:flex-row">
-                        <input
-                            type="search"
-                            name="keyword"
-                            defaultValue={keyword ?? ''}
-                            placeholder="案件名で検索"
-                            className="h-10 flex-1 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        />
-                        <select
-                            name="stage"
-                            defaultValue={stage ?? ''}
-                            className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        >
-                            <option value="">すべてのステージ</option>
-                            {(Object.entries(STAGE_LABELS) as [DealStageKey, string][]).map(([key, label]) => (
-                                <option key={key} value={key}>{label}</option>
-                            ))}
-                        </select>
-                        <div className="flex gap-2">
-                            <Button type="submit" className="flex-1 bg-blue-600 px-6 text-white hover:bg-blue-700 md:flex-none">
-                                検索
-                            </Button>
-                            {(keyword || stage) ? (
-                                <Button asChild variant="outline" className="flex-1 px-5 md:flex-none">
-                                    <Link href="/sales/deals">クリア</Link>
-                                </Button>
+                    <form action="/sales/deals" className="flex flex-col gap-3">
+                        {/* 基本フィルタ行 */}
+                        <div className="flex flex-col gap-3 md:flex-row">
+                            <input
+                                type="search"
+                                name="keyword"
+                                defaultValue={keyword ?? ''}
+                                placeholder="案件名で検索"
+                                className="h-10 flex-1 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            />
+                            <select
+                                name="stage"
+                                defaultValue={stage ?? ''}
+                                className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                <option value="">すべてのステージ</option>
+                                {(Object.entries(STAGE_LABELS) as [DealStageKey, string][]).map(([key, label]) => (
+                                    <option key={key} value={key}>{label}</option>
+                                ))}
+                            </select>
+                            {users.length > 0 ? (
+                                <select
+                                    name="ownerUserId"
+                                    defaultValue={ownerUserId ?? ''}
+                                    className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                >
+                                    <option value="">すべての担当者</option>
+                                    {users.map((u) => (
+                                        <option key={u.id} value={u.id}>{u.name}</option>
+                                    ))}
+                                </select>
                             ) : null}
+                            <div className="flex gap-2">
+                                <Button type="submit" className="flex-1 bg-blue-600 px-6 text-white hover:bg-blue-700 md:flex-none">
+                                    検索
+                                </Button>
+                                {hasAnyFilter ? (
+                                    <Button asChild variant="outline" className="flex-1 px-5 md:flex-none">
+                                        <Link href="/sales/deals">クリア</Link>
+                                    </Button>
+                                ) : null}
+                            </div>
                         </div>
+
+                        {/* 詳細検索（折りたたみ） */}
+                        <details open={hasAdvancedFilter} className="group">
+                            <summary className="flex cursor-pointer select-none list-none items-center gap-1 text-sm text-gray-500 hover:text-gray-700 [&::-webkit-details-marker]:hidden">
+                                <span className="inline-block transition-transform duration-150 group-open:rotate-90">▶</span>
+                                詳細検索
+                            </summary>
+                            <div className="mt-3 flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-4 md:flex-row md:flex-wrap">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-gray-600 whitespace-nowrap">金額</span>
+                                    <input
+                                        type="number"
+                                        name="amountMin"
+                                        defaultValue={amountMin ?? ''}
+                                        placeholder="最小"
+                                        min="0"
+                                        className="h-10 w-28 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    />
+                                    <span className="text-sm text-gray-400">〜</span>
+                                    <input
+                                        type="number"
+                                        name="amountMax"
+                                        defaultValue={amountMax ?? ''}
+                                        placeholder="最大"
+                                        min="0"
+                                        className="h-10 w-28 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    />
+                                </div>
+                                <select
+                                    name="nextActionStatus"
+                                    defaultValue={nextActionStatus ?? ''}
+                                    className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                >
+                                    <option value="">次回アクション（すべて）</option>
+                                    {Object.entries(NEXT_ACTION_STATUS_LABELS).map(([key, label]) => (
+                                        <option key={key} value={key}>{label}</option>
+                                    ))}
+                                </select>
+                                <select
+                                    name="dealStatus"
+                                    defaultValue={dealStatus ?? ''}
+                                    className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                >
+                                    <option value="">ステータス（すべて）</option>
+                                    {Object.entries(DEAL_STATUS_LABELS).map(([key, label]) => (
+                                        <option key={key} value={key}>{label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </details>
                     </form>
                 </CardContent>
             </Card>
@@ -95,7 +188,7 @@ export function DealList({ deals, total, keyword, stage, created = false }: Deal
                 <CardContent className="p-0">
                     {deals.length === 0 ? (
                         <div className="px-6 py-12 text-sm text-gray-500">
-                            {keyword || stage
+                            {hasAnyFilter
                                 ? '条件に一致する案件はありません。'
                                 : 'このビジネスにはまだ案件がありません。'}
                         </div>

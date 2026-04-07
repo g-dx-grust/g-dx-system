@@ -1,12 +1,62 @@
 import { db } from '@g-dx/database';
 import { dealActivities, users } from '@g-dx/database/schema';
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
-import type { BusinessScopeType, DealActivityItem, DealActivityType } from '@g-dx/contracts';
+import type {
+    BusinessScopeType,
+    DealActivityItem,
+    DealActivityType,
+    MeetingTargetType,
+    NegotiationOutcome,
+    VisitCategory,
+} from '@g-dx/contracts';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
 import { AppError } from '@/shared/server/errors';
 import { sendGroupMessage, buildActivityMessage } from '@/lib/lark/larkMessaging';
 import { createCalendarEvent, buildNextActionCalendarParams } from '@/lib/lark/larkCalendar';
 import { getDealLarkContext } from './deal-repository';
+
+function isMeetingActivityType(activityType: DealActivityType): boolean {
+    return activityType === 'VISIT' || activityType === 'ONLINE';
+}
+
+function normalizeMeetingMetadata(input: {
+    activityType: DealActivityType;
+    visitCategory?: VisitCategory;
+    targetType?: MeetingTargetType;
+}): { visitCategory: VisitCategory | null; targetType: MeetingTargetType | null } {
+    if (!isMeetingActivityType(input.activityType)) {
+        return { visitCategory: null, targetType: null };
+    }
+
+    return {
+        visitCategory: input.visitCategory ?? 'REPEAT',
+        targetType: input.targetType ?? 'CORPORATE',
+    };
+}
+
+function normalizeNegotiationMetadata(input: {
+    isNegotiation?: boolean;
+    negotiationOutcome?: NegotiationOutcome;
+    competitorInfo?: string;
+}): {
+    isNegotiation: boolean;
+    negotiationOutcome: NegotiationOutcome | null;
+    competitorInfo: string | null;
+} {
+    if (!input.isNegotiation) {
+        return {
+            isNegotiation: false,
+            negotiationOutcome: null,
+            competitorInfo: null,
+        };
+    }
+
+    return {
+        isNegotiation: true,
+        negotiationOutcome: input.negotiationOutcome ?? 'PENDING',
+        competitorInfo: input.competitorInfo ?? null,
+    };
+}
 
 export async function listDealActivities(dealId: string): Promise<DealActivityItem[]> {
     const rows = await db
@@ -15,27 +65,47 @@ export async function listDealActivities(dealId: string): Promise<DealActivityIt
             userId: dealActivities.userId, userName: users.displayName,
             activityType: dealActivities.activityType, activityDate: dealActivities.activityDate,
             summary: dealActivities.summary, meetingCount: dealActivities.meetingCount,
+            visitCategory: dealActivities.visitCategory, targetType: dealActivities.targetType,
+            isNegotiation: dealActivities.isNegotiation,
+            negotiationOutcome: dealActivities.negotiationOutcome,
+            competitorInfo: dealActivities.competitorInfo,
             createdAt: dealActivities.createdAt,
         })
         .from(dealActivities)
         .innerJoin(users, eq(dealActivities.userId, users.id))
         .where(eq(dealActivities.dealId, dealId))
-        .orderBy(desc(dealActivities.activityDate));
+        .orderBy(desc(dealActivities.activityDate), desc(dealActivities.createdAt));
 
     return rows.map((r) => ({
         id: r.id, dealId: r.dealId, userId: r.userId, userName: r.userName ?? 'Unknown',
         activityType: r.activityType as DealActivityType, activityDate: r.activityDate ?? '',
         summary: r.summary, meetingCount: r.meetingCount ?? 1,
+        visitCategory: (r.visitCategory as VisitCategory | null) ?? null,
+        targetType: (r.targetType as MeetingTargetType | null) ?? null,
+        isNegotiation: r.isNegotiation ?? false,
+        negotiationOutcome: (r.negotiationOutcome as NegotiationOutcome | null) ?? null,
+        competitorInfo: r.competitorInfo ?? null,
         createdAt: r.createdAt.toISOString(),
     }));
 }
 
 export async function createDealActivity(input: {
     dealId: string; businessScope: BusinessScopeType;
-    userId: string; activityType: DealActivityType; activityDate: string; summary?: string; meetingCount?: number;
+    userId: string;
+    activityType: DealActivityType;
+    activityDate: string;
+    summary?: string;
+    meetingCount?: number;
+    visitCategory?: VisitCategory;
+    targetType?: MeetingTargetType;
+    isNegotiation?: boolean;
+    negotiationOutcome?: NegotiationOutcome;
+    competitorInfo?: string;
 }): Promise<void> {
     const businessUnit = await findBusinessUnitByScope(input.businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+    const meetingMetadata = normalizeMeetingMetadata(input);
+    const negotiationMetadata = normalizeNegotiationMetadata(input);
 
     // Get user name and deal context before insert
     const [actorRow] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, input.userId)).limit(1);
@@ -46,6 +116,11 @@ export async function createDealActivity(input: {
         userId: input.userId, activityType: input.activityType, activityDate: input.activityDate,
         summary: input.summary ?? null,
         meetingCount: Math.max(1, input.meetingCount ?? 1),
+        visitCategory: meetingMetadata.visitCategory,
+        targetType: meetingMetadata.targetType,
+        isNegotiation: negotiationMetadata.isNegotiation,
+        negotiationOutcome: negotiationMetadata.negotiationOutcome,
+        competitorInfo: negotiationMetadata.competitorInfo,
     });
 
     // Lark通知＋カレンダー: 活動ログ記録 (fire-and-forget)

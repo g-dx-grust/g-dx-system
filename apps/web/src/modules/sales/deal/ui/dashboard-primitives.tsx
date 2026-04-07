@@ -132,7 +132,7 @@ export function TeamTargetOverview({
             title: '新規面会数',
             description: '新規面会目標',
             target: summary.totals.newVisitTarget,
-            actual: thisMonthMetrics?.visitCount.bySegment.new ?? null,
+            actual: thisMonthMetrics?.newVisitCount.total ?? null,
             unit: '件',
         },
         {

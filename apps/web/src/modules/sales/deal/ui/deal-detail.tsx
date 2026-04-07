@@ -2,6 +2,8 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { ChevronDown } from 'lucide-react';
 import type {
+    AllianceReferralType,
+    AllianceType,
     ApprovalRequestListItem,
     ApprovalRouteItem,
     DealActivityItem,
@@ -18,8 +20,28 @@ import { DealApprovalPanel } from '@/modules/approvals/ui/deal-approval-panel';
 import { HearingPanel } from '@/modules/sales/hearing/ui/hearing-panel';
 import { SubmitButton, FormAutoClose } from '@/components/ui/submit-button';
 import { updateDealAction, changeDealStageAction, saveLarkSettingsAction } from '@/modules/sales/deal/server-actions';
+import { linkAllianceToDealFromDealPageAction, unlinkAllianceFromDealFromDealPageAction } from '@/modules/sales/alliance/server-actions';
 import { DealActivityLog, DealActivitySidebarForm } from './deal-activity-log';
+import { DealNextActionWarning } from './deal-next-action-warning';
 import type { DealStageHistoryItem } from '../infrastructure/deal-repository';
+
+interface UserOption {
+    id: string;
+    name: string;
+}
+
+interface DealAllianceOption {
+    id: string;
+    name: string;
+}
+
+interface DealLinkedAlliance {
+    allianceId: string;
+    allianceName: string;
+    allianceType: AllianceType;
+    referralType: AllianceReferralType;
+    note: string | null;
+}
 
 interface DealDetailViewProps {
     deal: DealDetail;
@@ -29,9 +51,12 @@ interface DealDetailViewProps {
     updated?: boolean;
     staged?: boolean;
     activityAdded?: boolean;
+    noNextAction?: boolean;
     larkSaved?: boolean;
     approvalCreated?: boolean;
     hearingSaved?: boolean;
+    allianceLinked?: boolean;
+    allianceUnlinked?: boolean;
     hearingRecord: HearingRecord | null;
     hearingCompletion: HearingCompletionStatus;
     approvalRequests: ApprovalRequestListItem[];
@@ -39,6 +64,9 @@ interface DealDetailViewProps {
     canEditHearing: boolean;
     canCreateApproval: boolean;
     canReadApprovals: boolean;
+    users?: UserOption[];
+    linkedAlliances?: DealLinkedAlliance[];
+    availableAlliances?: DealAllianceOption[];
 }
 
 const STAGE_LABELS: Record<DealStageKey, string> = {
@@ -81,6 +109,26 @@ const STAGE_BUTTON_STYLES: Record<DealStageKey, string> = {
     CONTRACTED: 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:border-emerald-700',
 };
 
+const REFERRAL_LABELS: Record<AllianceReferralType, string> = {
+    INTRODUCER: '紹介者',
+    PARTNER: 'パートナー',
+    ADVISOR: 'アドバイザー',
+};
+
+const REFERRAL_COLORS: Record<AllianceReferralType, string> = {
+    INTRODUCER: 'bg-purple-100 text-purple-700',
+    PARTNER: 'bg-blue-100 text-blue-700',
+    ADVISOR: 'bg-green-100 text-green-700',
+};
+
+const ALLIANCE_TYPE_LABELS: Record<AllianceType, string> = {
+    COMPANY: '法人',
+    INDIVIDUAL: '個人',
+};
+
+const selectClassName =
+    'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
+
 export function DealDetailView({
     deal,
     stages,
@@ -89,9 +137,12 @@ export function DealDetailView({
     updated = false,
     staged = false,
     activityAdded = false,
+    noNextAction = false,
     larkSaved = false,
     approvalCreated = false,
     hearingSaved = false,
+    allianceLinked = false,
+    allianceUnlinked = false,
     hearingRecord,
     hearingCompletion,
     approvalRequests,
@@ -99,6 +150,9 @@ export function DealDetailView({
     canEditHearing,
     canCreateApproval,
     canReadApprovals,
+    users = [],
+    linkedAlliances = [],
+    availableAlliances = [],
 }: DealDetailViewProps) {
     const isOpen = deal.status === 'open';
     const otherStages = stages.filter((s) => s.key !== deal.stage);
@@ -134,6 +188,13 @@ export function DealDetailView({
                 </div>
             ) : null}
 
+            {noNextAction ? (
+                <DealNextActionWarning
+                    detailsId="deal-edit-details"
+                    inputId="deal-next-action-date"
+                />
+            ) : null}
+
             {larkSaved ? (
                 <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
                     Lark連携設定を保存しました。
@@ -144,6 +205,18 @@ export function DealDetailView({
             {approvalCreated ? (
                 <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
                     承認申請を登録しました。
+                </div>
+            ) : null}
+
+            {allianceLinked ? (
+                <div className="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                    アライアンスを紐付けました。
+                </div>
+            ) : null}
+
+            {allianceUnlinked ? (
+                <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                    アライアンスの紐付けを解除しました。
                 </div>
             ) : null}
 
@@ -199,9 +272,9 @@ export function DealDetailView({
                                         <form key={stage.key} action={changeDealStageAction}>
                                             <input type="hidden" name="dealId" value={deal.id} />
                                             <input type="hidden" name="toStage" value={stage.key} />
-                                            <Button
-                                                type="submit"
+                                            <SubmitButton
                                                 variant="outline"
+                                                pendingText="移動中..."
                                                 className={`w-full justify-between transition-colors ${STAGE_BUTTON_STYLES[stage.key]}`}
                                             >
                                                 <span className="flex items-center gap-2">
@@ -209,7 +282,7 @@ export function DealDetailView({
                                                     {STAGE_LABELS[stage.key]}
                                                 </span>
                                                 <span className="text-xs opacity-60">→</span>
-                                            </Button>
+                                            </SubmitButton>
                                         </form>
                                     ))}
                                 </CardContent>
@@ -217,7 +290,10 @@ export function DealDetailView({
                         ) : null}
                     </div>
 
-                    <details className="group rounded-lg border border-gray-200 bg-white shadow-sm">
+                    <details
+                        id="deal-edit-details"
+                        className="group rounded-lg border border-gray-200 bg-white shadow-sm"
+                    >
                         <summary className="flex cursor-pointer select-none list-none items-center justify-between px-6 py-4 [&::-webkit-details-marker]:hidden">
                             <div>
                                 <p className="text-lg font-semibold text-gray-900">案件を編集</p>
@@ -234,6 +310,21 @@ export function DealDetailView({
                                     案件名
                                     <Input name="name" defaultValue={deal.name} />
                                 </label>
+
+                                {users.length > 0 ? (
+                                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                        担当者
+                                        <select
+                                            name="ownerUserId"
+                                            defaultValue={deal.ownerUser.id}
+                                            className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            {users.map((u) => (
+                                                <option key={u.id} value={u.id}>{u.name}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                ) : null}
 
                                 <label className="grid gap-2 text-sm font-medium text-gray-700">
                                     金額（円）
@@ -266,7 +357,12 @@ export function DealDetailView({
 
                                 <label className="grid gap-2 text-sm font-medium text-gray-700">
                                     次回アクション日
-                                    <Input name="nextActionDate" type="date" defaultValue={deal.nextActionDate ?? ''} />
+                                    <Input
+                                        id="deal-next-action-date"
+                                        name="nextActionDate"
+                                        type="date"
+                                        defaultValue={deal.nextActionDate ?? ''}
+                                    />
                                 </label>
 
                                 <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
@@ -353,6 +449,99 @@ export function DealDetailView({
                         canCreate={canCreateApproval}
                         canRead={canReadApprovals}
                     />
+
+                    {/* アライアンスセクション */}
+                    <Card className="shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="text-lg text-gray-900">アライアンス</CardTitle>
+                            <CardDescription>紐付きアライアンス一覧</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {linkedAlliances.length === 0 ? (
+                                <div className="px-6 py-6 text-center text-sm text-gray-500">紐付きアライアンスがありません</div>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead className="border-b border-gray-200 bg-gray-50">
+                                        <tr>
+                                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">アライアンス名</th>
+                                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">種別</th>
+                                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">紹介種別</th>
+                                            <th className="px-4 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">メモ</th>
+                                            <th className="px-4 py-2"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-100">
+                                        {linkedAlliances.map((a) => (
+                                            <tr key={a.allianceId} className="hover:bg-gray-50">
+                                                <td className="px-4 py-2">
+                                                    <Link href={`/sales/alliances/${a.allianceId}`} className="font-medium text-gray-900 hover:underline">
+                                                        {a.allianceName}
+                                                    </Link>
+                                                </td>
+                                                <td className="px-4 py-2 text-gray-600">{ALLIANCE_TYPE_LABELS[a.allianceType]}</td>
+                                                <td className="px-4 py-2">
+                                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${REFERRAL_COLORS[a.referralType]}`}>
+                                                        {REFERRAL_LABELS[a.referralType]}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-2 text-gray-500">{a.note ?? '-'}</td>
+                                                <td className="px-4 py-2 text-right">
+                                                    <form action={unlinkAllianceFromDealFromDealPageAction}>
+                                                        <input type="hidden" name="allianceId" value={a.allianceId} />
+                                                        <input type="hidden" name="dealId" value={deal.id} />
+                                                        <button type="submit" className="text-xs text-red-600 hover:underline">解除</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
+                        </CardContent>
+                    </Card>
+
+                    {availableAlliances.length > 0 ? (
+                        <details className="group rounded-lg border border-gray-200 bg-white shadow-sm">
+                            <summary className="flex cursor-pointer select-none list-none items-center justify-between px-6 py-4 [&::-webkit-details-marker]:hidden">
+                                <div>
+                                    <p className="text-lg font-semibold text-gray-900">アライアンスを紐付ける</p>
+                                    <p className="mt-0.5 text-sm text-gray-500">この案件にアライアンスを紐付ける</p>
+                                </div>
+                                <ChevronDown className="h-5 w-5 text-gray-400 transition-transform duration-200 group-open:rotate-180" />
+                            </summary>
+                            <div className="border-t border-gray-100 px-6 pb-6 pt-5">
+                                <form action={linkAllianceToDealFromDealPageAction} className="grid gap-4 md:grid-cols-2">
+                                    <input type="hidden" name="dealId" value={deal.id} />
+                                    <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
+                                        アライアンスを選択 <span className="text-red-500">*</span>
+                                        <select name="allianceId" required className={selectClassName}>
+                                            <option value="">-- アライアンスを選択 --</option>
+                                            {availableAlliances.map((a) => (
+                                                <option key={a.id} value={a.id}>{a.name}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                        紹介種別 <span className="text-red-500">*</span>
+                                        <select name="referralType" required defaultValue="INTRODUCER" className={selectClassName}>
+                                            <option value="INTRODUCER">紹介者</option>
+                                            <option value="PARTNER">パートナー</option>
+                                            <option value="ADVISOR">アドバイザー</option>
+                                        </select>
+                                    </label>
+                                    <label className="grid gap-2 text-sm font-medium text-gray-700">
+                                        メモ
+                                        <Input name="note" placeholder="補足情報など" />
+                                    </label>
+                                    <div className="flex items-center justify-end md:col-span-2">
+                                        <SubmitButton className="bg-blue-600 px-8 text-white hover:bg-blue-700" pendingText="紐付け中...">
+                                            紐付ける
+                                        </SubmitButton>
+                                    </div>
+                                </form>
+                            </div>
+                        </details>
+                    ) : null}
 
                     <DealActivityLog dealId={deal.id} activities={activities} activityAdded={activityAdded} hideForm />
 

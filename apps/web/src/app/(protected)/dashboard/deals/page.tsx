@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
+import { getDashboardAlerts } from '@/modules/sales/deal/application/get-dashboard-alerts';
 import { getDashboardSummary } from '@/modules/sales/deal/application/get-dashboard-summary';
 import { getRollingKpi } from '@/modules/sales/deal/application/get-rolling-kpi';
 import { getTeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
@@ -30,10 +31,11 @@ async function DealDashboardContent() {
     if (!session) redirect('/login');
 
     try {
-        const [summary, rollingKpiData, teamTargetSummary] = await Promise.all([
+        const [summary, rollingKpiData, teamTargetSummary, alerts] = await Promise.all([
             getDashboardSummary(),
             getRollingKpi(),
             getTeamKpiTargetSummary(),
+            getDashboardAlerts(),
         ]);
 
         const canViewBusinessGoals = session.user.roles.some(
@@ -45,6 +47,7 @@ async function DealDashboardContent() {
                 summary={summary}
                 rollingKpiData={rollingKpiData}
                 teamTargetSummary={teamTargetSummary}
+                alerts={alerts}
                 businessScope={session.activeBusinessScope}
                 canViewBusinessGoals={canViewBusinessGoals}
             />

@@ -8,9 +8,18 @@ import { changeDealStage } from '@/modules/sales/deal/application/change-deal-st
 import { createDealActivity } from '@/modules/sales/deal/application/create-deal-activity';
 import { saveLarkSettings } from '@/modules/sales/deal/application/save-lark-settings';
 import { getDashboardScopeTag } from '@/modules/sales/deal/infrastructure/dashboard-cache';
+import { getDealNextActionSnapshot } from '@/modules/sales/deal/infrastructure/deal-repository';
+import { linkDealToAlliance } from '@/modules/sales/alliance/application/link-deal';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
-import type { BusinessScopeType, DealActivityType, DealStageKey } from '@g-dx/contracts';
+import type {
+    BusinessScopeType,
+    DealActivityType,
+    DealStageKey,
+    MeetingTargetType,
+    NegotiationOutcome,
+    VisitCategory,
+} from '@g-dx/contracts';
 
 function readString(formData: FormData, key: string): string | undefined {
     const value = formData.get(key);
@@ -43,6 +52,8 @@ export async function createDealAction(formData: FormData) {
     const amountRaw = readString(formData, 'amount');
     const amount = amountRaw ? Number(amountRaw) : undefined;
 
+    const allianceId = readString(formData, 'allianceId');
+
     try {
         const result = await createDeal({
             businessScope: session.activeBusinessScope,
@@ -55,6 +66,11 @@ export async function createDealAction(formData: FormData) {
             source: readString(formData, 'source'),
             memo: readString(formData, 'memo'),
         });
+
+        if (allianceId) {
+            await linkDealToAlliance({ allianceId, dealId: result.id, referralType: 'INTRODUCER' }).catch(() => {});
+        }
+
         revalidatePath('/sales/deals');
         revalidateDashboardPaths(session.activeBusinessScope);
         revalidatePath(`/customers/companies/${companyId}`);
@@ -81,6 +97,7 @@ export async function updateDealAction(formData: FormData) {
             name: readString(formData, 'name'),
             amount: amount !== undefined && (amount === null || !isNaN(amount)) ? amount : undefined,
             expectedCloseDate: readString(formData, 'expectedCloseDate') ?? null,
+            ownerUserId: readString(formData, 'ownerUserId'),
             source: readString(formData, 'source') ?? null,
             memo: readString(formData, 'memo') ?? null,
             acquisitionMethod: readString(formData, 'acquisitionMethod') ?? null,
@@ -147,18 +164,54 @@ export async function createDealActivityAction(formData: FormData) {
 
     const meetingCountRaw = readString(formData, 'meetingCount');
     const meetingCount = meetingCountRaw ? Math.max(1, parseInt(meetingCountRaw, 10)) : 1;
+    const visitCategoryRaw = readString(formData, 'visitCategory');
+    const targetTypeRaw = readString(formData, 'targetType');
+    const visitCategory =
+        visitCategoryRaw === 'NEW' || visitCategoryRaw === 'REPEAT'
+            ? (visitCategoryRaw as VisitCategory)
+            : undefined;
+    const targetType =
+        targetTypeRaw === 'INDIVIDUAL' || targetTypeRaw === 'CORPORATE'
+            ? (targetTypeRaw as MeetingTargetType)
+            : undefined;
+    const isNegotiation = formData.get('isNegotiation') === 'on';
+    const negotiationOutcomeRaw = readString(formData, 'negotiationOutcome');
+    const negotiationOutcome =
+        negotiationOutcomeRaw === 'POSITIVE' ||
+        negotiationOutcomeRaw === 'NEUTRAL' ||
+        negotiationOutcomeRaw === 'NEGATIVE' ||
+        negotiationOutcomeRaw === 'PENDING'
+            ? (negotiationOutcomeRaw as NegotiationOutcome)
+            : undefined;
 
     try {
-        await createDealActivity({ dealId, activityType, activityDate, summary: readString(formData, 'summary'), meetingCount });
+        await createDealActivity({
+            dealId,
+            activityType,
+            activityDate,
+            summary: readString(formData, 'summary'),
+            meetingCount,
+            visitCategory,
+            targetType,
+            isNegotiation,
+            negotiationOutcome,
+            competitorInfo: readString(formData, 'competitorInfo'),
+        });
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
         throw error;
     }
 
+    const nextAction = await getDealNextActionSnapshot(dealId);
     revalidatePath(`/sales/deals/${dealId}`);
     revalidateDashboardPaths(session.activeBusinessScope);
-    redirect(`/sales/deals/${dealId}?activityAdded=1`);
+    const params = new URLSearchParams();
+    params.set('activityAdded', '1');
+    if (!nextAction.nextActionDate) {
+        params.set('noNextAction', '1');
+    }
+    redirect(`/sales/deals/${dealId}?${params.toString()}`);
 }
 
 export async function saveLarkSettingsAction(formData: FormData) {

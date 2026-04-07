@@ -45,7 +45,7 @@ function getThisWeekMetricTotal(
         case 'callCount':
             return thisWeekMetrics.callCount.total;
         case 'newVisitCount':
-            return thisWeekMetrics.visitCount.bySegment.new;
+            return thisWeekMetrics.newVisitCount.total;
         case 'appointmentCount':
             return thisWeekMetrics.appointmentCount.total;
         case 'newNegotiationCount':
@@ -55,6 +55,15 @@ function getThisWeekMetricTotal(
         default:
             return 0;
     }
+}
+
+function getRollingMetrics(data: PersonalDashboardData, period: PersonalRollingKpiBlock['period']) {
+    return data.rollingKpis.find((block) => block.period === period)?.metrics;
+}
+
+function getTotalMeetingCount(metrics?: PersonalRollingKpiBlock['metrics']): number {
+    if (!metrics) return 0;
+    return metrics.visitCount.total + metrics.onlineCount.total;
 }
 
 interface SummaryBlockProps {
@@ -191,6 +200,8 @@ export function PersonalKpiProgress({ data, className, suppressTargetAlert = fal
     const contractItem = data.kpiItems.find((item) => item.key === 'contractCount');
     const activityItems = data.kpiItems.filter((item) => item.key !== 'contractCount');
     const weeksInMonth = getWeeksInMonth(data.targetMonth);
+    const thisMonthMetrics = getRollingMetrics(data, 'thisMonth');
+    const thisWeekMetrics = getRollingMetrics(data, 'thisWeek');
 
     return (
         <div className={className}>
@@ -266,6 +277,7 @@ export function PersonalKpiProgress({ data, className, suppressTargetAlert = fal
                             {activityItems.map((item) => {
                                 const weeklyTarget = Math.ceil(item.target / weeksInMonth);
                                 const thisWeekActual = getThisWeekMetricTotal(data, item.key);
+                                const showMeetingBreakdown = item.key === 'newVisitCount';
 
                                 return (
                                     <section
@@ -293,6 +305,11 @@ export function PersonalKpiProgress({ data, className, suppressTargetAlert = fal
                                         <p className="mt-2 text-xs text-gray-500">
                                             今週実績 {thisWeekActual.toLocaleString()}件
                                         </p>
+                                        {showMeetingBreakdown ? (
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                全面会 今月 {getTotalMeetingCount(thisMonthMetrics).toLocaleString()}件 / 今週 {getTotalMeetingCount(thisWeekMetrics).toLocaleString()}件
+                                            </p>
+                                        ) : null}
                                         <div className="mt-3">
                                             <Progress
                                                 value={item.actual}

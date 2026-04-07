@@ -55,7 +55,7 @@ const getPersonalDashboardDataCached = unstable_cache(
 
         const actualsMap: Record<PersonalKpiItem['key'], number> = {
             callCount: actuals.callCount,
-            newVisitCount: thisMonthMetrics?.visitCount.bySegment.new ?? 0,
+            newVisitCount: thisMonthMetrics?.newVisitCount.total ?? 0,
             appointmentCount: actuals.appointmentCount,
             newNegotiationCount:
                 thisMonthMetrics?.negotiationCount.bySegment.new ?? 0,

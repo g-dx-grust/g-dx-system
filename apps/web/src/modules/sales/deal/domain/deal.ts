@@ -1,4 +1,4 @@
-import type { BusinessScopeType, DealDetail, DealListItem, DealStageKey, UUID } from '@g-dx/contracts';
+import type { BusinessScopeType, DealDetail, DealListItem, DealStageKey, DealStatus, UUID } from '@g-dx/contracts';
 
 export interface DealListFilters {
     page?: number;
@@ -8,6 +8,10 @@ export interface DealListFilters {
     stage?: DealStageKey;
     ownerUserId?: UUID;
     companyId?: UUID;
+    amountMin?: number;
+    amountMax?: number;
+    nextActionStatus?: 'NOT_SET' | 'OVERDUE' | 'THIS_WEEK' | 'ALL';
+    dealStatus?: DealStatus;
 }
 
 export interface DealListResult {

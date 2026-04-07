@@ -25,6 +25,10 @@ export interface DealListQuery extends ListQuery, DateRangeQuery {
     ownerUserId?: UUID;
     companyId?: UUID;
     keyword?: string;
+    amountMin?: number;
+    amountMax?: number;
+    nextActionStatus?: 'NOT_SET' | 'OVERDUE' | 'THIS_WEEK' | 'ALL';
+    dealStatus?: DealStatus;
 }
 
 export interface DealCompanySummary {
@@ -305,6 +309,9 @@ export interface ContractDashboardSummary {
 // ─── Deal Activity ─────────────────────────────────────────────────────────────
 
 export type DealActivityType = 'VISIT' | 'ONLINE' | 'CALL' | 'EMAIL' | 'OTHER';
+export type VisitCategory = 'NEW' | 'REPEAT';
+export type MeetingTargetType = 'INDIVIDUAL' | 'CORPORATE';
+export type NegotiationOutcome = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | 'PENDING';
 
 export interface DealActivityItem {
     id: string;
@@ -315,6 +322,11 @@ export interface DealActivityItem {
     activityDate: string;
     summary: string | null;
     meetingCount: number;
+    visitCategory: VisitCategory | null;
+    targetType: MeetingTargetType | null;
+    isNegotiation: boolean;
+    negotiationOutcome: NegotiationOutcome | null;
+    competitorInfo: string | null;
     createdAt: string;
 }
 
@@ -324,6 +336,52 @@ export interface CreateDealActivityRequest {
     activityDate: string;
     summary?: string;
     meetingCount?: number;
+    visitCategory?: VisitCategory;
+    targetType?: MeetingTargetType;
+    isNegotiation?: boolean;
+    negotiationOutcome?: NegotiationOutcome;
+    competitorInfo?: string;
+}
+
+export type DashboardAlertType =
+    | 'NO_NEXT_ACTION'
+    | 'OVERDUE_ACTION'
+    | 'NO_OWNER'
+    | 'STALE_DEAL'
+    | 'SLA_EXCEEDED';
+
+export type DashboardAlertSeverity = 'HIGH' | 'MEDIUM';
+
+export interface DashboardAlert {
+    type: DashboardAlertType;
+    severity: DashboardAlertSeverity;
+    dealId: string;
+    dealName: string;
+    companyName: string;
+    ownerName: string | null;
+    detail: string;
+}
+
+// ─── Contract Activity ────────────────────────────────────────────────────────
+
+export type ContractActivityType = 'VISIT' | 'CALL' | 'EMAIL' | 'INTERNAL' | 'OTHER';
+
+export interface ContractActivityItem {
+    id: string;
+    contractId: string;
+    userId: string;
+    userName: string;
+    activityType: ContractActivityType;
+    activityDate: string;
+    summary: string | null;
+    createdAt: string;
+}
+
+export interface CreateContractActivityRequest {
+    contractId: string;
+    activityType: ContractActivityType;
+    activityDate: string;
+    summary?: string;
 }
 
 // ─── JET Facility & JET Contract ─────────────────────────────────────────────
@@ -442,7 +500,14 @@ export interface PersonalLastWeekCompanyActionGroup {
 
 export type DealSegment = 'new' | 'existing';
 export type RollingKpiPeriod = 'thisWeek' | 'lastWeek' | 'thisMonth' | 'lastMonth';
-export type RollingKpiMetricKey = 'callCount' | 'visitCount' | 'onlineCount' | 'appointmentCount' | 'negotiationCount' | 'contractCount';
+export type RollingKpiMetricKey =
+    | 'callCount'
+    | 'visitCount'
+    | 'onlineCount'
+    | 'newVisitCount'
+    | 'appointmentCount'
+    | 'negotiationCount'
+    | 'contractCount';
 
 export interface KpiSegmentedCounts {
     total: number;
@@ -479,6 +544,42 @@ export interface PersonalNextActionItem {
     nextActionDate: string;
     nextActionContent: string | null;
     urgency: NextActionUrgency;
+}
+
+// ─── Alliance ─────────────────────────────────────────────────────────────────
+
+export type AllianceType = 'COMPANY' | 'INDIVIDUAL';
+export type AllianceStatus = 'PROSPECT' | 'ACTIVE' | 'INACTIVE';
+export type AllianceReferralType = 'INTRODUCER' | 'PARTNER' | 'ADVISOR';
+
+export interface AllianceListItem {
+    id: UUID;
+    name: string;
+    allianceType: AllianceType;
+    contactPersonName: string | null;
+    relationshipStatus: AllianceStatus;
+    linkedDealCount: number;
+    createdAt: ISODateString;
+}
+
+export interface AllianceDetail extends AllianceListItem {
+    businessScope: BusinessScopeType;
+    contactPersonRole: string | null;
+    contactPersonEmail: string | null;
+    contactPersonPhone: string | null;
+    agreementSummary: string | null;
+    notes: string | null;
+    linkedDeals: AllianceLinkedDeal[];
+    updatedAt: ISODateString;
+}
+
+export interface AllianceLinkedDeal {
+    dealId: UUID;
+    dealName: string;
+    companyName: string;
+    stageKey: DealStageKey;
+    referralType: AllianceReferralType;
+    note: string | null;
 }
 
 export interface SaveKpiTargetInput {

@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { ContractCreateForm } from '@/modules/sales/contract/ui/contract-create-form';
 import { listCompanies } from '@/modules/customer-management/company/application/list-companies';
 import { assertPermission } from '@/shared/server/authorization';
+import { findBusinessUnitByScope } from '@/shared/server/business-unit';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import { isAppError } from '@/shared/server/errors';
 import { db } from '@g-dx/database';
-import { users } from '@g-dx/database/schema';
-import { isNull } from 'drizzle-orm';
+import { users, userBusinessMemberships } from '@g-dx/database/schema';
+import { and, eq, isNull } from 'drizzle-orm';
 
 interface NewContractPageProps {
     searchParams?: {
@@ -48,10 +49,22 @@ export default async function NewContractPage({ searchParams }: NewContractPageP
         throw error;
     }
 
-    const allUsers = await db
-        .select({ id: users.id, name: users.displayName })
-        .from(users)
-        .where(isNull(users.deletedAt));
+    const businessUnit = await findBusinessUnitByScope(session.activeBusinessScope);
+
+    const allUsers = businessUnit
+        ? await db
+              .select({ id: users.id, name: users.displayName })
+              .from(users)
+              .innerJoin(userBusinessMemberships, eq(userBusinessMemberships.userId, users.id))
+              .where(
+                  and(
+                      eq(userBusinessMemberships.businessUnitId, businessUnit.id),
+                      eq(userBusinessMemberships.membershipStatus, 'active'),
+                      eq(users.status, 'active'),
+                      isNull(users.deletedAt),
+                  )
+              )
+        : [];
 
     const userOptions = allUsers.map((u) => ({ id: u.id, name: u.name ?? '名前未設定' }));
 

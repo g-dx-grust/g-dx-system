@@ -10,6 +10,7 @@ export async function updateContract(contractId: string, input: UpdateContractRe
     assertPermission(session, 'sales.contract.update_basic');
     return updateContractInRepository({
         contractId,
+        businessScope: session.activeBusinessScope,
         ...input,
         actorUserId: session.user.id,
     });

@@ -38,7 +38,7 @@ export function MemberPersonalViewSelector({
                         router.push(query.length > 0 ? `${pathname}?${query}` : pathname);
                     });
                 }}
-                className="h-10 min-w-[220px] rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className="h-10 w-full rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:w-auto sm:min-w-[220px]"
             >
                 {options.map((option) => (
                     <option key={option.userId} value={option.userId}>

@@ -61,7 +61,7 @@ export function AllianceList({ alliances, total, keyword, status, created = fals
                         <select
                             name="status"
                             defaultValue={status ?? ''}
-                            className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:w-auto"
                         >
                             <option value="">すべてのステータス</option>
                             {(Object.entries(STATUS_LABELS) as [AllianceStatus, string][]).map(([key, label]) => (
@@ -83,44 +83,74 @@ export function AllianceList({ alliances, total, keyword, status, created = fals
                     アライアンスがありません
                 </div>
             ) : (
-                <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
-                    <table className="w-full text-sm">
-                        <thead className="border-b border-gray-200 bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">名前</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">種別</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">担当者</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">ステータス</th>
-                                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">紐付き案件</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">登録日</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {alliances.map((alliance) => (
-                                <tr key={alliance.id} className="hover:bg-gray-50">
-                                    <td className="px-4 py-3">
+                <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+                    {/* モバイル: カード表示 */}
+                    <div className="divide-y divide-gray-100 md:hidden">
+                        {alliances.map((alliance) => (
+                            <div key={alliance.id} className="px-4 py-3">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
                                         <Link
                                             href={`/sales/alliances/${alliance.id}`}
-                                            className="font-medium text-gray-900 hover:underline"
+                                            className="block truncate font-medium text-gray-900 hover:underline"
                                         >
                                             {alliance.name}
                                         </Link>
-                                    </td>
-                                    <td className="px-4 py-3 text-gray-600">{TYPE_LABELS[alliance.allianceType]}</td>
-                                    <td className="px-4 py-3 text-gray-600">{alliance.contactPersonName ?? '-'}</td>
-                                    <td className="px-4 py-3">
-                                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[alliance.relationshipStatus]}`}>
-                                            {STATUS_LABELS[alliance.relationshipStatus]}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-right text-gray-600">{alliance.linkedDealCount}</td>
-                                    <td className="px-4 py-3 text-gray-500">
-                                        {new Date(alliance.createdAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })}
-                                    </td>
+                                        <p className="mt-0.5 text-xs text-gray-500">{alliance.contactPersonName ?? '-'}</p>
+                                    </div>
+                                    <span className={`shrink-0 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[alliance.relationshipStatus]}`}>
+                                        {STATUS_LABELS[alliance.relationshipStatus]}
+                                    </span>
+                                </div>
+                                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                                    <span>{TYPE_LABELS[alliance.allianceType]}</span>
+                                    <span>案件 {alliance.linkedDealCount}件</span>
+                                    <span>{new Date(alliance.createdAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* デスクトップ: テーブル表示 */}
+                    <div className="hidden overflow-x-auto md:block">
+                        <table className="w-full text-sm">
+                            <thead className="border-b border-gray-200 bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">名前</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">種別</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">担当者</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">ステータス</th>
+                                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">紐付き案件</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">登録日</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {alliances.map((alliance) => (
+                                    <tr key={alliance.id} className="hover:bg-gray-50">
+                                        <td className="px-4 py-3">
+                                            <Link
+                                                href={`/sales/alliances/${alliance.id}`}
+                                                className="font-medium text-gray-900 hover:underline"
+                                            >
+                                                {alliance.name}
+                                            </Link>
+                                        </td>
+                                        <td className="px-4 py-3 text-gray-600">{TYPE_LABELS[alliance.allianceType]}</td>
+                                        <td className="px-4 py-3 text-gray-600">{alliance.contactPersonName ?? '-'}</td>
+                                        <td className="px-4 py-3">
+                                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_COLORS[alliance.relationshipStatus]}`}>
+                                                {STATUS_LABELS[alliance.relationshipStatus]}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-right text-gray-600">{alliance.linkedDealCount}</td>
+                                        <td className="px-4 py-3 text-gray-500">
+                                            {new Date(alliance.createdAt).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' })}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             )}
         </div>

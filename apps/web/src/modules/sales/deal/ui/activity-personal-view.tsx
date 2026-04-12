@@ -85,7 +85,7 @@ export function ActivityPersonalView({
     return (
         <div className="space-y-4">
             <Card className="border-gray-200 shadow-sm">
-                <CardHeader className="gap-4 md:flex-row md:items-end md:justify-between">
+                <CardHeader className="gap-3 md:flex-row md:items-end md:justify-between">
                     <div>
                         <CardTitle className="text-base text-gray-900">担当者の状況</CardTitle>
                         <CardDescription>

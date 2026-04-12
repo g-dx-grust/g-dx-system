@@ -96,7 +96,7 @@ export function DealList({ deals, total, page, pageSize, keyword, stage, ownerUs
                             <select
                                 name="stage"
                                 defaultValue={stage ?? ''}
-                                className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:w-auto"
                             >
                                 <option value="">すべてのステージ</option>
                                 {(Object.entries(STAGE_LABELS) as [DealStageKey, string][]).map(([key, label]) => (
@@ -107,7 +107,7 @@ export function DealList({ deals, total, page, pageSize, keyword, stage, ownerUs
                                 <select
                                     name="ownerUserId"
                                     defaultValue={ownerUserId ?? ''}
-                                    className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:w-auto"
                                 >
                                     <option value="">すべての担当者</option>
                                     {users.map((u) => (
@@ -157,7 +157,7 @@ export function DealList({ deals, total, page, pageSize, keyword, stage, ownerUs
                                 <select
                                     name="nextActionStatus"
                                     defaultValue={nextActionStatus ?? ''}
-                                    className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:w-auto"
                                 >
                                     <option value="">次回アクション（すべて）</option>
                                     {Object.entries(NEXT_ACTION_STATUS_LABELS).map(([key, label]) => (
@@ -167,7 +167,7 @@ export function DealList({ deals, total, page, pageSize, keyword, stage, ownerUs
                                 <select
                                     name="dealStatus"
                                     defaultValue={dealStatus ?? ''}
-                                    className="h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    className="h-10 w-full rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 md:w-auto"
                                 >
                                     <option value="">ステータス（すべて）</option>
                                     {Object.entries(DEAL_STATUS_LABELS).map(([key, label]) => (

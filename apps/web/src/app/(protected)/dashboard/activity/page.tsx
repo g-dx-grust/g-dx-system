@@ -1,42 +1,29 @@
 import { redirect } from 'next/navigation';
-import type { ApprovalRequestListItem } from '@g-dx/contracts';
 import { Role } from '@g-dx/contracts';
-import { listApprovals } from '@/modules/approvals/application/list-approvals';
 import { getDashboardSummary } from '@/modules/sales/deal/application/get-dashboard-summary';
 import { getMonthlyActivityStats } from '@/modules/sales/deal/application/get-monthly-activity-stats';
 import { getPersonalActionList } from '@/modules/sales/deal/application/get-personal-action-list';
 import { getPersonalDashboardData } from '@/modules/sales/deal/application/get-personal-dashboard-data';
 import { getRollingKpi } from '@/modules/sales/deal/application/get-rolling-kpi';
 import { getTeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
-import { getTeamAiWeeklySummary, getPersonalAiWeeklySummary } from '@/modules/sales/deal/application/get-ai-weekly-summary';
-import { ActivityPersonalView } from '@/modules/sales/deal/ui/activity-personal-view';
+import { getTeamAiWeeklySummary } from '@/modules/sales/deal/application/get-ai-weekly-summary';
 import { NextActionList } from '@/modules/sales/deal/ui/next-action-list';
 import { ActivityDashboard } from '@/modules/sales/deal/ui/dashboard-activity';
 import { SalesKpiDashboard } from '@/modules/sales/deal/ui/sales-kpi-dashboard';
 import { AiSummaryCard, TeamTargetOverview } from '@/modules/sales/deal/ui/dashboard-primitives';
+import { AllMembersActivitySection } from '@/modules/sales/deal/ui/all-members-activity-section';
+import type { MemberActivityData } from '@/modules/sales/deal/ui/all-members-activity-section';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession, getGrantedPermissionKeys } from '@/shared/server/session';
 
-interface ActivityDashboardPageProps {
-    searchParams?: {
-        member?: string;
-    };
-}
-
-export default async function ActivityDashboardPage({
-    searchParams,
-}: ActivityDashboardPageProps) {
+export default async function ActivityDashboardPage() {
     const session = await getAuthenticatedAppSession();
     if (!session) {
         redirect('/login');
     }
 
     const permissions = new Set(getGrantedPermissionKeys(session.user.roles));
-    const canReadApprovals = permissions.has('approval.request.read');
     const canReadPersonalKpi = permissions.has('dashboard.kpi.read');
-    const isAdminOrAbove = session.user.roles.some(
-        (r) => r === Role.SUPER_ADMIN || r === Role.ADMIN,
-    );
 
     let summary;
     let monthlyStats;
@@ -62,73 +49,35 @@ export default async function ActivityDashboardPage({
         throw error;
     }
 
-    const memberOptions =
+    // 全メンバーのリストを取得（deals を持つ担当者）
+    const memberList =
         summary.byOwner.length > 0
             ? summary.byOwner.map((owner) => ({
                   userId: owner.ownerUserId,
                   userName: owner.ownerName,
-                  isCurrentUser: owner.ownerUserId === session.user.id,
               }))
-            : [
-                  {
-                      userId: session.user.id,
-                      userName: session.user.name,
-                      isCurrentUser: true,
-                  },
-              ];
-    const defaultMemberId = memberOptions.some(
-        (option) => option.userId === session.user.id,
-    )
-        ? session.user.id
-        : (memberOptions[0]?.userId ?? session.user.id);
-    const selectedMemberId =
-        searchParams?.member &&
-        memberOptions.some((option) => option.userId === searchParams.member)
-            ? searchParams.member
-            : defaultMemberId;
-    const selectedMemberName =
-        memberOptions.find((option) => option.userId === selectedMemberId)?.userName ??
-        session.user.name;
+            : [{ userId: session.user.id, userName: session.user.name }];
 
-    let personalDashboardData = null;
-    let personalActionItems = [];
-    let pendingApprovals: ApprovalRequestListItem[] = [];
-    let requestedApprovals: ApprovalRequestListItem[] = [];
-    let personalAiSummary = null;
-
+    // 全メンバーの個人データを並列取得
+    let allMembersData: MemberActivityData[] = [];
     try {
-        const [
-            dashboardDataResult,
-            actionItemsResult,
-            pendingApprovalResult,
-            requestedApprovalResult,
-            personalAiSummaryResult,
-        ] = await Promise.all([
-            canReadPersonalKpi
-                ? getPersonalDashboardData({ userId: selectedMemberId })
-                : Promise.resolve(null),
-            getPersonalActionList({ userId: selectedMemberId }),
-            canReadApprovals
-                ? listApprovals({
-                      approvalStatus: 'PENDING',
-                      approverUserId: selectedMemberId,
-                      pageSize: 5,
-                  })
-                : Promise.resolve(null),
-            canReadApprovals
-                ? listApprovals({
-                      applicantUserId: selectedMemberId,
-                      pageSize: 5,
-                  })
-                : Promise.resolve(null),
-            getPersonalAiWeeklySummary(selectedMemberId).catch(() => null),
-        ]);
-
-        personalDashboardData = dashboardDataResult;
-        personalActionItems = actionItemsResult;
-        pendingApprovals = pendingApprovalResult?.data ?? [];
-        requestedApprovals = requestedApprovalResult?.data ?? [];
-        personalAiSummary = personalAiSummaryResult;
+        const memberDataResults = await Promise.all(
+            memberList.map(async (member) => {
+                const [dashboardData, actionItems] = await Promise.all([
+                    canReadPersonalKpi
+                        ? getPersonalDashboardData({ userId: member.userId }).catch(() => null)
+                        : Promise.resolve(null),
+                    getPersonalActionList({ userId: member.userId }).catch(() => []),
+                ]);
+                return {
+                    userId: member.userId,
+                    userName: member.userName,
+                    dashboardData,
+                    actionItems,
+                } satisfies MemberActivityData;
+            }),
+        );
+        allMembersData = memberDataResults;
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (
@@ -146,7 +95,7 @@ export default async function ActivityDashboardPage({
                 <h1 className="text-2xl font-semibold text-gray-900">
                     活動ダッシュボード
                 </h1>
-                <p className="mt-1 text-sm text-gray-500">活動ダッシュボード</p>
+                <p className="mt-1 text-sm text-gray-500">チーム全体の活動状況</p>
             </div>
 
             <TeamTargetOverview
@@ -175,22 +124,7 @@ export default async function ActivityDashboardPage({
                 />
             </div>
 
-            <AiSummaryCard
-                summary={personalAiSummary}
-                label={selectedMemberName}
-            />
-
-            <ActivityPersonalView
-                memberOptions={memberOptions}
-                selectedMemberId={selectedMemberId}
-                selectedMemberName={selectedMemberName}
-                dashboardData={personalDashboardData}
-                actionItems={personalActionItems}
-                canReadApprovals={canReadApprovals}
-                pendingApprovals={pendingApprovals}
-                requestedApprovals={requestedApprovals}
-                suppressTargetAlert={isAdminOrAbove}
-            />
+            <AllMembersActivitySection members={allMembersData} />
 
             <ActivityDashboard summary={summary} monthlyStats={monthlyStats} />
         </div>

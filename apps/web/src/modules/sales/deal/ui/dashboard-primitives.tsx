@@ -252,7 +252,7 @@ export function AiSummaryCard({ summary, label, className }: AiSummaryCardProps)
     return (
         <Card className={cn('border-gray-200 bg-white shadow-sm', className)}>
             <CardHeader className="space-y-1 pb-3">
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
                     <CardTitle className="text-sm font-semibold text-gray-900">
                         AI週次サマリー — {title}
                     </CardTitle>

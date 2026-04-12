@@ -85,6 +85,17 @@ async function run() {
         console.log('✓ call_logs new columns');
 
         // 7. Indexes (all idempotent via IF NOT EXISTS)
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS "app_settings" (
+                "key" text PRIMARY KEY NOT NULL,
+                "value" text,
+                "created_at" timestamp with time zone DEFAULT now() NOT NULL,
+                "updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+                "updated_by_user_id" uuid REFERENCES "users"("id")
+            )
+        `);
+        console.log('笨・app_settings table');
+
         const indexes: string[] = [
             `CREATE INDEX IF NOT EXISTS "ubm_user_idx" ON "user_business_memberships" USING btree ("user_id")`,
             `CREATE INDEX IF NOT EXISTS "ubm_business_unit_idx" ON "user_business_memberships" USING btree ("business_unit_id")`,
@@ -150,6 +161,7 @@ async function run() {
             `CREATE INDEX IF NOT EXISTS "audit_logs_actor_user_idx" ON "audit_logs" USING btree ("actor_user_id")`,
             `CREATE INDEX IF NOT EXISTS "erl_entity_idx" ON "external_record_links" USING btree ("entity_type","entity_id")`,
             `CREATE INDEX IF NOT EXISTS "erl_external_record_idx" ON "external_record_links" USING btree ("external_system","external_record_id")`,
+            `CREATE INDEX IF NOT EXISTS "app_settings_updated_at_idx" ON "app_settings" USING btree ("updated_at")`,
             `CREATE INDEX IF NOT EXISTS "lark_sync_jobs_status_idx" ON "lark_sync_jobs" USING btree ("status")`,
             `CREATE INDEX IF NOT EXISTS "lark_sync_jobs_run_after_idx" ON "lark_sync_jobs" USING btree ("run_after")`,
         ];

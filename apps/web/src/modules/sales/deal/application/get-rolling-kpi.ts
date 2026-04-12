@@ -1,18 +1,21 @@
-import { unstable_cache } from 'next/cache';
+/**
+ * Caching policy: Redis (cross-process). unstable_cache removed to avoid double-caching.
+ * Key: gdx:dashboard:rolling-kpi:{scope}
+ */
+
 import type { BusinessScopeType, SalesRollingKpiGrid } from '@g-dx/contracts';
 import { assertPermission } from '@/shared/server/authorization';
 import { DASHBOARD_DATA_REVALIDATE_SECONDS } from '@/shared/server/cache';
+import { withRedisCache } from '@/shared/server/redis-cache';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import { getTeamRollingKpi } from '../infrastructure/rolling-kpi-repository';
 
 export type { SalesRollingKpiGrid };
 
-const getRollingKpiCached = unstable_cache(
-    async (businessScope: BusinessScopeType) => getTeamRollingKpi(businessScope),
-    ['dashboard-rolling-kpi'],
-    { revalidate: DASHBOARD_DATA_REVALIDATE_SECONDS },
-);
+export function getRollingKpiCacheKey(businessScope: BusinessScopeType): string {
+    return `gdx:dashboard:rolling-kpi:${businessScope}`;
+}
 
 export async function getRollingKpi(): Promise<SalesRollingKpiGrid> {
     const session = await getAuthenticatedAppSession();
@@ -20,5 +23,11 @@ export async function getRollingKpi(): Promise<SalesRollingKpiGrid> {
 
     assertPermission(session, 'sales.deal.read');
 
-    return getRollingKpiCached(session.activeBusinessScope);
+    const key = getRollingKpiCacheKey(session.activeBusinessScope);
+
+    return withRedisCache(
+        key,
+        DASHBOARD_DATA_REVALIDATE_SECONDS,
+        () => getTeamRollingKpi(session.activeBusinessScope),
+    );
 }

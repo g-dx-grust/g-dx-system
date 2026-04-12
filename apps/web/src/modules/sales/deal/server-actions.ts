@@ -9,6 +9,15 @@ import { createDealActivity } from '@/modules/sales/deal/application/create-deal
 import { deleteDeal } from '@/modules/sales/deal/application/delete-deal';
 import { saveLarkSettings } from '@/modules/sales/deal/application/save-lark-settings';
 import { getDashboardScopeTag } from '@/modules/sales/deal/infrastructure/dashboard-cache';
+import { getDashboardSummaryCacheKey } from '@/modules/sales/deal/application/get-dashboard-summary';
+import { getPersonalDashboardDataCacheKey } from '@/modules/sales/deal/application/get-personal-dashboard-data';
+import { getPersonalActionListCacheKey } from '@/modules/sales/deal/application/get-personal-action-list';
+import { getDashboardAlertsCacheKey } from '@/modules/sales/deal/application/get-dashboard-alerts';
+import { getTeamKpiTargetSummaryCacheKey } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
+import { getMonthlyActivityStatsCacheKey } from '@/modules/sales/deal/application/get-monthly-activity-stats';
+import { getRollingKpiCacheKey } from '@/modules/sales/deal/application/get-rolling-kpi';
+import { redisDelete } from '@/shared/server/redis-cache';
+import { getTokyoTodayStr } from '@/shared/server/date-jst';
 import { getDealNextActionSnapshot } from '@/modules/sales/deal/infrastructure/deal-repository';
 import { linkDealToAlliance } from '@/modules/sales/alliance/application/link-deal';
 import { isAppError } from '@/shared/server/errors';
@@ -29,13 +38,37 @@ function readString(formData: FormData, key: string): string | undefined {
     return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function revalidateDashboardPaths(scope?: BusinessScopeType) {
+function revalidateDashboardPaths(scope?: BusinessScopeType, userId?: string) {
     revalidatePath('/dashboard/deals');
     revalidatePath('/dashboard/activity');
     revalidatePath('/dashboard/personal');
-    if (scope) {
-        revalidateTag(getDashboardScopeTag(scope));
+    if (!scope) return;
+
+    revalidateTag(getDashboardScopeTag(scope));
+
+    // Purge all Redis dashboard caches for this scope.
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const today = getTokyoTodayStr();
+
+    const keysToDelete: string[] = [
+        getDashboardSummaryCacheKey(scope),
+        getRollingKpiCacheKey(scope),
+        getTeamKpiTargetSummaryCacheKey(scope, currentMonth),
+        getMonthlyActivityStatsCacheKey(scope, now.getFullYear(), now.getMonth() + 1),
+        // Team-level alerts (admin/manager view)
+        getDashboardAlertsCacheKey(scope, null),
+    ];
+
+    if (userId) {
+        keysToDelete.push(
+            getPersonalDashboardDataCacheKey(scope, userId, currentMonth),
+            getPersonalActionListCacheKey(scope, userId, today),
+            getDashboardAlertsCacheKey(scope, userId),
+        );
     }
+
+    void redisDelete(...keysToDelete);
 }
 
 export async function createDealAction(formData: FormData) {
@@ -63,6 +96,8 @@ export async function createDealAction(formData: FormData) {
             stage,
             amount: amount !== undefined && !isNaN(amount) ? amount : undefined,
             expectedCloseDate: readString(formData, 'expectedCloseDate'),
+            nextActionDate: readString(formData, 'nextActionDate') ?? null,
+            nextActionContent: readString(formData, 'nextActionContent') ?? null,
             ownerUserId: session.user.id,
             source: readString(formData, 'source'),
             memo: readString(formData, 'memo'),
@@ -73,7 +108,7 @@ export async function createDealAction(formData: FormData) {
         }
 
         revalidatePath('/sales/deals');
-        revalidateDashboardPaths(session.activeBusinessScope);
+        revalidateDashboardPaths(session.activeBusinessScope, session.user.id);
         revalidatePath(`/customers/companies/${companyId}`);
         redirect(`/sales/deals/${result.id}?created=1`);
     } catch (error) {
@@ -114,7 +149,7 @@ export async function updateDealAction(formData: FormData) {
 
     revalidatePath('/sales/deals');
     revalidatePath(`/sales/deals/${dealId}`);
-    revalidateDashboardPaths(session.activeBusinessScope);
+    revalidateDashboardPaths(session.activeBusinessScope, session.user.id);
     redirect(`/sales/deals/${dealId}?updated=1`);
 }
 
@@ -137,7 +172,7 @@ export async function changeDealStageAction(formData: FormData) {
 
     revalidatePath('/sales/deals');
     revalidatePath(`/sales/deals/${dealId}`);
-    revalidateDashboardPaths(session.activeBusinessScope);
+    revalidateDashboardPaths(session.activeBusinessScope, session.user.id);
 
     if (result.currentStage === 'CONTRACTED') {
         const { getDealForContractRedirect } = await import('@/modules/sales/deal/application/get-deal-for-contract-redirect');
@@ -212,7 +247,7 @@ export async function createDealActivityAction(formData: FormData) {
 
     const nextAction = await getDealNextActionSnapshot(dealId);
     revalidatePath(`/sales/deals/${dealId}`);
-    revalidateDashboardPaths(session.activeBusinessScope);
+    revalidateDashboardPaths(session.activeBusinessScope, session.user.id);
     const params = new URLSearchParams();
     params.set('activityAdded', '1');
     if (!nextAction.nextActionDate) {
@@ -255,6 +290,6 @@ export async function deleteDealAction(formData: FormData) {
     }
 
     revalidatePath('/sales/deals');
-    revalidateDashboardPaths(session.activeBusinessScope);
+    revalidateDashboardPaths(session.activeBusinessScope, session.user.id);
     redirect('/sales/deals?deleted=1');
 }

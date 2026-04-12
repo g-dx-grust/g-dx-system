@@ -1,6 +1,11 @@
-import { unstable_cache } from 'next/cache';
+/**
+ * Caching policy: Redis (cross-process). unstable_cache removed to avoid double-caching.
+ * Key: gdx:dashboard:team-kpi-target:{scope}:{month}
+ */
+
 import type { BusinessScopeType } from '@g-dx/contracts';
 import { DASHBOARD_DATA_REVALIDATE_SECONDS } from '@/shared/server/cache';
+import { withRedisCache } from '@/shared/server/redis-cache';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession, getGrantedPermissionKeys } from '@/shared/server/session';
 import {
@@ -13,12 +18,12 @@ function getCurrentMonth(): string {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 }
 
-const getTeamKpiTargetSummaryCached = unstable_cache(
-    async (businessScope: BusinessScopeType, targetMonth: string) =>
-        getTeamKpiTargetSummaryByScope(businessScope, targetMonth),
-    ['dashboard-team-kpi-target-summary'],
-    { revalidate: DASHBOARD_DATA_REVALIDATE_SECONDS },
-);
+export function getTeamKpiTargetSummaryCacheKey(
+    businessScope: BusinessScopeType,
+    targetMonth: string,
+): string {
+    return `gdx:dashboard:team-kpi-target:${businessScope}:${targetMonth}`;
+}
 
 export type { TeamKpiTargetSummary };
 
@@ -36,8 +41,12 @@ export async function getTeamKpiTargetSummary(
         throw new AppError('FORBIDDEN');
     }
 
-    return getTeamKpiTargetSummaryCached(
-        session.activeBusinessScope,
-        targetMonth ?? getCurrentMonth(),
+    const month = targetMonth ?? getCurrentMonth();
+    const key = getTeamKpiTargetSummaryCacheKey(session.activeBusinessScope, month);
+
+    return withRedisCache(
+        key,
+        DASHBOARD_DATA_REVALIDATE_SECONDS,
+        () => getTeamKpiTargetSummaryByScope(session.activeBusinessScope, month),
     );
 }

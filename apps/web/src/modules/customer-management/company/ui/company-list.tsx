@@ -3,16 +3,19 @@ import { Plus, Upload } from 'lucide-react';
 import type { CompanyListItem } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 import { ResponsiveTable } from '@/components/ui/responsive-table';
 
 interface CompanyListProps {
     companies: CompanyListItem[];
     total: number;
+    page: number;
+    pageSize: number;
     created?: boolean;
     keyword?: string;
 }
 
-export function CompanyList({ companies, total, created = false, keyword }: CompanyListProps) {
+export function CompanyList({ companies, total, page, pageSize, created = false, keyword }: CompanyListProps) {
     return (
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
@@ -153,6 +156,13 @@ export function CompanyList({ companies, total, created = false, keyword }: Comp
                         </ResponsiveTable>
                     )}
                 </CardContent>
+                <PaginationControls
+                    pathname="/customers/companies"
+                    page={page}
+                    pageSize={pageSize}
+                    total={total}
+                    query={{ keyword }}
+                />
             </Card>
         </div>
     );

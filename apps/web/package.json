@@ -12,6 +12,7 @@
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.37.0",
+        "ioredis": "^5.6.1",
         "@g-dx/config": "workspace:*",
         "@g-dx/contracts": "workspace:*",
         "@g-dx/database": "workspace:*",

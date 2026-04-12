@@ -1,26 +1,25 @@
-import { unstable_cache } from 'next/cache';
+/**
+ * Caching policy: Redis (cross-process). unstable_cache removed to avoid double-caching.
+ * Key: gdx:dashboard:action-list:{scope}:{userId}:{today}
+ */
+
 import type { BusinessScopeType, PersonalNextActionItem } from '@g-dx/contracts';
 import { assertPermission } from '@/shared/server/authorization';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
 import { DASHBOARD_DATA_REVALIDATE_SECONDS } from '@/shared/server/cache';
+import { withRedisCache } from '@/shared/server/redis-cache';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
+import { getTokyoTodayStr } from '@/shared/server/date-jst';
 import { getPersonalNextActions } from '../infrastructure/personal-kpi-repository';
 
-const getPersonalActionListCached = unstable_cache(
-    async (
-        businessScope: BusinessScopeType,
-        userId: string,
-        today: string,
-    ): Promise<PersonalNextActionItem[]> => {
-        const businessUnit = await findBusinessUnitByScope(businessScope);
-        if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
-
-        return getPersonalNextActions(userId, businessUnit.id, today);
-    },
-    ['dashboard-personal-action-list'],
-    { revalidate: DASHBOARD_DATA_REVALIDATE_SECONDS },
-);
+export function getPersonalActionListCacheKey(
+    businessScope: BusinessScopeType,
+    userId: string,
+    today: string,
+): string {
+    return `gdx:dashboard:action-list:${businessScope}:${userId}:${today}`;
+}
 
 export async function getPersonalActionList(options?: {
     userId?: string;
@@ -30,12 +29,13 @@ export async function getPersonalActionList(options?: {
 
     assertPermission(session, 'sales.deal.read');
 
-    const now = new Date();
-    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const today = getTokyoTodayStr();
+    const targetUserId = options?.userId ?? session.user.id;
+    const key = getPersonalActionListCacheKey(session.activeBusinessScope, targetUserId, today);
 
-    return getPersonalActionListCached(
-        session.activeBusinessScope,
-        options?.userId ?? session.user.id,
-        today,
-    );
+    return withRedisCache(key, DASHBOARD_DATA_REVALIDATE_SECONDS, async () => {
+        const businessUnit = await findBusinessUnitByScope(session.activeBusinessScope);
+        if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+        return getPersonalNextActions(targetUserId, businessUnit.id, today);
+    });
 }

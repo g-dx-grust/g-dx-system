@@ -62,6 +62,8 @@ export interface CreateDealRequest {
     stage: DealStageKey;
     amount?: number;
     expectedCloseDate?: ISODateOnlyString;
+    nextActionDate?: ISODateOnlyString | null;
+    nextActionContent?: string | null;
     ownerUserId: UUID;
     source?: string;
     memo?: string;

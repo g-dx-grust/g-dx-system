@@ -3,16 +3,19 @@ import { Plus } from 'lucide-react';
 import type { ContactListItem } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 
 interface ContactListProps {
     contacts: ContactListItem[];
     total: number;
+    page: number;
+    pageSize: number;
     created?: boolean;
     keyword?: string;
     companyId?: string;
 }
 
-export function ContactList({ contacts, total, created = false, keyword, companyId }: ContactListProps) {
+export function ContactList({ contacts, total, page, pageSize, created = false, keyword, companyId }: ContactListProps) {
     return (
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
@@ -113,9 +116,16 @@ export function ContactList({ contacts, total, created = false, keyword, company
                                     </tr>
                                 ))}
                             </tbody>
-                        </table>
+                            </table>
                     )}
                 </CardContent>
+                <PaginationControls
+                    pathname="/customers/contacts"
+                    page={page}
+                    pageSize={pageSize}
+                    total={total}
+                    query={{ keyword, companyId }}
+                />
             </Card>
         </div>
     );

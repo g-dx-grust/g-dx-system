@@ -1,24 +1,24 @@
-import { unstable_cache } from 'next/cache';
+/**
+ * Caching policy: Redis (cross-process). unstable_cache removed to avoid double-caching.
+ * Key (per-user):  gdx:dashboard:alerts:{scope}:user:{userId}
+ * Key (team/admin): gdx:dashboard:alerts:{scope}:team
+ */
+
 import type { BusinessScopeType, DashboardAlert } from '@g-dx/contracts';
 import { assertPermission } from '@/shared/server/authorization';
 import { DASHBOARD_DATA_REVALIDATE_SECONDS } from '@/shared/server/cache';
+import { withRedisCache } from '@/shared/server/redis-cache';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import { getDashboardAlerts as getDashboardAlertsByScope } from '../infrastructure/deal-repository';
 
-const getDashboardAlertsCached = unstable_cache(
-    async (
-        businessScope: BusinessScopeType,
-        ownerUserId: string | null,
-        includeTeam: boolean,
-    ): Promise<DashboardAlert[]> =>
-        getDashboardAlertsByScope(businessScope, {
-            ownerUserId: ownerUserId ?? undefined,
-            includeTeam,
-        }),
-    ['dashboard-alerts'],
-    { revalidate: DASHBOARD_DATA_REVALIDATE_SECONDS },
-);
+export function getDashboardAlertsCacheKey(
+    businessScope: BusinessScopeType,
+    ownerUserId: string | null,
+): string {
+    const suffix = ownerUserId === null ? 'team' : `user:${ownerUserId}`;
+    return `gdx:dashboard:alerts:${businessScope}:${suffix}`;
+}
 
 export async function getDashboardAlerts(): Promise<DashboardAlert[]> {
     const session = await getAuthenticatedAppSession();
@@ -33,9 +33,15 @@ export async function getDashboardAlerts(): Promise<DashboardAlert[]> {
             role === 'MANAGER',
     );
 
-    return getDashboardAlertsCached(
-        session.activeBusinessScope,
-        includeTeam ? null : session.user.id,
-        includeTeam,
+    const ownerUserId = includeTeam ? null : session.user.id;
+    const key = getDashboardAlertsCacheKey(session.activeBusinessScope, ownerUserId);
+
+    return withRedisCache(
+        key,
+        DASHBOARD_DATA_REVALIDATE_SECONDS,
+        () => getDashboardAlertsByScope(session.activeBusinessScope, {
+            ownerUserId: ownerUserId ?? undefined,
+            includeTeam,
+        }),
     );
 }

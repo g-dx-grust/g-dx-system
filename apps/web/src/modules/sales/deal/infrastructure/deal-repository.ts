@@ -17,6 +17,8 @@ import { unstable_cache } from 'next/cache';
 import type { BusinessScopeType, DashboardAlert, DealCompanyStat, DealDashboardSummary, DealDetail, DealListItem, DealNextActionItem, DealOwnerStat, DealStageSummary, DealStageKey, DealStatus } from '@g-dx/contracts';
 import { sendGroupMessage, buildStageChangeMessage } from '@/lib/lark/larkMessaging';
 import { createCalendarEvent, buildNextActionCalendarParams } from '@/lib/lark/larkCalendar';
+import { syncDealNextActionTaskForDeal } from '@/modules/tasks/infrastructure/deal-next-action-task-repository';
+import { getTokyoTodayStr, getTokyoWeekEndStr } from '@/shared/server/date-jst';
 import type {
     ChangeDealStageInput,
     ChangedDealStage,
@@ -252,6 +254,8 @@ export async function createDeal(input: CreateDealInput): Promise<CreatedDeal> {
                 amount: input.amount !== undefined ? String(input.amount) : null,
                 currencyCode: 'JPY',
                 expectedCloseDate: input.expectedCloseDate ?? null,
+                nextActionDate: input.nextActionDate ?? null,
+                nextActionContent: input.nextActionContent ?? null,
                 wonAt,
                 lostAt,
                 sourceCode: input.source?.trim() || null,
@@ -287,6 +291,8 @@ export async function createDeal(input: CreateDealInput): Promise<CreatedDeal> {
 
         return created;
     });
+
+    await syncDealNextActionTaskForDeal(result.id, input.actorUserId);
 
     return {
         id: result.id,
@@ -375,6 +381,15 @@ export async function updateDeal(input: UpdateDealInput): Promise<UpdatedDeal> {
     });
 
     // Larkカレンダー: 次回アクション日/内容が更新された場合にイベントを作成 (fire-and-forget)
+    const shouldSyncNextActionTask =
+        input.ownerUserId !== undefined ||
+        input.nextActionDate !== undefined ||
+        input.nextActionContent !== undefined;
+
+    if (shouldSyncNextActionTask) {
+        await syncDealNextActionTaskForDeal(result.id, input.actorUserId);
+    }
+
     const nextActionUpdated = input.nextActionDate !== undefined || input.nextActionContent !== undefined;
     if (nextActionUpdated) {
         getDealLarkContext(result.id).then((dealCtx) => {
@@ -487,6 +502,8 @@ export async function changeDealStage(input: ChangeDealStageInput): Promise<Chan
     });
 
     // Lark通知: ステージ変更 (fire-and-forget)
+    await syncDealNextActionTaskForDeal(input.dealId, input.actorUserId);
+
     getDealLarkContext(input.dealId).then((dealCtx) => {
         if (!dealCtx?.larkChatId) return;
         const STAGE_LABELS: Record<string, string> = {
@@ -903,15 +920,11 @@ async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<
     const businessUnit = await findBusinessUnitByScope(businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    const weekEnd = new Date(today);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    const weekEndStr = weekEnd.toISOString().split('T')[0];
+    const todayStr = getTokyoTodayStr();
+    const [ty, tm, td] = todayStr.split('-').map(Number);
+    const tomorrowDate = new Date(Date.UTC(ty, tm - 1, td + 1));
+    const tomorrowStr = `${tomorrowDate.getUTCFullYear()}-${String(tomorrowDate.getUTCMonth() + 1).padStart(2, '0')}-${String(tomorrowDate.getUTCDate()).padStart(2, '0')}`;
+    const weekEndStr = getTokyoWeekEndStr(todayStr);
 
     const activeStagesSql = buildTextListSql(ACTIVE_STAGES);
     const contractedStagesSql = buildTextListSql(CONTRACTED_STAGES);
@@ -1164,15 +1177,11 @@ export async function getDashboardSummaryOptimized(
     const businessUnit = await findBusinessUnitByScope(businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
-    const weekEnd = new Date(today);
-    weekEnd.setDate(weekEnd.getDate() + 7);
-    const weekEndStr = weekEnd.toISOString().split('T')[0];
+    const todayStr = getTokyoTodayStr();
+    const [ty, tm, td] = todayStr.split('-').map(Number);
+    const tomorrowDate = new Date(Date.UTC(ty, tm - 1, td + 1));
+    const tomorrowStr = `${tomorrowDate.getUTCFullYear()}-${String(tomorrowDate.getUTCMonth() + 1).padStart(2, '0')}-${String(tomorrowDate.getUTCDate()).padStart(2, '0')}`;
+    const weekEndStr = getTokyoWeekEndStr(todayStr);
 
     const [stageRows, ownerRows, companyRows, activeMembers, nextActionDeals] = await Promise.all([
         db
@@ -1561,4 +1570,6 @@ export async function deleteDeal(dealId: string): Promise<void> {
     await db.update(deals)
         .set({ deletedAt: new Date() })
         .where(and(eq(deals.id, dealId), isNull(deals.deletedAt)));
+
+    await syncDealNextActionTaskForDeal(dealId);
 }

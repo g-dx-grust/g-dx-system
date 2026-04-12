@@ -1,12 +1,16 @@
 {
   "crons": [
     {
+      "path": "/api/cron/dashboard-alerts/combined",
+      "schedule": "55 23 * * *"
+    },
+    {
       "path": "/api/cron/deal-alerts",
       "schedule": "0 0 * * *"
     },
     {
       "path": "/api/cron/ai-weekly-summary",
-      "schedule": "0 13 * * 0"
+      "schedule": "0 0 * * 1"
     }
   ]
 }

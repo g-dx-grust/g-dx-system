@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import type { DealListItem, DealStageKey } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { PaginationControls } from '@/components/ui/pagination-controls';
 
 interface UserOption {
     id: string;
@@ -12,9 +13,12 @@ interface UserOption {
 interface DealListProps {
     deals: DealListItem[];
     total: number;
+    page: number;
+    pageSize: number;
     keyword?: string;
     stage?: string;
     ownerUserId?: string;
+    companyId?: string;
     amountMin?: string;
     amountMax?: string;
     nextActionStatus?: string;
@@ -58,9 +62,9 @@ const NEXT_ACTION_STATUS_LABELS: Record<string, string> = {
     ALL: 'すべて',
 };
 
-export function DealList({ deals, total, keyword, stage, ownerUserId, amountMin, amountMax, nextActionStatus, dealStatus, users = [], created = false, deleted = false }: DealListProps) {
+export function DealList({ deals, total, page, pageSize, keyword, stage, ownerUserId, companyId, amountMin, amountMax, nextActionStatus, dealStatus, users = [], created = false, deleted = false }: DealListProps) {
     const hasAdvancedFilter = !!(amountMin || amountMax || nextActionStatus || dealStatus);
-    const hasAnyFilter = !!(keyword || stage || ownerUserId || hasAdvancedFilter);
+    const hasAnyFilter = !!(keyword || stage || ownerUserId || companyId || hasAdvancedFilter);
 
     return (
         <div className="space-y-6">
@@ -79,6 +83,7 @@ export function DealList({ deals, total, keyword, stage, ownerUserId, amountMin,
             <Card className="shadow-sm">
                 <CardContent className="pt-6">
                     <form action="/sales/deals" className="flex flex-col gap-3">
+                        <input type="hidden" name="companyId" value={companyId ?? ''} />
                         {/* 基本フィルタ行 */}
                         <div className="flex flex-col gap-3 md:flex-row">
                             <input
@@ -289,6 +294,22 @@ export function DealList({ deals, total, keyword, stage, ownerUserId, amountMin,
                         </>
                     )}
                 </CardContent>
+                <PaginationControls
+                    pathname="/sales/deals"
+                    page={page}
+                    pageSize={pageSize}
+                    total={total}
+                    query={{
+                        keyword,
+                        stage,
+                        ownerUserId,
+                        companyId,
+                        amountMin,
+                        amountMax,
+                        nextActionStatus,
+                        dealStatus,
+                    }}
+                />
             </Card>
         </div>
     );

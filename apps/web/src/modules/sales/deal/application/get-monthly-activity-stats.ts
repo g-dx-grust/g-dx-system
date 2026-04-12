@@ -1,17 +1,23 @@
-import { unstable_cache } from 'next/cache';
+/**
+ * Caching policy: Redis (cross-process). unstable_cache removed to avoid double-caching.
+ * Key: gdx:dashboard:monthly-activity:{scope}:{year}:{month}
+ */
+
 import type { BusinessScopeType } from '@g-dx/contracts';
 import { assertPermission } from '@/shared/server/authorization';
 import { DASHBOARD_DATA_REVALIDATE_SECONDS } from '@/shared/server/cache';
+import { withRedisCache } from '@/shared/server/redis-cache';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import { getMonthlyActivityStats as repoGetStats } from '../infrastructure/activity-repository';
 
-const getMonthlyActivityStatsCached = unstable_cache(
-    async (businessScope: BusinessScopeType, year: number, month: number) =>
-        repoGetStats(businessScope, year, month),
-    ['dashboard-monthly-activity-stats'],
-    { revalidate: DASHBOARD_DATA_REVALIDATE_SECONDS },
-);
+export function getMonthlyActivityStatsCacheKey(
+    businessScope: BusinessScopeType,
+    year: number,
+    month: number,
+): string {
+    return `gdx:dashboard:monthly-activity:${businessScope}:${year}:${month}`;
+}
 
 export async function getMonthlyActivityStats() {
     const session = await getAuthenticatedAppSession();
@@ -20,10 +26,13 @@ export async function getMonthlyActivityStats() {
     assertPermission(session, 'sales.deal.read');
 
     const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    const key = getMonthlyActivityStatsCacheKey(session.activeBusinessScope, year, month);
 
-    return getMonthlyActivityStatsCached(
-        session.activeBusinessScope,
-        now.getFullYear(),
-        now.getMonth() + 1,
+    return withRedisCache(
+        key,
+        DASHBOARD_DATA_REVALIDATE_SECONDS,
+        () => repoGetStats(session.activeBusinessScope, year, month),
     );
 }

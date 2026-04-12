@@ -18,6 +18,8 @@ export async function createDeal(input: CreateDealRequest) {
         stage: input.stage,
         amount: input.amount,
         expectedCloseDate: input.expectedCloseDate,
+        nextActionDate: input.nextActionDate,
+        nextActionContent: input.nextActionContent,
         ownerUserId: input.ownerUserId,
         source: input.source,
         memo: input.memo,

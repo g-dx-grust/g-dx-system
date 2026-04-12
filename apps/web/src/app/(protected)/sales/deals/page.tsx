@@ -10,9 +10,11 @@ import type { DealStageKey, DealStatus } from '@g-dx/contracts';
 
 interface DealsPageProps {
     searchParams?: {
+        page?: string;
         keyword?: string;
         stage?: string;
         ownerUserId?: string;
+        companyId?: string;
         amountMin?: string;
         amountMax?: string;
         nextActionStatus?: string;
@@ -26,15 +28,19 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
     const session = await getAuthenticatedAppSession();
     if (!session) redirect('/login');
 
+    const pageParam = searchParams?.page ? Number.parseInt(searchParams.page, 10) : 1;
+    const page = Number.isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
     const amountMin = searchParams?.amountMin ? Number(searchParams.amountMin) : undefined;
     const amountMax = searchParams?.amountMax ? Number(searchParams.amountMax) : undefined;
 
     let result;
     try {
         result = await listDeals({
+            page,
             keyword: searchParams?.keyword,
             stage: searchParams?.stage as DealStageKey | undefined,
             ownerUserId: searchParams?.ownerUserId,
+            companyId: searchParams?.companyId,
             amountMin: amountMin !== undefined && !isNaN(amountMin) ? amountMin : undefined,
             amountMax: amountMax !== undefined && !isNaN(amountMax) ? amountMax : undefined,
             nextActionStatus: searchParams?.nextActionStatus as 'NOT_SET' | 'OVERDUE' | 'THIS_WEEK' | 'ALL' | undefined,
@@ -78,9 +84,12 @@ export default async function DealsPage({ searchParams }: DealsPageProps) {
         <DealList
             deals={result.data}
             total={result.meta.total}
+            page={result.meta.page}
+            pageSize={result.meta.pageSize}
             keyword={searchParams?.keyword}
             stage={searchParams?.stage}
             ownerUserId={searchParams?.ownerUserId}
+            companyId={searchParams?.companyId}
             amountMin={searchParams?.amountMin}
             amountMax={searchParams?.amountMax}
             nextActionStatus={searchParams?.nextActionStatus}

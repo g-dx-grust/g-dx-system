@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { ShieldCheck, X, Plus, UserPlus } from 'lucide-react';
+import { ShieldCheck, X, Plus, UserPlus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SubmitButton } from '@/components/ui/submit-button';
-import { assignRoleAction, removeRoleAction, createUserAction } from './server-actions';
+import { assignRoleAction, removeRoleAction, createUserAction, deleteUserAction } from './server-actions';
 
 interface RoleOption {
     id: string;
@@ -54,7 +54,23 @@ export function AdminUserTable({ users, roleOptions, businessUnits, currentUserI
     const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [createError, setCreateError] = useState<string | null>(null);
+    const [deleteConfirmUserId, setDeleteConfirmUserId] = useState<string | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [isPending, startTransition] = useTransition();
+
+    function handleDeleteConfirm(userId: string) {
+        const formData = new FormData();
+        formData.set('userId', userId);
+        startTransition(async () => {
+            const result = await deleteUserAction(formData);
+            if (result.success) {
+                setDeleteConfirmUserId(null);
+                setDeleteError(null);
+            } else {
+                setDeleteError(result.error ?? 'エラーが発生しました');
+            }
+        });
+    }
 
     function handleCreateSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
@@ -231,17 +247,61 @@ export function AdminUserTable({ users, roleOptions, businessUnits, currentUserI
                                             )}
                                         </div>
                                     </div>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        className="shrink-0 gap-1"
-                                        onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
-                                    >
-                                        <Plus className="h-3.5 w-3.5" />
-                                        ロール付与
-                                    </Button>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            className="gap-1"
+                                            onClick={() => setExpandedUserId(expandedUserId === user.id ? null : user.id)}
+                                        >
+                                            <Plus className="h-3.5 w-3.5" />
+                                            ロール付与
+                                        </Button>
+                                        {user.id !== currentUserId && (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="gap-1 text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                                                onClick={() => { setDeleteConfirmUserId(user.id); setDeleteError(null); }}
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                                削除
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
+
+                                {deleteConfirmUserId === user.id && (
+                                    <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 space-y-2">
+                                        <p className="text-sm text-red-700 font-medium">
+                                            「{user.name}」を削除しますか？この操作は元に戻せません。
+                                        </p>
+                                        {deleteError && (
+                                            <p className="text-xs text-red-600">{deleteError}</p>
+                                        )}
+                                        <div className="flex gap-2">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => { setDeleteConfirmUserId(null); setDeleteError(null); }}
+                                            >
+                                                キャンセル
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                className="bg-red-600 hover:bg-red-700 text-white"
+                                                disabled={isPending}
+                                                onClick={() => handleDeleteConfirm(user.id)}
+                                            >
+                                                {isPending ? '削除中...' : '削除する'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {expandedUserId === user.id && (
                                     <div className="mt-3 rounded-md border border-gray-200 bg-gray-50 p-3">

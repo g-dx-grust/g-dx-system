@@ -27,6 +27,8 @@ export interface CreateDealInput {
     stage: DealStageKey;
     amount?: number;
     expectedCloseDate?: string | null;
+    nextActionDate?: string | null;
+    nextActionContent?: string | null;
     ownerUserId: UUID;
     source?: string;
     memo?: string;

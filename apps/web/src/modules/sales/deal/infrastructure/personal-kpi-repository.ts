@@ -24,6 +24,8 @@ import type {
 } from '@g-dx/contracts';
 import { getRollingPeriodBounds, ALL_ROLLING_PERIODS, type RollingPeriodBounds } from './rolling-period';
 import { hasSegmentTargetColumns } from './kpi-target-columns';
+import { listPersonalDealNextActionTasks } from '@/modules/tasks/infrastructure/deal-next-action-task-repository';
+import { getTokyoWeekEndStr } from '@/shared/server/date-jst';
 
 function getMonthBounds(targetMonth: string): { startDate: string; endDate: string } {
     const [year, month] = targetMonth.split('-').map(Number);
@@ -33,14 +35,6 @@ function getMonthBounds(targetMonth: string): { startDate: string; endDate: stri
     return { startDate, endDate };
 }
 
-function getEndOfWindow(today: string): string {
-    const [year, month, day] = today.split('-').map(Number);
-    const date = new Date(Date.UTC(year, month - 1, day + 13));
-    const y = date.getUTCFullYear();
-    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(date.getUTCDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-}
 
 export async function upsertKpiTarget(
     userId: string,
@@ -786,52 +780,6 @@ export async function getPersonalNextActions(
     businessUnitId: string,
     today: string,
 ): Promise<PersonalNextActionItem[]> {
-    const endOfWindow = getEndOfWindow(today);
-
-    const rows = await db
-        .select({
-            dealId: deals.id,
-            dealName: deals.title,
-            companyName: companies.displayName,
-            stageKey: pipelineStages.stageKey,
-            stageName: pipelineStages.name,
-            amount: deals.amount,
-            nextActionDate: deals.nextActionDate,
-            nextActionContent: deals.nextActionContent,
-        })
-        .from(deals)
-        .innerJoin(companies, eq(deals.companyId, companies.id))
-        .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
-        .where(
-            and(
-                eq(deals.ownerUserId, userId),
-                eq(deals.businessUnitId, businessUnitId),
-                isNull(deals.deletedAt),
-                sql`${deals.nextActionDate} IS NOT NULL`,
-                lte(deals.nextActionDate, endOfWindow),
-            ),
-        )
-        .orderBy(deals.nextActionDate);
-
-    return rows
-        .filter((row) => row.nextActionDate !== null)
-        .map((row) => {
-            const date = row.nextActionDate!;
-            let urgency: PersonalNextActionItem['urgency'];
-            if (date < today) urgency = 'OVERDUE';
-            else if (date === today) urgency = 'TODAY';
-            else urgency = 'THIS_WEEK';
-
-            return {
-                dealId: row.dealId,
-                dealName: row.dealName,
-                companyName: row.companyName,
-                stageKey: row.stageKey,
-                stageName: row.stageName,
-                amount: row.amount !== null ? parseFloat(row.amount) : null,
-                nextActionDate: date,
-                nextActionContent: row.nextActionContent,
-                urgency,
-            };
-        });
+    const endOfWindow = getTokyoWeekEndStr(today);
+    return listPersonalDealNextActionTasks(userId, businessUnitId, today, endOfWindow);
 }

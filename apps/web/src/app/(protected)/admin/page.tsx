@@ -4,20 +4,30 @@ import { db } from '@g-dx/database';
 import { users, roles, userRoleAssignments, userBusinessMemberships, businessUnits } from '@g-dx/database/schema';
 import { eq, isNull } from 'drizzle-orm';
 import { AdminUserTable } from './admin-user-table';
+import { AdminSystemSettings } from './admin-system-settings';
+import { getDashboardAlertLarkChatId } from '@/modules/admin/infrastructure/app-settings-repository';
 
-export default async function AdminPage() {
+interface AdminPageProps {
+    searchParams?: {
+        settingsSaved?: string;
+        tasksResynced?: string;
+    };
+}
+
+export default async function AdminPage({ searchParams }: AdminPageProps) {
     const session = await getAuthenticatedAppSession();
     if (!session) redirect('/login');
 
     const isAdmin = session.user.roles.some((r) => r === 'SUPER_ADMIN' || r === 'ADMIN');
     if (!isAdmin) redirect('/unauthorized');
 
-    const [allUsers, allRoles, allRoleAssignments, allMemberships, allBusinessUnits] = await Promise.all([
+    const [allUsers, allRoles, allRoleAssignments, allMemberships, allBusinessUnits, dashboardAlertLarkChatId] = await Promise.all([
         db.select({ id: users.id, name: users.displayName, email: users.email, status: users.status, lastLoginAt: users.lastLoginAt }).from(users).where(isNull(users.deletedAt)),
         db.select({ id: roles.id, code: roles.code, name: roles.name }).from(roles).orderBy(roles.sortOrder),
         db.select({ userId: userRoleAssignments.userId, roleId: userRoleAssignments.roleId, businessUnitId: userRoleAssignments.businessUnitId }).from(userRoleAssignments).where(isNull(userRoleAssignments.expiresAt)),
         db.select({ userId: userBusinessMemberships.userId, businessUnitId: userBusinessMemberships.businessUnitId, isDefault: userBusinessMemberships.isDefault }).from(userBusinessMemberships).where(eq(userBusinessMemberships.membershipStatus, 'active')),
         db.select({ id: businessUnits.id, code: businessUnits.code, name: businessUnits.name }).from(businessUnits).where(eq(businessUnits.isActive, true)),
+        getDashboardAlertLarkChatId(),
     ]);
 
     const userList = allUsers.map((u) => {
@@ -40,5 +50,25 @@ export default async function AdminPage() {
 
     const businessUnitOptions = allBusinessUnits.map((b) => ({ id: b.id, code: b.code, name: b.name }));
 
-    return <AdminUserTable users={userList} roleOptions={roleOptions} businessUnits={businessUnitOptions} currentUserId={session.user.id} />;
+    const tasksResyncedParam = searchParams?.tasksResynced;
+    const tasksResyncedCount =
+        tasksResyncedParam && !Number.isNaN(Number.parseInt(tasksResyncedParam, 10))
+            ? Number.parseInt(tasksResyncedParam, 10)
+            : null;
+
+    return (
+        <div className="space-y-6">
+            <AdminSystemSettings
+                dashboardAlertLarkChatId={dashboardAlertLarkChatId}
+                settingsSaved={searchParams?.settingsSaved === '1'}
+                tasksResyncedCount={tasksResyncedCount}
+            />
+            <AdminUserTable
+                users={userList}
+                roleOptions={roleOptions}
+                businessUnits={businessUnitOptions}
+                currentUserId={session.user.id}
+            />
+        </div>
+    );
 }

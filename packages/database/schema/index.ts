@@ -13,3 +13,4 @@ export * from './masters';
 export * from './hearings';
 export * from './approvals';
 export * from './notifications';
+export * from './app-settings';

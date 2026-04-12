@@ -5,7 +5,7 @@ import { ShieldCheck, X, Plus, UserPlus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { SubmitButton } from '@/components/ui/submit-button';
-import { assignRoleAction, removeRoleAction, createUserAction, deleteUserAction } from './server-actions';
+import { assignRoleAction, removeRoleAction, createUserAction, deleteUserAction, toggleAiSummaryAction } from './server-actions';
 
 interface RoleOption {
     id: string;
@@ -17,6 +17,7 @@ interface BusinessUnit {
     id: string;
     code: string;
     name: string;
+    receiveAiSummary?: boolean;
 }
 
 interface UserRow {
@@ -246,6 +247,33 @@ export function AdminUserTable({ users, roleOptions, businessUnits, currentUserI
                                                 ))
                                             )}
                                         </div>
+
+                                        {user.businesses.length > 0 && (
+                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                <span className="text-xs text-gray-400 shrink-0">AIサマリー:</span>
+                                                {user.businesses.map((bu) => {
+                                                    const isOn = bu.receiveAiSummary !== false;
+                                                    return (
+                                                        <form key={bu.id} action={toggleAiSummaryAction} className="inline-flex">
+                                                            <input type="hidden" name="userId" value={user.id} />
+                                                            <input type="hidden" name="businessUnitId" value={bu.id} />
+                                                            <input type="hidden" name="receiveAiSummary" value={isOn ? 'false' : 'true'} />
+                                                            <button
+                                                                type="submit"
+                                                                title={`${bu.name}: AIサマリーを${isOn ? 'OFFにする' : 'ONにする'}`}
+                                                                className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                                                                    isOn
+                                                                        ? 'border-gray-800 bg-gray-800 text-white hover:bg-gray-700'
+                                                                        : 'border-gray-200 bg-gray-50 text-gray-400 hover:border-gray-400'
+                                                                }`}
+                                                            >
+                                                                {bu.name} {isOn ? 'ON' : 'OFF'}
+                                                            </button>
+                                                        </form>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         <Button

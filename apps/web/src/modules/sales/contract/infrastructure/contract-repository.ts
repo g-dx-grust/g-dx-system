@@ -1,16 +1,20 @@
 import { db } from '@g-dx/database';
 import { auditLogs } from '@g-dx/database/schema';
 import { businessUnits, companies, contacts, contractActivities, contracts, deals, users } from '@g-dx/database/schema';
-import { and, desc, eq, ilike, isNull, or } from 'drizzle-orm';
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type {
     BusinessScopeType,
+    ContractActivityInitiatedBy,
     ContractActivityItem,
     ContractActivityType,
     ContractDetail,
     ContractDashboardSummary,
     ContractListItem,
+    ContractNextSessionType,
+    ContractProgressStatus,
     ContractStatus,
+    RegularMeetingFrequency,
     UUID,
 } from '@g-dx/contracts';
 import { AppError } from '@/shared/server/errors';
@@ -152,6 +156,11 @@ export async function getContractById(
             enterpriseLicenseCount: contracts.enterpriseLicenseCount,
             proLicenseCount: contracts.proLicenseCount,
             a2LicenseCount: contracts.a2LicenseCount,
+            csPhase: contracts.csPhase,
+            regularMeetingWeekday: contracts.regularMeetingWeekday,
+            regularMeetingTime: contracts.regularMeetingTime,
+            regularMeetingFrequency: contracts.regularMeetingFrequency,
+            totalSessionCount: contracts.totalSessionCount,
             createdAt: contracts.createdAt,
             updatedAt: contracts.updatedAt,
             companyId: companies.id,
@@ -207,6 +216,11 @@ export async function getContractById(
         enterpriseLicenseCount: row.enterpriseLicenseCount,
         proLicenseCount: row.proLicenseCount,
         a2LicenseCount: row.a2LicenseCount,
+        csPhase: row.csPhase as ContractProgressStatus | null,
+        regularMeetingWeekday: row.regularMeetingWeekday,
+        regularMeetingTime: row.regularMeetingTime,
+        regularMeetingFrequency: row.regularMeetingFrequency as RegularMeetingFrequency | null,
+        totalSessionCount: row.totalSessionCount,
         createdAt: row.createdAt.toISOString(),
         updatedAt: row.updatedAt.toISOString(),
     };
@@ -318,6 +332,11 @@ export interface UpdateContractInput {
     enterpriseLicenseCount?: number | null;
     proLicenseCount?: number | null;
     a2LicenseCount?: number | null;
+    csPhase?: string | null;
+    regularMeetingWeekday?: string | null;
+    regularMeetingTime?: string | null;
+    regularMeetingFrequency?: RegularMeetingFrequency | null;
+    totalSessionCount?: number;
     actorUserId: string;
 }
 
@@ -349,6 +368,11 @@ export async function updateContract(input: UpdateContractInput): Promise<void> 
             ...(input.enterpriseLicenseCount !== undefined && { enterpriseLicenseCount: input.enterpriseLicenseCount }),
             ...(input.proLicenseCount !== undefined && { proLicenseCount: input.proLicenseCount }),
             ...(input.a2LicenseCount !== undefined && { a2LicenseCount: input.a2LicenseCount }),
+            ...(input.csPhase !== undefined && { csPhase: input.csPhase }),
+            ...(input.regularMeetingWeekday !== undefined && { regularMeetingWeekday: input.regularMeetingWeekday }),
+            ...(input.regularMeetingTime !== undefined && { regularMeetingTime: input.regularMeetingTime }),
+            ...(input.regularMeetingFrequency !== undefined && { regularMeetingFrequency: input.regularMeetingFrequency }),
+            ...(input.totalSessionCount !== undefined && { totalSessionCount: input.totalSessionCount }),
             updatedAt,
             updatedByUserId: input.actorUserId,
         })
@@ -485,7 +509,14 @@ export async function listContractActivities(
             activityType: contractActivities.activityType,
             activityDate: contractActivities.activityDate,
             summary: contractActivities.summary,
+            initiatedBy: contractActivities.initiatedBy,
+            sessionNumber: contractActivities.sessionNumber,
+            progressStatus: contractActivities.progressStatus,
+            larkMeetingUrl: contractActivities.larkMeetingUrl,
+            nextSessionType: contractActivities.nextSessionType,
+            nextSessionDate: contractActivities.nextSessionDate,
             createdAt: contractActivities.createdAt,
+            updatedAt: contractActivities.updatedAt,
         })
         .from(contractActivities)
         .innerJoin(users, eq(contractActivities.userId, users.id))
@@ -495,7 +526,7 @@ export async function listContractActivities(
                 eq(contractActivities.businessUnitId, businessUnit.id),
             ),
         )
-        .orderBy(desc(contractActivities.createdAt));
+        .orderBy(desc(contractActivities.activityDate), desc(contractActivities.createdAt));
 
     return rows.map((r) => ({
         id: r.id,
@@ -505,7 +536,14 @@ export async function listContractActivities(
         activityType: r.activityType as ContractActivityType,
         activityDate: r.activityDate ?? '',
         summary: r.summary,
+        initiatedBy: (r.initiatedBy as ContractActivityInitiatedBy | null) ?? null,
+        sessionNumber: r.sessionNumber ?? null,
+        progressStatus: (r.progressStatus as ContractProgressStatus | null) ?? null,
+        larkMeetingUrl: r.larkMeetingUrl ?? null,
+        nextSessionType: (r.nextSessionType as ContractNextSessionType | null) ?? null,
+        nextSessionDate: r.nextSessionDate ?? null,
         createdAt: r.createdAt.toISOString(),
+        updatedAt: r.updatedAt?.toISOString() ?? null,
     }));
 }
 
@@ -516,6 +554,12 @@ export async function createContractActivity(input: {
     activityType: ContractActivityType;
     activityDate: string;
     summary?: string;
+    initiatedBy?: ContractActivityInitiatedBy;
+    sessionNumber?: number;
+    progressStatus?: ContractProgressStatus;
+    larkMeetingUrl?: string;
+    nextSessionType?: ContractNextSessionType;
+    nextSessionDate?: string;
 }): Promise<{ id: string }> {
     const businessUnit = await getBusinessUnitOrThrow(input.businessScope);
     await verifyContractScope(input.contractId, businessUnit.id);
@@ -531,6 +575,12 @@ export async function createContractActivity(input: {
             activityType: input.activityType,
             activityDate: input.activityDate,
             summary: input.summary ?? null,
+            initiatedBy: input.initiatedBy ?? null,
+            sessionNumber: input.sessionNumber ?? null,
+            progressStatus: input.progressStatus ?? null,
+            larkMeetingUrl: input.larkMeetingUrl ?? null,
+            nextSessionType: input.nextSessionType ?? null,
+            nextSessionDate: input.nextSessionDate ?? null,
         });
 
         await tx.insert(auditLogs).values({
@@ -544,5 +594,63 @@ export async function createContractActivity(input: {
         });
     });
 
+    // Increment totalSessionCount on the contract for meeting-type activities
+    if (input.activityType === 'REGULAR' || input.activityType === 'SPOT') {
+        await db
+            .update(contracts)
+            .set({ totalSessionCount: sql`${contracts.totalSessionCount} + 1` })
+            .where(eq(contracts.id, input.contractId));
+    }
+
     return { id };
+}
+
+export async function updateContractActivity(input: {
+    activityId: string;
+    contractId: string;
+    businessScope: BusinessScopeType;
+    actorUserId: string;
+    activityType?: ContractActivityType;
+    activityDate?: string;
+    summary?: string | null;
+    initiatedBy?: ContractActivityInitiatedBy | null;
+    sessionNumber?: number | null;
+    progressStatus?: ContractProgressStatus | null;
+    larkMeetingUrl?: string | null;
+    nextSessionType?: ContractNextSessionType | null;
+    nextSessionDate?: string | null;
+}): Promise<void> {
+    const businessUnit = await getBusinessUnitOrThrow(input.businessScope);
+    await verifyContractScope(input.contractId, businessUnit.id);
+
+    // Verify activity belongs to this contract
+    const [existing] = await db
+        .select({ id: contractActivities.id })
+        .from(contractActivities)
+        .where(
+            and(
+                eq(contractActivities.id, input.activityId),
+                eq(contractActivities.contractId, input.contractId),
+                eq(contractActivities.businessUnitId, businessUnit.id),
+            ),
+        )
+        .limit(1);
+
+    if (!existing) throw new AppError('NOT_FOUND', 'Contract activity not found.');
+
+    await db
+        .update(contractActivities)
+        .set({
+            ...(input.activityType !== undefined && { activityType: input.activityType }),
+            ...(input.activityDate !== undefined && { activityDate: input.activityDate }),
+            ...(input.summary !== undefined && { summary: input.summary }),
+            ...(input.initiatedBy !== undefined && { initiatedBy: input.initiatedBy }),
+            ...(input.sessionNumber !== undefined && { sessionNumber: input.sessionNumber }),
+            ...(input.progressStatus !== undefined && { progressStatus: input.progressStatus }),
+            ...(input.larkMeetingUrl !== undefined && { larkMeetingUrl: input.larkMeetingUrl }),
+            ...(input.nextSessionType !== undefined && { nextSessionType: input.nextSessionType }),
+            ...(input.nextSessionDate !== undefined && { nextSessionDate: input.nextSessionDate }),
+            updatedAt: new Date(),
+        })
+        .where(eq(contractActivities.id, input.activityId));
 }

@@ -6,7 +6,6 @@ interface SalesKpiDashboardProps {
 }
 
 const KPI_ROWS: { key: string; label: string }[] = [
-    { key: 'callCount', label: 'コール数' },
     { key: 'visitCount', label: '訪問数' },
     { key: 'onlineCount', label: 'オンライン商談数' },
     { key: 'appointmentCount', label: 'アポイント数' },

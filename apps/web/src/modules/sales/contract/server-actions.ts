@@ -5,9 +5,10 @@ import { redirect } from 'next/navigation';
 import { createContract } from '@/modules/sales/contract/application/create-contract';
 import { createContractActivity } from '@/modules/sales/contract/application/create-contract-activity';
 import { updateContract } from '@/modules/sales/contract/application/update-contract';
+import { updateContractActivity } from '@/modules/sales/contract/application/update-contract-activity';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
-import type { ContractActivityType, ContractStatus } from '@g-dx/contracts';
+import type { ContractActivityInitiatedBy, ContractActivityType, ContractNextSessionType, ContractProgressStatus, ContractStatus, RegularMeetingFrequency } from '@g-dx/contracts';
 
 function readString(formData: FormData, key: string): string | undefined {
     const value = formData.get(key);
@@ -137,12 +138,21 @@ export async function createContractActivityAction(formData: FormData) {
         redirect(`/sales/contracts`);
     }
 
+    const sessionNumberRaw = readString(formData, 'sessionNumber');
+    const sessionNumber = sessionNumberRaw ? parseInt(sessionNumberRaw, 10) : undefined;
+
     try {
         await createContractActivity({
             contractId,
             activityType,
             activityDate,
             summary: readString(formData, 'summary'),
+            initiatedBy: readString(formData, 'initiatedBy') as ContractActivityInitiatedBy | undefined,
+            sessionNumber: sessionNumber !== undefined && !isNaN(sessionNumber) ? sessionNumber : undefined,
+            progressStatus: readString(formData, 'progressStatus') as ContractProgressStatus | undefined,
+            larkMeetingUrl: readString(formData, 'larkMeetingUrl'),
+            nextSessionType: readString(formData, 'nextSessionType') as ContractNextSessionType | undefined,
+            nextSessionDate: readString(formData, 'nextSessionDate'),
         });
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
@@ -152,4 +162,60 @@ export async function createContractActivityAction(formData: FormData) {
 
     revalidatePath(`/sales/contracts/${contractId}`);
     redirect(`/sales/contracts/${contractId}?activityAdded=1`);
+}
+
+export async function updateContractActivityAction(formData: FormData) {
+    const activityId = readString(formData, 'activityId');
+    const contractId = readString(formData, 'contractId');
+
+    if (!activityId || !contractId) redirect(`/sales/contracts`);
+
+    const sessionNumberRaw = readString(formData, 'sessionNumber');
+    const sessionNumber = sessionNumberRaw !== undefined ? (sessionNumberRaw === '' ? null : parseInt(sessionNumberRaw, 10)) : undefined;
+
+    try {
+        await updateContractActivity({
+            activityId,
+            contractId,
+            activityType: readString(formData, 'activityType') as ContractActivityType | undefined,
+            activityDate: readString(formData, 'activityDate'),
+            summary: readString(formData, 'summary') ?? null,
+            initiatedBy: (readString(formData, 'initiatedBy') as ContractActivityInitiatedBy | undefined) ?? null,
+            sessionNumber: sessionNumber !== undefined && (sessionNumber === null || !isNaN(sessionNumber)) ? sessionNumber : undefined,
+            progressStatus: (readString(formData, 'progressStatus') as ContractProgressStatus | undefined) ?? null,
+            larkMeetingUrl: readString(formData, 'larkMeetingUrl') ?? null,
+            nextSessionType: (readString(formData, 'nextSessionType') as ContractNextSessionType | undefined) ?? null,
+            nextSessionDate: readString(formData, 'nextSessionDate') ?? null,
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (isAppError(error, 'NOT_FOUND')) redirect('/sales/contracts');
+        throw error;
+    }
+
+    revalidatePath(`/sales/contracts/${contractId}`);
+    redirect(`/sales/contracts/${contractId}?activityUpdated=1`);
+}
+
+export async function updateContractCsSettingsAction(formData: FormData) {
+    const contractId = readString(formData, 'contractId');
+    if (!contractId) redirect('/sales/contracts');
+
+    try {
+        await updateContract(contractId, {
+            csPhase: (readString(formData, 'csPhase') as ContractProgressStatus | undefined) ?? null,
+            regularMeetingWeekday: readString(formData, 'regularMeetingWeekday') ?? null,
+            regularMeetingTime: readString(formData, 'regularMeetingTime') ?? null,
+            regularMeetingFrequency: (readString(formData, 'regularMeetingFrequency') as RegularMeetingFrequency | undefined) ?? null,
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (isAppError(error, 'NOT_FOUND')) redirect('/sales/contracts');
+        throw error;
+    }
+
+    revalidatePath(`/sales/contracts/${contractId}`);
+    redirect(`/sales/contracts/${contractId}?csUpdated=1`);
 }

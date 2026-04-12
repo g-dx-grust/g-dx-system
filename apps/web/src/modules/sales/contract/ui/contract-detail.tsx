@@ -1,10 +1,10 @@
 import Link from 'next/link';
-import type { ContractActivityItem, ContractDetail, ContractStatus } from '@g-dx/contracts';
+import type { ContractActivityItem, ContractDetail, ContractStatus, RegularMeetingFrequency } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { SubmitButton } from '@/components/ui/submit-button';
-import { updateContractAction } from '@/modules/sales/contract/server-actions';
+import { updateContractAction, updateContractCsSettingsAction } from '@/modules/sales/contract/server-actions';
 import { ContractActivityLog } from '@/modules/sales/contract/ui/contract-activity-log';
 
 interface UserOption {
@@ -17,8 +17,10 @@ interface ContractDetailViewProps {
     users?: UserOption[];
     created?: boolean;
     updated?: boolean;
+    csUpdated?: boolean;
     activities?: ContractActivityItem[];
     activityAdded?: boolean;
+    activityUpdated?: boolean;
 }
 
 const STATUS_LABELS: Record<ContractStatus, string> = {
@@ -73,11 +75,47 @@ const LICENSE_PLAN_OPTIONS = [
 
 const selectClass = 'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
+const CS_PHASE_OPTIONS = [
+    { value: '', label: '-- 選択してください --' },
+    { value: 'HEARING', label: 'ヒアリング' },
+    { value: 'ENV_SETUP', label: '環境設定' },
+    { value: 'FIRST_DELIVERY', label: '一次納品' },
+    { value: 'SECOND_DELIVERY', label: '二次納品' },
+    { value: 'FINAL_DELIVERY', label: '本納品' },
+    { value: 'STABLE', label: '安定稼働' },
+    { value: 'RENEWAL', label: '更新検討' },
+    { value: 'OTHER', label: 'その他' },
+];
+
+const WEEKDAY_OPTIONS = [
+    { value: '', label: '-- 曜日を選択 --' },
+    { value: 'MON', label: '月曜日' },
+    { value: 'TUE', label: '火曜日' },
+    { value: 'WED', label: '水曜日' },
+    { value: 'THU', label: '木曜日' },
+    { value: 'FRI', label: '金曜日' },
+];
+
+const WEEKDAY_LABELS: Record<string, string> = {
+    MON: '月', TUE: '火', WED: '水', THU: '木', FRI: '金',
+};
+
+const FREQUENCY_OPTIONS: { value: RegularMeetingFrequency | ''; label: string }[] = [
+    { value: '', label: '-- 頻度を選択 --' },
+    { value: 'WEEKLY', label: '週1回' },
+    { value: 'BIWEEKLY', label: '隔週' },
+    { value: 'MONTHLY', label: '月1回' },
+];
+
+const FREQUENCY_LABELS: Record<RegularMeetingFrequency, string> = {
+    WEEKLY: '週1回', BIWEEKLY: '隔週', MONTHLY: '月1回',
+};
+
 function formatAmount(amount: number): string {
     return `¥${amount.toLocaleString()}`;
 }
 
-export function ContractDetailView({ contract, users = [], created = false, updated = false, activities = [], activityAdded = false }: ContractDetailViewProps) {
+export function ContractDetailView({ contract, users = [], created = false, updated = false, csUpdated = false, activities = [], activityAdded = false, activityUpdated = false }: ContractDetailViewProps) {
     return (
         <div className="space-y-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -105,6 +143,11 @@ export function ContractDetailView({ contract, users = [], created = false, upda
             {updated && (
                 <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                     契約情報を更新しました。
+                </div>
+            )}
+            {csUpdated && (
+                <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                    CS設定を更新しました。
                 </div>
             )}
 
@@ -196,6 +239,91 @@ export function ContractDetailView({ contract, users = [], created = false, upda
                     </CardContent>
                 </Card>
             )}
+
+            {/* CS Progress Management */}
+            <Card className="shadow-sm">
+                <CardHeader>
+                    <CardTitle className="text-base text-gray-900">CS進捗管理</CardTitle>
+                    <CardDescription>伴走支援の進行状況と定例設定</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    {/* Current CS status display */}
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">累計実施回数</p>
+                            <p className="mt-1 text-2xl font-bold text-gray-900">{contract.totalSessionCount ?? 0}<span className="text-sm font-normal text-gray-500 ml-1">回</span></p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">現在フェーズ</p>
+                            <p className="mt-1 text-sm text-gray-900">
+                                {contract.csPhase
+                                    ? (CS_PHASE_OPTIONS.find((o) => o.value === contract.csPhase)?.label ?? contract.csPhase)
+                                    : <span className="text-gray-400">未設定</span>}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">定例曜日・時間</p>
+                            <p className="mt-1 text-sm text-gray-900">
+                                {contract.regularMeetingWeekday || contract.regularMeetingTime
+                                    ? `${WEEKDAY_LABELS[contract.regularMeetingWeekday ?? ''] ?? contract.regularMeetingWeekday ?? ''}${contract.regularMeetingTime ? ` ${contract.regularMeetingTime}` : ''}`
+                                    : <span className="text-gray-400">未設定</span>}
+                            </p>
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium uppercase tracking-wide text-gray-500">開催頻度</p>
+                            <p className="mt-1 text-sm text-gray-900">
+                                {contract.regularMeetingFrequency
+                                    ? FREQUENCY_LABELS[contract.regularMeetingFrequency]
+                                    : <span className="text-gray-400">未設定</span>}
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* CS settings edit form */}
+                    <form action={updateContractCsSettingsAction} className="grid gap-4 rounded-md border border-gray-200 bg-gray-50 p-4 md:grid-cols-2">
+                        <input type="hidden" name="contractId" value={contract.id} />
+                        <p className="text-sm font-medium text-gray-700 md:col-span-2">CS設定を編集</p>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            現在フェーズ
+                            <select name="csPhase" defaultValue={contract.csPhase ?? ''} className={selectClass}>
+                                {CS_PHASE_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            開催頻度
+                            <select name="regularMeetingFrequency" defaultValue={contract.regularMeetingFrequency ?? ''} className={selectClass}>
+                                {FREQUENCY_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            定例曜日
+                            <select name="regularMeetingWeekday" defaultValue={contract.regularMeetingWeekday ?? ''} className={selectClass}>
+                                {WEEKDAY_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            定例時間
+                            <Input name="regularMeetingTime" type="time" defaultValue={contract.regularMeetingTime ?? ''} className="h-10" />
+                        </label>
+
+                        <div className="flex items-center justify-end md:col-span-2">
+                            <SubmitButton className="bg-indigo-600 px-8 text-white hover:bg-indigo-700" pendingText="保存中...">
+                                CS設定を保存
+                            </SubmitButton>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
 
             {/* Edit form */}
             <Card className="shadow-sm">
@@ -342,7 +470,7 @@ export function ContractDetailView({ contract, users = [], created = false, upda
                 </CardContent>
             </Card>
 
-            <ContractActivityLog contractId={contract.id} activities={activities} activityAdded={activityAdded} />
+            <ContractActivityLog contractId={contract.id} activities={activities} activityAdded={activityAdded} activityUpdated={activityUpdated} />
         </div>
     );
 }

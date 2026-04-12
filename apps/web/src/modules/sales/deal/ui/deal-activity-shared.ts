@@ -44,17 +44,17 @@ export const TARGET_TYPE_LABELS: Record<MeetingTargetType, string> = {
 };
 
 export const NEGOTIATION_OUTCOME_LABELS: Record<NegotiationOutcome, string> = {
-    POSITIVE: '前向き',
-    NEUTRAL: '中立',
-    NEGATIVE: '後ろ向き',
-    PENDING: '保留',
+    HIGH: '確度◎',
+    MEDIUM: '確度○',
+    LOW: '確度△',
+    NONE: '確度✗',
 };
 
 export const NEGOTIATION_OUTCOME_BADGE_COLORS: Record<NegotiationOutcome, string> = {
-    POSITIVE: 'bg-emerald-100 text-emerald-700',
-    NEUTRAL: 'bg-slate-100 text-slate-600',
-    NEGATIVE: 'bg-rose-100 text-rose-700',
-    PENDING: 'bg-amber-100 text-amber-700',
+    HIGH: 'bg-emerald-100 text-emerald-700',
+    MEDIUM: 'bg-blue-100 text-blue-700',
+    LOW: 'bg-amber-100 text-amber-700',
+    NONE: 'bg-rose-100 text-rose-700',
 };
 
 export function isMeetingActivityType(activityType: DealActivityType): boolean {

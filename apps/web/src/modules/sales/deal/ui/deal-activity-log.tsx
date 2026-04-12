@@ -6,6 +6,7 @@ import type {
 } from '@g-dx/contracts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ActivityForm } from './deal-activity-form';
+import { DealActivityEditButton } from './deal-activity-edit-modal';
 import {
     ACTIVITY_COLORS,
     ACTIVITY_LABELS,
@@ -20,6 +21,7 @@ interface DealActivityLogProps {
     dealId: string;
     activities: DealActivityItem[];
     activityAdded?: boolean;
+    activityUpdated?: boolean;
     hideForm?: boolean;
 }
 
@@ -81,7 +83,7 @@ function NegotiationMeta({
     );
 }
 
-export function DealActivityLog({ dealId, activities, activityAdded = false, hideForm = false }: DealActivityLogProps) {
+export function DealActivityLog({ dealId, activities, activityAdded = false, activityUpdated = false, hideForm = false }: DealActivityLogProps) {
     return (
         <Card className="shadow-sm">
             <CardHeader>
@@ -91,6 +93,9 @@ export function DealActivityLog({ dealId, activities, activityAdded = false, hid
             <CardContent className="space-y-4">
                 {activityAdded && (
                     <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">活動を記録しました。</div>
+                )}
+                {activityUpdated && (
+                    <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">活動を更新しました。</div>
                 )}
 
                 {/* インライン追加フォーム（サイドバー使用時は非表示） */}
@@ -105,27 +110,42 @@ export function DealActivityLog({ dealId, activities, activityAdded = false, hid
                     <div className="space-y-2">
                         {activities.map((a) => (
                             <div key={a.id} className="rounded-md border border-gray-100 px-3 py-2.5">
-                                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ACTIVITY_COLORS[a.activityType]}`}>
-                                        {ACTIVITY_LABELS[a.activityType]}
-                                    </span>
-                                    <MeetingCategoryMeta
-                                        visitCategory={a.visitCategory}
-                                        targetType={a.targetType}
-                                    />
-                                    <NegotiationMeta
-                                        isNegotiation={a.isNegotiation}
-                                        negotiationOutcome={a.negotiationOutcome}
-                                    />
-                                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                                        <span>{a.activityDate}</span>
-                                        <span>{a.userName}</span>
-                                        {a.meetingCount > 1 && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">面会 {a.meetingCount}件</span>}
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ACTIVITY_COLORS[a.activityType]}`}>
+                                            {ACTIVITY_LABELS[a.activityType]}
+                                        </span>
+                                        <MeetingCategoryMeta
+                                            visitCategory={a.visitCategory}
+                                            targetType={a.targetType}
+                                        />
+                                        <NegotiationMeta
+                                            isNegotiation={a.isNegotiation}
+                                            negotiationOutcome={a.negotiationOutcome}
+                                        />
+                                        <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                            <span>{a.activityDate}</span>
+                                            <span>{a.userName}</span>
+                                            {a.meetingCount > 1 && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-gray-600">面会 {a.meetingCount}件</span>}
+                                        </div>
                                     </div>
+                                    <DealActivityEditButton dealId={dealId} activity={a} activityUpdated={activityUpdated} />
                                 </div>
                                 {a.summary && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{a.summary}</p>}
                                 {a.competitorInfo ? (
                                     <p className="mt-1 text-xs text-gray-500">競合情報: {a.competitorInfo}</p>
+                                ) : null}
+                                {a.larkMeetingUrl ? (
+                                    <p className="mt-1 text-xs">
+                                        <a
+                                            href={a.larkMeetingUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 underline hover:text-blue-800"
+                                        >
+                                            Lark議事録
+                                        </a>
+                                    </p>
                                 ) : null}
                             </div>
                         ))}

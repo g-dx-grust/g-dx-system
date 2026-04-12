@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import { getAllianceDetail } from '@/modules/sales/alliance/application/get-alliance-detail';
+import { listAllianceActivities } from '@/modules/sales/alliance/application/list-alliance-activities';
 import { AllianceDetailView } from '@/modules/sales/alliance/ui/alliance-detail';
+import { AllianceActivityLog } from '@/modules/sales/alliance/ui/alliance-activity-log';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import { db } from '@g-dx/database';
@@ -9,7 +11,7 @@ import { and, eq, isNull, notInArray } from 'drizzle-orm';
 
 interface AllianceDetailPageProps {
     params: { allianceId: string };
-    searchParams?: { created?: string; updated?: string; linked?: string; unlinked?: string };
+    searchParams?: { created?: string; updated?: string; linked?: string; unlinked?: string; activityAdded?: string; activityUpdated?: string };
 }
 
 export default async function AllianceDetailPage({ params, searchParams }: AllianceDetailPageProps) {
@@ -17,8 +19,12 @@ export default async function AllianceDetailPage({ params, searchParams }: Allia
     if (!session) redirect('/login');
 
     let alliance;
+    let activities = [];
     try {
-        alliance = await getAllianceDetail(params.allianceId);
+        [alliance, activities] = await Promise.all([
+            getAllianceDetail(params.allianceId),
+            listAllianceActivities(params.allianceId).catch(() => []),
+        ]);
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
@@ -62,13 +68,21 @@ export default async function AllianceDetailPage({ params, searchParams }: Allia
     }));
 
     return (
-        <AllianceDetailView
-            alliance={alliance}
-            availableDeals={availableDeals}
-            created={searchParams?.created === '1'}
-            updated={searchParams?.updated === '1'}
-            linked={searchParams?.linked === '1'}
-            unlinked={searchParams?.unlinked === '1'}
-        />
+        <div className="space-y-6">
+            <AllianceDetailView
+                alliance={alliance}
+                availableDeals={availableDeals}
+                created={searchParams?.created === '1'}
+                updated={searchParams?.updated === '1'}
+                linked={searchParams?.linked === '1'}
+                unlinked={searchParams?.unlinked === '1'}
+            />
+            <AllianceActivityLog
+                allianceId={params.allianceId}
+                activities={activities}
+                activityAdded={searchParams?.activityAdded === '1'}
+                activityUpdated={searchParams?.activityUpdated === '1'}
+            />
+        </div>
     );
 }

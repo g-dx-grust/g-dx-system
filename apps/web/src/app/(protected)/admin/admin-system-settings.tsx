@@ -1,17 +1,25 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { SubmitButton } from '@/components/ui/submit-button';
-import { saveDashboardAlertChatSettingsAction, resyncDealNextActionTasksAction } from './server-actions';
+import type { DashboardSectionsConfig } from '@/modules/admin/infrastructure/app-settings-repository';
+import { DASHBOARD_SECTION_LABELS } from '@/modules/admin/infrastructure/app-settings-repository';
+import { saveDashboardAlertChatSettingsAction, resyncDealNextActionTasksAction, saveDashboardSectionsAction } from './server-actions';
 
 interface AdminSystemSettingsProps {
     dashboardAlertLarkChatId: string | null;
     settingsSaved?: boolean;
+    sectionsSaved?: boolean;
     tasksResyncedCount?: number | null;
+    isSuperAdmin?: boolean;
+    dashboardSections?: DashboardSectionsConfig;
 }
 
 export function AdminSystemSettings({
     dashboardAlertLarkChatId,
     settingsSaved = false,
+    sectionsSaved = false,
     tasksResyncedCount = null,
+    isSuperAdmin = false,
+    dashboardSections,
 }: AdminSystemSettingsProps) {
     return (
         <Card className="shadow-sm">
@@ -23,6 +31,12 @@ export function AdminSystemSettings({
                 {settingsSaved ? (
                     <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
                         ダッシュボード通知の送信先を保存しました。
+                    </div>
+                ) : null}
+
+                {sectionsSaved ? (
+                    <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                        ダッシュボードのセクション表示設定を保存しました。
                     </div>
                 ) : null}
 
@@ -58,6 +72,42 @@ export function AdminSystemSettings({
                         </SubmitButton>
                     </div>
                 </form>
+
+                {isSuperAdmin && dashboardSections ? (
+                    <div className="border-t border-gray-100 pt-6">
+                        <div className="space-y-1">
+                            <h2 className="text-sm font-medium text-gray-900">
+                                案件ダッシュボード — セクション表示設定
+                            </h2>
+                            <p className="text-sm text-gray-500">
+                                チェックを外したセクションは全ユーザーのダッシュボードで非表示になります。スーパー管理者のみ変更できます。
+                            </p>
+                        </div>
+                        <form action={saveDashboardSectionsAction} className="mt-4 space-y-4">
+                            <div className="grid gap-2 sm:grid-cols-2">
+                                {(Object.entries(DASHBOARD_SECTION_LABELS) as [keyof typeof DASHBOARD_SECTION_LABELS, string][]).map(([key, label]) => (
+                                    <label
+                                        key={key}
+                                        className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 px-4 py-3 hover:bg-gray-50"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            name={`section_${key}`}
+                                            defaultChecked={dashboardSections[key]}
+                                            className="h-4 w-4 rounded border-gray-300 text-gray-900 accent-gray-900"
+                                        />
+                                        <span className="text-sm text-gray-700">{label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <div className="flex justify-end">
+                                <SubmitButton pendingText="保存中..." className="bg-gray-900 text-white hover:bg-gray-800">
+                                    表示設定を保存
+                                </SubmitButton>
+                            </div>
+                        </form>
+                    </div>
+                ) : null}
 
                 <div className="border-t border-gray-100 pt-6">
                     <div className="space-y-1">

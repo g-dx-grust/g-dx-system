@@ -53,12 +53,14 @@ export function ActivityDashboard({
                     description="進行中件数 / 金額"
                     value={`${summary.activeGroup.count.toLocaleString()}件`}
                     footnote={`進行中総額 ${formatDashboardAmount(summary.activeGroup.totalAmount)}`}
+                    href="/sales/deals"
                 />
                 <DashboardMetricCard
                     title="契約済み案件"
                     description="契約累計"
                     value={`${summary.contractedGroup.count.toLocaleString()}件`}
                     footnote={`契約総額 ${formatDashboardAmount(summary.contractedGroup.totalAmount)}`}
+                    href="/sales/contracts"
                 />
             </div>
 

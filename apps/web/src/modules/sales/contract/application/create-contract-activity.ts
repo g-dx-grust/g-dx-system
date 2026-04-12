@@ -1,4 +1,4 @@
-import type { ContractActivityType } from '@g-dx/contracts';
+import type { ContractActivityInitiatedBy, ContractActivityType, ContractNextSessionType, ContractProgressStatus } from '@g-dx/contracts';
 import { assertPermission } from '@/shared/server/authorization';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
@@ -9,6 +9,12 @@ export async function createContractActivity(input: {
     activityType: ContractActivityType;
     activityDate: string;
     summary?: string;
+    initiatedBy?: ContractActivityInitiatedBy;
+    sessionNumber?: number;
+    progressStatus?: ContractProgressStatus;
+    larkMeetingUrl?: string;
+    nextSessionType?: ContractNextSessionType;
+    nextSessionDate?: string;
 }) {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');

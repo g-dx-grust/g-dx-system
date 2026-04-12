@@ -476,6 +476,7 @@ export async function GET(req: NextRequest) {
                 and(
                     eq(userBusinessMemberships.businessUnitId, bu.id),
                     eq(userBusinessMemberships.membershipStatus, 'active'),
+                    eq(userBusinessMemberships.receiveAiSummary, true),
                 ),
             );
 

@@ -149,6 +149,12 @@ export const contracts = pgTable('contracts', {
     enterpriseLicenseCount: integer('enterprise_license_count'),
     proLicenseCount: integer('pro_license_count'),
     a2LicenseCount: integer('a2_license_count'),
+    // CS（伴走支援）管理フィールド
+    csPhase: text('cs_phase'), // 現在の伴走フェーズ
+    regularMeetingWeekday: text('regular_meeting_weekday'), // 定例曜日: MON|TUE|WED|THU|FRI
+    regularMeetingTime: text('regular_meeting_time'), // 定例時間 (HH:MM)
+    regularMeetingFrequency: text('regular_meeting_frequency'), // WEEKLY|BIWEEKLY|MONTHLY
+    totalSessionCount: integer('total_session_count').default(0).notNull(), // 累計実施回数
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
     createdByUserId: uuid('created_by_user_id').references(() => users.id),
@@ -161,16 +167,23 @@ export const contracts = pgTable('contracts', {
     ownerUserIdx: index('contracts_owner_user_idx').on(table.ownerUserId),
 }));
 
-// ─── JET（節水事業）: 契約活動記録 ───────────────────────────────────────────
+// ─── 契約活動記録（伴走支援CS用）────────────────────────────────────────────
 export const contractActivities = pgTable('contract_activities', {
     id: uuid('id').primaryKey().defaultRandom(),
     contractId: uuid('contract_id').notNull().references(() => contracts.id),
     businessUnitId: uuid('business_unit_id').notNull().references(() => businessUnits.id),
     userId: uuid('user_id').notNull().references(() => users.id),
-    activityType: text('activity_type').notNull(), // VISIT | CALL | EMAIL | INTERNAL | OTHER
+    activityType: text('activity_type').notNull(), // REGULAR(定例) | SPOT(急遽) | CALL | EMAIL | INTERNAL | OTHER
+    initiatedBy: text('initiated_by'), // CLIENT(顧客から) | US(弊社から)
     activityDate: date('activity_date').notNull(),
     summary: text('summary'),
+    sessionNumber: integer('session_number'), // 何回目の実施
+    progressStatus: text('progress_status'), // CS進捗ステータス
+    larkMeetingUrl: text('lark_meeting_url'),
+    nextSessionType: text('next_session_type'), // REGULAR | SPOT
+    nextSessionDate: date('next_session_date'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
     contractIdx: index('contract_activities_contract_idx').on(table.contractId),
     businessUnitIdx: index('contract_activities_business_unit_idx').on(table.businessUnitId),
@@ -184,16 +197,37 @@ export const dealActivities = pgTable('deal_activities', {
     activityType: text('activity_type').notNull(), // VISIT | ONLINE | CALL | EMAIL | OTHER
     activityDate: date('activity_date').notNull(),
     summary: text('summary'),
-    meetingCount: integer('meeting_count').notNull().default(1),
+    meetingCount: integer('meeting_count').notNull().default(0),
     visitCategory: text('visit_category'), // NEW | REPEAT
     targetType: text('target_type'), // INDIVIDUAL | CORPORATE
     isNegotiation: boolean('is_negotiation').notNull().default(false),
-    negotiationOutcome: text('negotiation_outcome'), // POSITIVE | NEUTRAL | NEGATIVE | PENDING
+    negotiationOutcome: text('negotiation_outcome'), // HIGH | MEDIUM | LOW | NONE
     competitorInfo: text('competitor_info'),
+    larkMeetingUrl: text('lark_meeting_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
     dealIdx: index('deal_activities_deal_idx').on(table.dealId),
     businessUnitIdx: index('deal_activities_business_unit_idx').on(table.businessUnitId),
+}));
+
+// ─── アライアンス活動記録 ─────────────────────────────────────────────────────
+export const allianceActivities = pgTable('alliance_activities', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    allianceId: uuid('alliance_id').notNull().references(() => alliances.id),
+    businessUnitId: uuid('business_unit_id').notNull().references(() => businessUnits.id),
+    userId: uuid('user_id').notNull().references(() => users.id),
+    activityType: text('activity_type').notNull(), // VISIT | ONLINE | CALL | EMAIL | OTHER
+    activityDate: date('activity_date').notNull(),
+    summary: text('summary'),
+    larkMeetingUrl: text('lark_meeting_url'),
+    nextActionDate: date('next_action_date'),
+    nextActionContent: text('next_action_content'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+    allianceIdx: index('alliance_activities_alliance_idx').on(table.allianceId),
+    businessUnitIdx: index('alliance_activities_business_unit_idx').on(table.businessUnitId),
 }));
 
 // ─── アライアンス管理 ────────────────────────────────────────────────────────

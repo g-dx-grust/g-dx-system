@@ -42,9 +42,9 @@ function buildNarrativeLines(
         (item) => item.period === 'thisWeek',
     )?.metrics;
     const activityHighlights = [
-        { label: 'コール', total: thisWeekMetrics?.callCount.total ?? 0 },
         { label: '訪問', total: thisWeekMetrics?.visitCount.total ?? 0 },
         { label: 'オンライン商談', total: thisWeekMetrics?.onlineCount.total ?? 0 },
+        { label: 'アポイント', total: thisWeekMetrics?.appointmentCount.total ?? 0 },
     ].sort((left, right) => right.total - left.total);
     const topActivity = activityHighlights[0];
     const overdueCount = actionItems.filter((item) => item.urgency === 'OVERDUE').length;

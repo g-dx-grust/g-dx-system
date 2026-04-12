@@ -5,6 +5,7 @@ import { getDashboardSummary } from '@/modules/sales/deal/application/get-dashbo
 import { getRollingKpi } from '@/modules/sales/deal/application/get-rolling-kpi';
 import { getTeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
 import { getTeamAiWeeklySummary } from '@/modules/sales/deal/application/get-ai-weekly-summary';
+import { getDashboardSectionsConfig } from '@/modules/admin/infrastructure/app-settings-repository';
 import { DealDashboard } from '@/modules/sales/deal/ui/dashboard-deals';
 import { DashboardContentSkeleton } from '@/modules/sales/deal/ui/dashboard-loading-skeleton';
 import { isAppError } from '@/shared/server/errors';
@@ -32,12 +33,13 @@ async function DealDashboardContent() {
     if (!session) redirect('/login');
 
     try {
-        const [summary, rollingKpiData, teamTargetSummary, alerts, teamAiSummary] = await Promise.all([
+        const [summary, rollingKpiData, teamTargetSummary, alerts, teamAiSummary, sectionsConfig] = await Promise.all([
             getDashboardSummary(),
             getRollingKpi(),
             getTeamKpiTargetSummary(),
             getDashboardAlerts(),
             getTeamAiWeeklySummary().catch(() => null),
+            getDashboardSectionsConfig(),
         ]);
 
         const canViewBusinessGoals = session.user.roles.some(
@@ -53,6 +55,7 @@ async function DealDashboardContent() {
                 businessScope={session.activeBusinessScope}
                 canViewBusinessGoals={canViewBusinessGoals}
                 teamAiSummary={teamAiSummary}
+                sectionsConfig={sectionsConfig}
             />
         );
     } catch (error) {

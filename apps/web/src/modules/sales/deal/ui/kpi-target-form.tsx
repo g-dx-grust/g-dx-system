@@ -64,15 +64,8 @@ const KPI_FIELD_GROUPS: KpiFieldGroup[] = [
     },
     {
         title: '補助入力項目',
-        description:
-            '活動量を見直したいときだけ、コール数とアポイント数もあわせて設定できます。',
+        description: 'アポイント数の目安を設定できます。',
         fields: [
-            {
-                name: 'callTarget',
-                label: 'コール数',
-                placeholder: '例 100',
-                helper: '必要な接触量の目安として使います。',
-            },
             {
                 name: 'appointmentTarget',
                 label: 'アポイント数',

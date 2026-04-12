@@ -6,6 +6,7 @@ import { createDeal } from '@/modules/sales/deal/application/create-deal';
 import { updateDeal } from '@/modules/sales/deal/application/update-deal';
 import { changeDealStage } from '@/modules/sales/deal/application/change-deal-stage';
 import { createDealActivity } from '@/modules/sales/deal/application/create-deal-activity';
+import { updateDealActivity } from '@/modules/sales/deal/application/update-deal-activity';
 import { deleteDeal } from '@/modules/sales/deal/application/delete-deal';
 import { saveLarkSettings } from '@/modules/sales/deal/application/save-lark-settings';
 import { getDashboardScopeTag } from '@/modules/sales/deal/infrastructure/dashboard-cache';
@@ -199,7 +200,7 @@ export async function createDealActivityAction(formData: FormData) {
     if (!session) redirect('/login');
 
     const meetingCountRaw = readString(formData, 'meetingCount');
-    const meetingCount = meetingCountRaw ? Math.max(1, parseInt(meetingCountRaw, 10)) : 1;
+    const meetingCount = meetingCountRaw ? parseInt(meetingCountRaw, 10) : undefined;
     const visitCategoryRaw = readString(formData, 'visitCategory');
     const targetTypeRaw = readString(formData, 'targetType');
     const visitCategory =
@@ -213,10 +214,10 @@ export async function createDealActivityAction(formData: FormData) {
     const isNegotiation = formData.get('isNegotiation') === 'on';
     const negotiationOutcomeRaw = readString(formData, 'negotiationOutcome');
     const negotiationOutcome =
-        negotiationOutcomeRaw === 'POSITIVE' ||
-        negotiationOutcomeRaw === 'NEUTRAL' ||
-        negotiationOutcomeRaw === 'NEGATIVE' ||
-        negotiationOutcomeRaw === 'PENDING'
+        negotiationOutcomeRaw === 'HIGH' ||
+        negotiationOutcomeRaw === 'MEDIUM' ||
+        negotiationOutcomeRaw === 'LOW' ||
+        negotiationOutcomeRaw === 'NONE'
             ? (negotiationOutcomeRaw as NegotiationOutcome)
             : undefined;
 
@@ -235,6 +236,7 @@ export async function createDealActivityAction(formData: FormData) {
             isNegotiation,
             negotiationOutcome,
             competitorInfo: readString(formData, 'competitorInfo'),
+            larkMeetingUrl: readString(formData, 'larkMeetingUrl'),
         });
         if (nextActionDate !== null || nextActionContent !== null) {
             await updateDeal(dealId, { nextActionDate, nextActionContent });
@@ -292,4 +294,61 @@ export async function deleteDealAction(formData: FormData) {
     revalidatePath('/sales/deals');
     revalidateDashboardPaths(session.activeBusinessScope, session.user.id);
     redirect('/sales/deals?deleted=1');
+}
+
+export async function updateDealActivityAction(formData: FormData) {
+    const activityId = readString(formData, 'activityId');
+    const dealId = readString(formData, 'dealId');
+    if (!activityId || !dealId) redirect(`/sales/deals`);
+
+    const session = await getAuthenticatedAppSession();
+    if (!session) redirect('/login');
+
+    const meetingCountRaw = readString(formData, 'meetingCount');
+    const meetingCount = meetingCountRaw ? parseInt(meetingCountRaw, 10) : undefined;
+    const visitCategoryRaw = readString(formData, 'visitCategory');
+    const targetTypeRaw = readString(formData, 'targetType');
+    const visitCategory =
+        visitCategoryRaw === 'NEW' || visitCategoryRaw === 'REPEAT'
+            ? (visitCategoryRaw as VisitCategory)
+            : null;
+    const targetType =
+        targetTypeRaw === 'INDIVIDUAL' || targetTypeRaw === 'CORPORATE'
+            ? (targetTypeRaw as MeetingTargetType)
+            : null;
+    const isNegotiation = formData.get('isNegotiation') === 'on';
+    const negotiationOutcomeRaw = readString(formData, 'negotiationOutcome');
+    const negotiationOutcome =
+        negotiationOutcomeRaw === 'HIGH' ||
+        negotiationOutcomeRaw === 'MEDIUM' ||
+        negotiationOutcomeRaw === 'LOW' ||
+        negotiationOutcomeRaw === 'NONE'
+            ? (negotiationOutcomeRaw as NegotiationOutcome)
+            : null;
+
+    try {
+        await updateDealActivity({
+            activityId,
+            dealId,
+            activityType: readString(formData, 'activityType') as DealActivityType | undefined,
+            activityDate: readString(formData, 'activityDate'),
+            summary: readString(formData, 'summary') ?? null,
+            meetingCount,
+            visitCategory,
+            targetType,
+            isNegotiation,
+            negotiationOutcome,
+            competitorInfo: readString(formData, 'competitorInfo') ?? null,
+            larkMeetingUrl: readString(formData, 'larkMeetingUrl') ?? null,
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (isAppError(error, 'NOT_FOUND')) redirect(`/sales/deals/${dealId}`);
+        throw error;
+    }
+
+    revalidatePath(`/sales/deals/${dealId}`);
+    revalidateDashboardPaths(session.activeBusinessScope, session.user.id);
+    redirect(`/sales/deals/${dealId}?activityUpdated=1`);
 }

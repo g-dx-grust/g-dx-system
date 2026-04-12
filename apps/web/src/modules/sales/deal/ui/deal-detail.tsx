@@ -53,6 +53,7 @@ interface DealDetailViewProps {
     updated?: boolean;
     staged?: boolean;
     activityAdded?: boolean;
+    activityUpdated?: boolean;
     noNextAction?: boolean;
     larkSaved?: boolean;
     approvalCreated?: boolean;
@@ -140,6 +141,7 @@ export function DealDetailView({
     updated = false,
     staged = false,
     activityAdded = false,
+    activityUpdated = false,
     noNextAction = false,
     larkSaved = false,
     approvalCreated = false,
@@ -549,7 +551,7 @@ export function DealDetailView({
                         </details>
                     ) : null}
 
-                    <DealActivityLog dealId={deal.id} activities={activities} activityAdded={activityAdded} hideForm />
+                    <DealActivityLog dealId={deal.id} activities={activities} activityAdded={activityAdded} activityUpdated={activityUpdated} hideForm />
 
                     {/* Stage History */}
                     <Card className="shadow-sm">

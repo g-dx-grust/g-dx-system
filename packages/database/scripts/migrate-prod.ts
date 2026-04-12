@@ -170,6 +170,113 @@ async function run() {
         }
         console.log('✓ indexes');
 
+        // receive_ai_summary column on user_business_memberships
+        await client.query(`
+            ALTER TABLE "user_business_memberships"
+            ADD COLUMN IF NOT EXISTS "receive_ai_summary" boolean DEFAULT true NOT NULL
+        `);
+        console.log('✓ user_business_memberships.receive_ai_summary column');
+
+        // deal_activities: lark_meeting_url column
+        await client.query(`
+            ALTER TABLE "deal_activities"
+            ADD COLUMN IF NOT EXISTS "lark_meeting_url" text
+        `);
+        console.log('✓ deal_activities.lark_meeting_url column');
+
+        // deal_activities: NegotiationOutcome migration
+        // POSITIVE→HIGH, NEUTRAL→MEDIUM, PENDING→LOW, NEGATIVE→NONE
+        await client.query(`
+            UPDATE "deal_activities"
+            SET "negotiation_outcome" = CASE "negotiation_outcome"
+                WHEN 'POSITIVE' THEN 'HIGH'
+                WHEN 'NEUTRAL'  THEN 'MEDIUM'
+                WHEN 'PENDING'  THEN 'LOW'
+                WHEN 'NEGATIVE' THEN 'NONE'
+                ELSE "negotiation_outcome"
+            END
+            WHERE "negotiation_outcome" IN ('POSITIVE','NEUTRAL','PENDING','NEGATIVE')
+        `);
+        console.log('✓ deal_activities.negotiation_outcome data migration');
+
+        // deal_activities: set meeting_count=0 for non-meeting types (CALL/EMAIL/OTHER)
+        await client.query(`
+            UPDATE "deal_activities"
+            SET "meeting_count" = 0
+            WHERE "activity_type" NOT IN ('VISIT','ONLINE')
+        `);
+        console.log('✓ deal_activities.meeting_count fixed for non-meeting types');
+
+        // contract_activities: new CS fields
+        const contractActivityCols: [string, string][] = [
+            ['initiated_by', 'text'],
+            ['session_number', 'integer'],
+            ['progress_status', 'text'],
+            ['lark_meeting_url', 'text'],
+            ['next_session_type', 'text'],
+            ['next_session_date', 'date'],
+            ['updated_at', 'timestamp with time zone DEFAULT now()'],
+        ];
+        for (const [col, type] of contractActivityCols) {
+            await client.query(
+                `ALTER TABLE "contract_activities" ADD COLUMN IF NOT EXISTS "${col}" ${type}`
+            );
+        }
+        // rename activity_type values for old entries (keep as-is, new ones use REGULAR/SPOT)
+        console.log('✓ contract_activities new columns');
+
+        // contracts: CS management fields
+        const contractCsCols: [string, string][] = [
+            ['cs_phase', 'text'],
+            ['regular_meeting_weekday', 'text'],
+            ['regular_meeting_time', 'text'],
+            ['regular_meeting_frequency', 'text'],
+            ['total_session_count', 'integer DEFAULT 0 NOT NULL'],
+        ];
+        for (const [col, type] of contractCsCols) {
+            await client.query(
+                `ALTER TABLE "contracts" ADD COLUMN IF NOT EXISTS "${col}" ${type}`
+            );
+        }
+        console.log('✓ contracts CS fields');
+
+        // deal_activities: updated_at column
+        await client.query(`
+            ALTER TABLE "deal_activities"
+            ADD COLUMN IF NOT EXISTS "updated_at" timestamp with time zone DEFAULT now()
+        `);
+        console.log('✓ deal_activities.updated_at');
+
+        // alliance_activities table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS "alliance_activities" (
+                "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+                "alliance_id" uuid NOT NULL REFERENCES "alliances"("id"),
+                "business_unit_id" uuid NOT NULL REFERENCES "business_units"("id"),
+                "user_id" uuid NOT NULL REFERENCES "users"("id"),
+                "activity_type" text NOT NULL,
+                "activity_date" date NOT NULL,
+                "summary" text,
+                "lark_meeting_url" text,
+                "next_action_date" date,
+                "next_action_content" text,
+                "created_at" timestamp with time zone DEFAULT now() NOT NULL
+            )
+        `);
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS "alliance_activities_alliance_idx"
+            ON "alliance_activities" USING btree ("alliance_id")
+        `).catch(() => {});
+        await client.query(`
+            CREATE INDEX IF NOT EXISTS "alliance_activities_business_unit_idx"
+            ON "alliance_activities" USING btree ("business_unit_id")
+        `).catch(() => {});
+        await client.query(`
+            ALTER TABLE "alliance_activities"
+            ADD COLUMN IF NOT EXISTS "updated_at" timestamp with time zone DEFAULT now()
+        `).catch(() => {});
+        console.log('✓ alliance_activities table');
+
         await client.query('COMMIT');
         console.log('\n✅ Migration complete!');
     } catch (err) {

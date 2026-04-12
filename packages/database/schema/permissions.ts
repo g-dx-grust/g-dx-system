@@ -34,6 +34,7 @@ export const userBusinessMemberships = pgTable('user_business_memberships', {
     businessUnitId: uuid('business_unit_id').notNull().references(() => businessUnits.id),
     membershipStatus: text('membership_status').notNull(),
     isDefault: boolean('is_default').default(false).notNull(),
+    receiveAiSummary: boolean('receive_ai_summary').default(true).notNull(),
     joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({
     userIdx: index('ubm_user_idx').on(table.userId),

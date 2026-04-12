@@ -42,8 +42,6 @@ function getThisWeekMetricTotal(
     if (!thisWeekMetrics) return 0;
 
     switch (key) {
-        case 'callCount':
-            return thisWeekMetrics.callCount.total;
         case 'newVisitCount':
             return thisWeekMetrics.newVisitCount.total;
         case 'appointmentCount':
@@ -107,7 +105,6 @@ function SummaryBlock({
 }
 
 const ROLLING_METRIC_LABELS: Record<string, string> = {
-    callCount: 'コール数',
     visitCount: '訪問数',
     onlineCount: 'オンライン商談数',
     appointmentCount: 'アポイント数',
@@ -116,7 +113,6 @@ const ROLLING_METRIC_LABELS: Record<string, string> = {
 };
 
 const ROLLING_METRIC_KEYS = [
-    'callCount',
     'visitCount',
     'onlineCount',
     'appointmentCount',

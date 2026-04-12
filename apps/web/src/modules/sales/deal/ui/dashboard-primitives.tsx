@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import type { SalesRollingKpiGrid } from '@g-dx/contracts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -23,6 +24,7 @@ interface DashboardMetricCardProps {
     footnote?: string;
     className?: string;
     valueClassName?: string;
+    href?: string;
 }
 
 export function DashboardMetricCard({
@@ -32,9 +34,10 @@ export function DashboardMetricCard({
     footnote,
     className,
     valueClassName,
+    href,
 }: DashboardMetricCardProps) {
-    return (
-        <Card className={cn('border-gray-200 bg-white shadow-sm', className)}>
+    const card = (
+        <Card className={cn('border-gray-200 bg-white shadow-sm', href && 'transition-shadow hover:shadow-md cursor-pointer', className)}>
             <CardHeader className="space-y-1 pb-3">
                 <CardTitle className="text-sm font-semibold text-gray-900">
                     {title}
@@ -58,6 +61,11 @@ export function DashboardMetricCard({
             </CardContent>
         </Card>
     );
+
+    if (href) {
+        return <Link href={href} className="block">{card}</Link>;
+    }
+    return card;
 }
 
 interface DashboardNarrativeCardProps {

@@ -73,12 +73,14 @@ export default async function PaymentDashboardPage() {
                     description="入金完了総額"
                     value={formatAmount(summary.paidGroup.totalAmount)}
                     footnote={`${summary.paidGroup.count.toLocaleString()}件`}
+                    href="/sales/contracts"
                 />
                 <DashboardMetricCard
                     title="サービス稼働中"
                     description="提供中件数 / 金額"
                     value={`${summary.activeServiceGroup.count.toLocaleString()}件`}
                     footnote={formatAmount(summary.activeServiceGroup.totalAmount)}
+                    href="/sales/contracts"
                 />
             </div>
 

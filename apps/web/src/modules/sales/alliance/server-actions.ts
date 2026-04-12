@@ -5,8 +5,10 @@ import { redirect } from 'next/navigation';
 import { createAlliance } from '@/modules/sales/alliance/application/create-alliance';
 import { updateAlliance } from '@/modules/sales/alliance/application/update-alliance';
 import { linkDealToAlliance, unlinkDealFromAlliance } from '@/modules/sales/alliance/application/link-deal';
+import { createAllianceActivity } from '@/modules/sales/alliance/application/create-alliance-activity';
+import { updateAllianceActivity } from '@/modules/sales/alliance/application/update-alliance-activity';
 import { isAppError } from '@/shared/server/errors';
-import type { AllianceReferralType, AllianceStatus, AllianceType } from '@g-dx/contracts';
+import type { AllianceActivityType, AllianceReferralType, AllianceStatus, AllianceType } from '@g-dx/contracts';
 
 function readString(formData: FormData, key: string): string | undefined {
     const value = formData.get(key);
@@ -126,6 +128,57 @@ export async function unlinkAllianceFromDealFromDealPageAction(formData: FormDat
     revalidatePath(`/sales/alliances/${allianceId}`);
     revalidatePath(`/sales/deals/${dealId}`);
     redirect(`/sales/deals/${dealId}?allianceUnlinked=1`);
+}
+
+export async function createAllianceActivityAction(formData: FormData) {
+    const allianceId = readString(formData, 'allianceId');
+    const activityType = readString(formData, 'activityType') as AllianceActivityType | undefined;
+    const activityDate = readString(formData, 'activityDate');
+    if (!allianceId || !activityType || !activityDate) redirect('/sales/alliances');
+
+    try {
+        await createAllianceActivity({
+            allianceId,
+            activityType,
+            activityDate,
+            summary: readString(formData, 'summary'),
+            larkMeetingUrl: readString(formData, 'larkMeetingUrl'),
+            nextActionDate: readString(formData, 'nextActionDate'),
+            nextActionContent: readString(formData, 'nextActionContent'),
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        throw error;
+    }
+
+    revalidatePath(`/sales/alliances/${allianceId}`);
+    redirect(`/sales/alliances/${allianceId}?activityAdded=1`);
+}
+
+export async function updateAllianceActivityAction(formData: FormData) {
+    const activityId = readString(formData, 'activityId');
+    const allianceId = readString(formData, 'allianceId');
+    if (!activityId || !allianceId) redirect('/sales/alliances');
+
+    try {
+        await updateAllianceActivity(activityId, allianceId, {
+            activityType: readString(formData, 'activityType') as AllianceActivityType | undefined,
+            activityDate: readString(formData, 'activityDate'),
+            summary: readString(formData, 'summary') ?? null,
+            larkMeetingUrl: readString(formData, 'larkMeetingUrl') ?? null,
+            nextActionDate: readString(formData, 'nextActionDate') ?? null,
+            nextActionContent: readString(formData, 'nextActionContent') ?? null,
+        });
+    } catch (error) {
+        if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
+        if (isAppError(error, 'FORBIDDEN') || isAppError(error, 'BUSINESS_SCOPE_FORBIDDEN')) redirect('/unauthorized');
+        if (isAppError(error, 'NOT_FOUND')) redirect(`/sales/alliances/${allianceId}`);
+        throw error;
+    }
+
+    revalidatePath(`/sales/alliances/${allianceId}`);
+    redirect(`/sales/alliances/${allianceId}?activityUpdated=1`);
 }
 
 export async function linkAllianceToDealFromDealPageAction(formData: FormData) {

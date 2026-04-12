@@ -23,14 +23,16 @@ function normalizeMeetingMetadata(input: {
     activityType: DealActivityType;
     visitCategory?: VisitCategory;
     targetType?: MeetingTargetType;
-}): { visitCategory: VisitCategory | null; targetType: MeetingTargetType | null } {
+    meetingCount?: number;
+}): { visitCategory: VisitCategory | null; targetType: MeetingTargetType | null; meetingCount: number } {
     if (!isMeetingActivityType(input.activityType)) {
-        return { visitCategory: null, targetType: null };
+        return { visitCategory: null, targetType: null, meetingCount: 0 };
     }
 
     return {
         visitCategory: input.visitCategory ?? 'REPEAT',
         targetType: input.targetType ?? 'CORPORATE',
+        meetingCount: Math.max(1, input.meetingCount ?? 1),
     };
 }
 
@@ -53,7 +55,7 @@ function normalizeNegotiationMetadata(input: {
 
     return {
         isNegotiation: true,
-        negotiationOutcome: input.negotiationOutcome ?? 'PENDING',
+        negotiationOutcome: input.negotiationOutcome ?? 'MEDIUM',
         competitorInfo: input.competitorInfo ?? null,
     };
 }
@@ -69,6 +71,7 @@ export async function listDealActivities(dealId: string): Promise<DealActivityIt
             isNegotiation: dealActivities.isNegotiation,
             negotiationOutcome: dealActivities.negotiationOutcome,
             competitorInfo: dealActivities.competitorInfo,
+            larkMeetingUrl: dealActivities.larkMeetingUrl,
             createdAt: dealActivities.createdAt,
         })
         .from(dealActivities)
@@ -79,12 +82,13 @@ export async function listDealActivities(dealId: string): Promise<DealActivityIt
     return rows.map((r) => ({
         id: r.id, dealId: r.dealId, userId: r.userId, userName: r.userName ?? 'Unknown',
         activityType: r.activityType as DealActivityType, activityDate: r.activityDate ?? '',
-        summary: r.summary, meetingCount: r.meetingCount ?? 1,
+        summary: r.summary, meetingCount: r.meetingCount ?? 0,
         visitCategory: (r.visitCategory as VisitCategory | null) ?? null,
         targetType: (r.targetType as MeetingTargetType | null) ?? null,
         isNegotiation: r.isNegotiation ?? false,
         negotiationOutcome: (r.negotiationOutcome as NegotiationOutcome | null) ?? null,
         competitorInfo: r.competitorInfo ?? null,
+        larkMeetingUrl: r.larkMeetingUrl ?? null,
         createdAt: r.createdAt.toISOString(),
     }));
 }
@@ -101,6 +105,7 @@ export async function createDealActivity(input: {
     isNegotiation?: boolean;
     negotiationOutcome?: NegotiationOutcome;
     competitorInfo?: string;
+    larkMeetingUrl?: string;
 }): Promise<void> {
     const businessUnit = await findBusinessUnitByScope(input.businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
@@ -115,12 +120,13 @@ export async function createDealActivity(input: {
         id: crypto.randomUUID(), dealId: input.dealId, businessUnitId: businessUnit.id,
         userId: input.userId, activityType: input.activityType, activityDate: input.activityDate,
         summary: input.summary ?? null,
-        meetingCount: Math.max(1, input.meetingCount ?? 1),
+        meetingCount: meetingMetadata.meetingCount,
         visitCategory: meetingMetadata.visitCategory,
         targetType: meetingMetadata.targetType,
         isNegotiation: negotiationMetadata.isNegotiation,
         negotiationOutcome: negotiationMetadata.negotiationOutcome,
         competitorInfo: negotiationMetadata.competitorInfo,
+        larkMeetingUrl: input.larkMeetingUrl ?? null,
     });
 
     // Lark通知＋カレンダー: 活動ログ記録 (fire-and-forget)
@@ -157,6 +163,48 @@ export async function createDealActivity(input: {
             );
         }
     }).catch((err) => console.error('[Lark] getDealLarkContext failed:', err));
+}
+
+export async function updateDealActivity(input: {
+    activityId: string;
+    dealId: string;
+    actorUserId: string;
+    activityType?: DealActivityType;
+    activityDate?: string;
+    summary?: string | null;
+    meetingCount?: number;
+    visitCategory?: VisitCategory | null;
+    targetType?: MeetingTargetType | null;
+    isNegotiation?: boolean;
+    negotiationOutcome?: NegotiationOutcome | null;
+    competitorInfo?: string | null;
+    larkMeetingUrl?: string | null;
+}): Promise<void> {
+    // Verify the activity belongs to the given deal
+    const [existing] = await db
+        .select({ id: dealActivities.id })
+        .from(dealActivities)
+        .where(and(eq(dealActivities.id, input.activityId), eq(dealActivities.dealId, input.dealId)))
+        .limit(1);
+
+    if (!existing) throw new AppError('NOT_FOUND', 'Deal activity not found.');
+
+    await db
+        .update(dealActivities)
+        .set({
+            ...(input.activityType !== undefined && { activityType: input.activityType }),
+            ...(input.activityDate !== undefined && { activityDate: input.activityDate }),
+            ...(input.summary !== undefined && { summary: input.summary }),
+            ...(input.meetingCount !== undefined && { meetingCount: input.meetingCount }),
+            ...(input.visitCategory !== undefined && { visitCategory: input.visitCategory }),
+            ...(input.targetType !== undefined && { targetType: input.targetType }),
+            ...(input.isNegotiation !== undefined && { isNegotiation: input.isNegotiation }),
+            ...(input.negotiationOutcome !== undefined && { negotiationOutcome: input.negotiationOutcome }),
+            ...(input.competitorInfo !== undefined && { competitorInfo: input.competitorInfo }),
+            ...(input.larkMeetingUrl !== undefined && { larkMeetingUrl: input.larkMeetingUrl }),
+            updatedAt: new Date(),
+        })
+        .where(and(eq(dealActivities.id, input.activityId), eq(dealActivities.dealId, input.dealId)));
 }
 
 export interface MonthlyActivityStat {

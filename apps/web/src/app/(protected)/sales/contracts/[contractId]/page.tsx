@@ -12,7 +12,7 @@ import type { UUID } from '@g-dx/contracts';
 
 interface ContractDetailPageProps {
     params: { contractId: string };
-    searchParams?: { created?: string; updated?: string; activityAdded?: string };
+    searchParams?: { created?: string; updated?: string; activityAdded?: string; activityUpdated?: string; csUpdated?: string };
 }
 
 export default async function ContractDetailPage({ params, searchParams }: ContractDetailPageProps) {
@@ -59,6 +59,8 @@ export default async function ContractDetailPage({ params, searchParams }: Contr
             updated={searchParams?.updated === '1'}
             activities={activities}
             activityAdded={searchParams?.activityAdded === '1'}
+            activityUpdated={searchParams?.activityUpdated === '1'}
+            csUpdated={searchParams?.csUpdated === '1'}
         />
     );
 }

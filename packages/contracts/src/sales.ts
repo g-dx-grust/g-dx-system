@@ -217,6 +217,7 @@ export type PipelineBoardResponse = ApiSuccessResponse<PipelineBoardColumn[]>;
 // ─── Contract ─────────────────────────────────────────────────────────────────
 
 export type ContractStatus = 'CONTRACTED' | 'INVOICED' | 'PAID' | 'SERVICE_STARTED' | 'SERVICE_ENDED';
+export type RegularMeetingFrequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
 
 export interface ContractListItem {
     id: UUID;
@@ -248,6 +249,12 @@ export interface ContractDetail extends ContractListItem {
     enterpriseLicenseCount: number | null;
     proLicenseCount: number | null;
     a2LicenseCount: number | null;
+    // CS管理フィールド
+    csPhase: ContractProgressStatus | null;
+    regularMeetingWeekday: string | null;
+    regularMeetingTime: string | null;
+    regularMeetingFrequency: RegularMeetingFrequency | null;
+    totalSessionCount: number;
     updatedAt: ISODateString;
 }
 
@@ -296,6 +303,11 @@ export interface UpdateContractRequest {
     enterpriseLicenseCount?: number | null;
     proLicenseCount?: number | null;
     a2LicenseCount?: number | null;
+    // CS管理フィールド
+    csPhase?: ContractProgressStatus | null;
+    regularMeetingWeekday?: string | null;
+    regularMeetingTime?: string | null;
+    regularMeetingFrequency?: RegularMeetingFrequency | null;
 }
 
 export interface ContractDashboardSummary {
@@ -313,7 +325,7 @@ export interface ContractDashboardSummary {
 export type DealActivityType = 'VISIT' | 'ONLINE' | 'CALL' | 'EMAIL' | 'OTHER';
 export type VisitCategory = 'NEW' | 'REPEAT';
 export type MeetingTargetType = 'INDIVIDUAL' | 'CORPORATE';
-export type NegotiationOutcome = 'POSITIVE' | 'NEUTRAL' | 'NEGATIVE' | 'PENDING';
+export type NegotiationOutcome = 'HIGH' | 'MEDIUM' | 'LOW' | 'NONE';
 
 export interface DealActivityItem {
     id: string;
@@ -329,7 +341,24 @@ export interface DealActivityItem {
     isNegotiation: boolean;
     negotiationOutcome: NegotiationOutcome | null;
     competitorInfo: string | null;
+    larkMeetingUrl: string | null;
     createdAt: string;
+    updatedAt?: string;
+}
+
+export interface UpdateDealActivityRequest {
+    activityType?: DealActivityType;
+    activityDate?: string;
+    summary?: string | null;
+    meetingCount?: number;
+    visitCategory?: VisitCategory | null;
+    targetType?: MeetingTargetType | null;
+    isNegotiation?: boolean;
+    negotiationOutcome?: NegotiationOutcome | null;
+    competitorInfo?: string | null;
+    larkMeetingUrl?: string | null;
+    nextActionDate?: string | null;
+    nextActionContent?: string | null;
 }
 
 export interface CreateDealActivityRequest {
@@ -343,6 +372,7 @@ export interface CreateDealActivityRequest {
     isNegotiation?: boolean;
     negotiationOutcome?: NegotiationOutcome;
     competitorInfo?: string;
+    larkMeetingUrl?: string;
 }
 
 export type DashboardAlertType =
@@ -366,7 +396,18 @@ export interface DashboardAlert {
 
 // ─── Contract Activity ────────────────────────────────────────────────────────
 
-export type ContractActivityType = 'VISIT' | 'CALL' | 'EMAIL' | 'INTERNAL' | 'OTHER';
+export type ContractActivityType = 'REGULAR' | 'SPOT' | 'CALL' | 'EMAIL' | 'INTERNAL' | 'OTHER';
+export type ContractActivityInitiatedBy = 'CLIENT' | 'US';
+export type ContractNextSessionType = 'REGULAR' | 'SPOT';
+export type ContractProgressStatus =
+    | 'HEARING'         // ヒアリング
+    | 'ENV_SETUP'       // 環境設定
+    | 'FIRST_DELIVERY'  // 一次納品
+    | 'SECOND_DELIVERY' // 二次納品
+    | 'FINAL_DELIVERY'  // 本納品
+    | 'STABLE'          // 安定稼働
+    | 'RENEWAL'         // 更新検討
+    | 'OTHER';          // その他
 
 export interface ContractActivityItem {
     id: string;
@@ -374,16 +415,41 @@ export interface ContractActivityItem {
     userId: string;
     userName: string;
     activityType: ContractActivityType;
+    initiatedBy: ContractActivityInitiatedBy | null;
     activityDate: string;
     summary: string | null;
+    sessionNumber: number | null;
+    progressStatus: ContractProgressStatus | null;
+    larkMeetingUrl: string | null;
+    nextSessionType: ContractNextSessionType | null;
+    nextSessionDate: string | null;
     createdAt: string;
+    updatedAt: string;
 }
 
 export interface CreateContractActivityRequest {
     contractId: string;
     activityType: ContractActivityType;
+    initiatedBy?: ContractActivityInitiatedBy;
     activityDate: string;
     summary?: string;
+    sessionNumber?: number;
+    progressStatus?: ContractProgressStatus;
+    larkMeetingUrl?: string;
+    nextSessionType?: ContractNextSessionType;
+    nextSessionDate?: string;
+}
+
+export interface UpdateContractActivityRequest {
+    activityType?: ContractActivityType;
+    initiatedBy?: ContractActivityInitiatedBy | null;
+    activityDate?: string;
+    summary?: string | null;
+    sessionNumber?: number | null;
+    progressStatus?: ContractProgressStatus | null;
+    larkMeetingUrl?: string | null;
+    nextSessionType?: ContractNextSessionType | null;
+    nextSessionDate?: string | null;
 }
 
 // ─── JET Facility & JET Contract ─────────────────────────────────────────────
@@ -582,6 +648,44 @@ export interface AllianceLinkedDeal {
     stageKey: DealStageKey;
     referralType: AllianceReferralType;
     note: string | null;
+}
+
+// ─── Alliance Activity ────────────────────────────────────────────────────────
+
+export type AllianceActivityType = 'VISIT' | 'ONLINE' | 'CALL' | 'EMAIL' | 'OTHER';
+
+export interface AllianceActivityItem {
+    id: string;
+    allianceId: string;
+    userId: string;
+    userName: string;
+    activityType: AllianceActivityType;
+    activityDate: string;
+    summary: string | null;
+    larkMeetingUrl: string | null;
+    nextActionDate: string | null;
+    nextActionContent: string | null;
+    createdAt: string;
+    updatedAt?: string;
+}
+
+export interface UpdateAllianceActivityRequest {
+    activityType?: AllianceActivityType;
+    activityDate?: string;
+    summary?: string | null;
+    larkMeetingUrl?: string | null;
+    nextActionDate?: string | null;
+    nextActionContent?: string | null;
+}
+
+export interface CreateAllianceActivityRequest {
+    allianceId: string;
+    activityType: AllianceActivityType;
+    activityDate: string;
+    summary?: string;
+    larkMeetingUrl?: string;
+    nextActionDate?: string;
+    nextActionContent?: string;
 }
 
 export interface SaveKpiTargetInput {

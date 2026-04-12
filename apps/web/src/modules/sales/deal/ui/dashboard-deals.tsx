@@ -10,9 +10,11 @@ import { CompanyBarChart } from '@/components/charts/company-bar-chart';
 import { StageBarChart } from '@/components/charts/stage-bar-chart';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
+import type { AiWeeklySummaryData } from '@/modules/sales/deal/application/get-ai-weekly-summary';
 import { BusinessGoalOverviewCard } from './business-goal-section';
 import { DashboardAlerts } from './dashboard-alerts';
 import {
+    AiSummaryCard,
     DashboardMetricCard,
     DashboardNarrativeCard,
     TeamTargetOverview,
@@ -26,6 +28,7 @@ interface DealDashboardProps {
     alerts: DashboardAlert[];
     businessScope: BusinessScopeType;
     canViewBusinessGoals: boolean;
+    teamAiSummary: AiWeeklySummaryData | null;
 }
 
 const STAGE_BADGE: Record<DealStageKey, string> = {
@@ -95,6 +98,7 @@ export function DealDashboard({
     alerts,
     businessScope,
     canViewBusinessGoals,
+    teamAiSummary,
 }: DealDashboardProps) {
     const currentMonth = getCurrentMonth();
     const maxStageAmount = Math.max(
@@ -148,14 +152,17 @@ export function DealDashboard({
                     description="月次KPI / 実績"
                 />
 
-                <DashboardNarrativeCard
-                    description="案件サマリー"
-                    lines={buildNarrativeLines(
-                        summary,
-                        rollingKpiData,
-                        teamTargetSummary,
-                    )}
-                />
+                <div className="flex flex-col gap-4">
+                    <AiSummaryCard summary={teamAiSummary} label="チーム" />
+                    <DashboardNarrativeCard
+                        description="案件サマリー"
+                        lines={buildNarrativeLines(
+                            summary,
+                            rollingKpiData,
+                            teamTargetSummary,
+                        )}
+                    />
+                </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

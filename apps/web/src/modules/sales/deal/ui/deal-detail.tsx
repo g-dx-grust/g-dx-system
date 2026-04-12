@@ -21,7 +21,8 @@ import { HearingPanel } from '@/modules/sales/hearing/ui/hearing-panel';
 import { SubmitButton, FormAutoClose } from '@/components/ui/submit-button';
 import { updateDealAction, changeDealStageAction, saveLarkSettingsAction } from '@/modules/sales/deal/server-actions';
 import { linkAllianceToDealFromDealPageAction, unlinkAllianceFromDealFromDealPageAction } from '@/modules/sales/alliance/server-actions';
-import { DealActivityLog, DealActivitySidebarForm } from './deal-activity-log';
+import { DealActivityLog } from './deal-activity-log';
+import { ActivityLogModal } from './deal-activity-log-modal';
 import { DealNextActionWarning } from './deal-next-action-warning';
 import { DealDeleteButton } from './deal-delete-button';
 import type { DealStageHistoryItem } from '../infrastructure/deal-repository';
@@ -176,6 +177,7 @@ export function DealDetailView({
                 </div>
                 <div className="flex items-center gap-2">
                     {canDelete && <DealDeleteButton dealId={deal.id} dealName={deal.name} />}
+                    <ActivityLogModal dealId={deal.id} activityAdded={activityAdded} />
                     <Button asChild variant="outline" className="px-5">
                         <Link href="/sales/deals">一覧へ戻る</Link>
                     </Button>
@@ -232,9 +234,7 @@ export function DealDetailView({
                 </div>
             ) : null}
 
-            <div className="xl:grid xl:grid-cols-[1fr_300px] xl:items-start xl:gap-6">
-                {/* 左カラム */}
-                <div className="space-y-6">
+            <div className="space-y-6">
                     <div className="grid gap-6 xl:grid-cols-[2fr_1fr]">
                         <Card className="shadow-sm">
                             <CardHeader>
@@ -589,12 +589,6 @@ export function DealDetailView({
                             )}
                         </CardContent>
                     </Card>
-                </div>
-
-                {/* 右カラム: 活動ログサイドバー（xl以上でスティッキー） */}
-                <div className="mt-6 xl:mt-0 xl:sticky xl:top-6 xl:self-start">
-                    <DealActivitySidebarForm dealId={deal.id} recentActivities={activities} activityAdded={activityAdded} />
-                </div>
             </div>
         </div>
     );

@@ -2,6 +2,7 @@ import type { SalesRollingKpiGrid } from '@g-dx/contracts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { TeamKpiTargetSummary } from '../application/get-team-kpi-target-summary';
+import type { AiWeeklySummaryData } from '../application/get-ai-weekly-summary';
 
 export function formatDashboardAmount(amount: number): string {
     if (amount >= 100_000_000) return `¥${(amount / 100_000_000).toFixed(1)}億`;
@@ -219,6 +220,52 @@ export function TeamTargetOverview({
                         </section>
                     );
                 })}
+            </CardContent>
+        </Card>
+    );
+}
+
+interface AiSummaryCardProps {
+    summary: AiWeeklySummaryData | null;
+    /** "PERSONAL" | "TEAM" */
+    label?: string;
+    className?: string;
+}
+
+/** AI週次サマリーを表示するカード。summary が null の場合はプレースホルダーを表示。 */
+export function AiSummaryCard({ summary, label, className }: AiSummaryCardProps) {
+    const weekLabel = summary
+        ? `${summary.weekStartDate} 〜 ${summary.weekEndDate}`
+        : null;
+
+    const defaultLabel = summary?.summaryType === 'TEAM' ? 'チームサマリー' : '個人サマリー';
+    const title = label ?? defaultLabel;
+
+    return (
+        <Card className={cn('border-gray-200 bg-white shadow-sm', className)}>
+            <CardHeader className="space-y-1 pb-3">
+                <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-sm font-semibold text-gray-900">
+                        AI週次サマリー — {title}
+                    </CardTitle>
+                    {weekLabel ? (
+                        <span className="shrink-0 text-xs text-gray-400">{weekLabel}</span>
+                    ) : null}
+                </div>
+                <CardDescription className="text-xs leading-5 text-gray-500">
+                    毎週月曜更新 / Claude Haiku 生成
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {summary?.summaryBody ? (
+                    <p className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
+                        {summary.summaryBody}
+                    </p>
+                ) : (
+                    <p className="text-sm leading-6 text-gray-400">
+                        今週のサマリーはまだ生成されていません。毎週月曜朝に自動生成されます。
+                    </p>
+                )}
             </CardContent>
         </Card>
     );

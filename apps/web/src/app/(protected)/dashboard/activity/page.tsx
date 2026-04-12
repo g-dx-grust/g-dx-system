@@ -8,11 +8,12 @@ import { getPersonalActionList } from '@/modules/sales/deal/application/get-pers
 import { getPersonalDashboardData } from '@/modules/sales/deal/application/get-personal-dashboard-data';
 import { getRollingKpi } from '@/modules/sales/deal/application/get-rolling-kpi';
 import { getTeamKpiTargetSummary } from '@/modules/sales/deal/application/get-team-kpi-target-summary';
+import { getTeamAiWeeklySummary, getPersonalAiWeeklySummary } from '@/modules/sales/deal/application/get-ai-weekly-summary';
 import { ActivityPersonalView } from '@/modules/sales/deal/ui/activity-personal-view';
 import { NextActionList } from '@/modules/sales/deal/ui/next-action-list';
 import { ActivityDashboard } from '@/modules/sales/deal/ui/dashboard-activity';
 import { SalesKpiDashboard } from '@/modules/sales/deal/ui/sales-kpi-dashboard';
-import { TeamTargetOverview } from '@/modules/sales/deal/ui/dashboard-primitives';
+import { AiSummaryCard, TeamTargetOverview } from '@/modules/sales/deal/ui/dashboard-primitives';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession, getGrantedPermissionKeys } from '@/shared/server/session';
 
@@ -41,12 +42,14 @@ export default async function ActivityDashboardPage({
     let monthlyStats;
     let rollingKpiData;
     let teamTargetSummary;
+    let teamAiSummary = null;
     try {
-        [summary, monthlyStats, rollingKpiData, teamTargetSummary] = await Promise.all([
+        [summary, monthlyStats, rollingKpiData, teamTargetSummary, teamAiSummary] = await Promise.all([
             getDashboardSummary(),
             getMonthlyActivityStats(),
             getRollingKpi(),
             getTeamKpiTargetSummary(),
+            getTeamAiWeeklySummary().catch(() => null),
         ]);
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
@@ -91,6 +94,7 @@ export default async function ActivityDashboardPage({
     let personalActionItems = [];
     let pendingApprovals: ApprovalRequestListItem[] = [];
     let requestedApprovals: ApprovalRequestListItem[] = [];
+    let personalAiSummary = null;
 
     try {
         const [
@@ -98,6 +102,7 @@ export default async function ActivityDashboardPage({
             actionItemsResult,
             pendingApprovalResult,
             requestedApprovalResult,
+            personalAiSummaryResult,
         ] = await Promise.all([
             canReadPersonalKpi
                 ? getPersonalDashboardData({ userId: selectedMemberId })
@@ -116,12 +121,14 @@ export default async function ActivityDashboardPage({
                       pageSize: 5,
                   })
                 : Promise.resolve(null),
+            getPersonalAiWeeklySummary(selectedMemberId).catch(() => null),
         ]);
 
         personalDashboardData = dashboardDataResult;
         personalActionItems = actionItemsResult;
         pendingApprovals = pendingApprovalResult?.data ?? [];
         requestedApprovals = requestedApprovalResult?.data ?? [];
+        personalAiSummary = personalAiSummaryResult;
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (
@@ -149,6 +156,8 @@ export default async function ActivityDashboardPage({
                 description="月次KPI / 実績"
             />
 
+            <AiSummaryCard summary={teamAiSummary} label="チーム" />
+
             <SalesKpiDashboard rollingKpiData={rollingKpiData} />
 
             <div className="grid gap-4 lg:grid-cols-3">
@@ -165,6 +174,11 @@ export default async function ActivityDashboardPage({
                     items={summary.nextActionsThisWeek}
                 />
             </div>
+
+            <AiSummaryCard
+                summary={personalAiSummary}
+                label={selectedMemberName}
+            />
 
             <ActivityPersonalView
                 memberOptions={memberOptions}

@@ -751,10 +751,9 @@ export async function GET(req: NextRequest) {
 
     // ── Lark 送信: BUごとに1メッセージずつ ─────────────────────────────
     try {
-        const chatId =
-            (await getDashboardAlertLarkChatId()) ??
-            process.env.LARK_ALERT_GROUP_CHAT_ID ??
-            null;
+        // app_settings テーブルが未マイグレーションの場合は null を返してフォールバック
+        const dbChatId = await getDashboardAlertLarkChatId().catch(() => null);
+        const chatId = dbChatId ?? process.env.LARK_ALERT_GROUP_CHAT_ID ?? null;
 
         if (chatId) {
             // BU順に1件ずつ取得して送信

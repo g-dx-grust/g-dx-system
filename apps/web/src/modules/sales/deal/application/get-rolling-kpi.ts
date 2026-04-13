@@ -17,17 +17,18 @@ export function getRollingKpiCacheKey(businessScope: BusinessScopeType): string 
     return `gdx:dashboard:rolling-kpi:${businessScope}`;
 }
 
-export async function getRollingKpi(): Promise<SalesRollingKpiGrid> {
+export async function getRollingKpi(overrideScope?: BusinessScopeType): Promise<SalesRollingKpiGrid> {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
 
     assertPermission(session, 'sales.deal.read');
 
-    const key = getRollingKpiCacheKey(session.activeBusinessScope);
+    const scope = overrideScope ?? session.activeBusinessScope;
+    const key = getRollingKpiCacheKey(scope);
 
     return withRedisCache(
         key,
         DASHBOARD_DATA_REVALIDATE_SECONDS,
-        () => getTeamRollingKpi(session.activeBusinessScope),
+        () => getTeamRollingKpi(scope),
     );
 }

@@ -45,7 +45,8 @@ export type PermissionKey =
     | 'dashboard.personal.kpi_write'
     | 'sales.alliance.read'
     | 'sales.alliance.create'
-    | 'sales.alliance.update';
+    | 'sales.alliance.update'
+    | 'office.contract.manage';
 
 export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, PermissionLevelType>> = {
     [Role.SUPER_ADMIN]: {
@@ -94,6 +95,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'Y',
         'sales.alliance.update': 'Y',
+        'office.contract.manage': 'Y',
     },
     [Role.ADMIN]: {
         'auth.user.manage': 'Y',
@@ -141,6 +143,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'Y',
         'sales.alliance.update': 'Y',
+        'office.contract.manage': 'Y',
     },
     [Role.MANAGER]: {
         'auth.user.manage': 'N',
@@ -188,6 +191,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'Y',
         'sales.alliance.update': 'Y',
+        'office.contract.manage': 'N',
     },
     [Role.OPERATOR]: {
         'auth.user.manage': 'N',
@@ -235,6 +239,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'Y',
         'sales.alliance.update': 'Y',
+        'office.contract.manage': 'N',
     },
     [Role.VIEWER]: {
         'auth.user.manage': 'N',
@@ -282,6 +287,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'N',
         'sales.alliance.update': 'N',
+        'office.contract.manage': 'N',
     },
     [Role.IS_MEMBER]: {
         'auth.user.manage': 'N',
@@ -329,6 +335,7 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'N',
         'sales.alliance.create': 'N',
         'sales.alliance.update': 'N',
+        'office.contract.manage': 'N',
     },
     [Role.TECH]: {
         'auth.user.manage': 'N',
@@ -376,5 +383,6 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'N',
         'sales.alliance.create': 'N',
         'sales.alliance.update': 'N',
+        'office.contract.manage': 'N',
     },
 };

@@ -8,11 +8,12 @@ interface LayoutShellProps {
     header: React.ReactNode;
     children: React.ReactNode;
     activeBusinessScope: string;
+    userRole?: string;
 }
 
 const STORAGE_KEY = 'gdx_sidebar_collapsed';
 
-export function LayoutShell({ header, children, activeBusinessScope }: LayoutShellProps) {
+export function LayoutShell({ header, children, activeBusinessScope, userRole }: LayoutShellProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     // localStorage から状態を復元
@@ -31,7 +32,7 @@ export function LayoutShell({ header, children, activeBusinessScope }: LayoutShe
     return (
         <div className="flex h-screen w-full overflow-hidden bg-white text-gray-900 font-sans">
             <div className="hidden md:flex">
-                <Sidebar isCollapsed={isCollapsed} onToggle={toggle} activeBusinessScope={activeBusinessScope} />
+                <Sidebar isCollapsed={isCollapsed} onToggle={toggle} activeBusinessScope={activeBusinessScope} userRole={userRole} />
             </div>
             <div className="flex flex-1 flex-col overflow-hidden min-w-0">
                 {header}

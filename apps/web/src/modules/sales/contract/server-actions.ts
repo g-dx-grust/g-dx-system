@@ -56,7 +56,7 @@ export async function createContractAction(formData: FormData) {
             serviceStartDate: readString(formData, 'serviceStartDate'),
             serviceEndDate: readString(formData, 'serviceEndDate'),
             memo: readString(formData, 'memo'),
-            ownerUserId: session.user.id,
+            ownerUserId: readString(formData, 'ownerUserId') ?? session.user.id,
             fsInChargeUserId: readString(formData, 'fsInChargeUserId'),
             isInChargeUserId: readString(formData, 'isInChargeUserId'),
             productCode: readString(formData, 'productCode'),

@@ -21,6 +21,11 @@ interface SelectOption {
     label: string;
 }
 
+interface UserOption {
+    id: string;
+    name: string;
+}
+
 interface DealCreateFormProps {
     companies: CompanyOption[];
     stages: StageOption[];
@@ -30,6 +35,8 @@ interface DealCreateFormProps {
     jetCreditStatuses: SelectOption[];
     jetStatus2Options: SelectOption[];
     allianceOptions?: SelectOption[];
+    users?: UserOption[];
+    currentUserId?: string;
     errorMessage?: string;
 }
 
@@ -45,6 +52,8 @@ export function DealCreateForm({
     jetCreditStatuses,
     jetStatus2Options,
     allianceOptions = [],
+    users = [],
+    currentUserId,
     errorMessage,
 }: DealCreateFormProps) {
     const defaultStage = stages[0]?.key;
@@ -122,6 +131,18 @@ export function DealCreateForm({
                         次回アクション内容
                         <Input name="nextActionContent" placeholder="提案書を送付、訪問予定など" />
                     </label>
+
+                    {users.length > 0 && (
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            担当者
+                            <select name="ownerUserId" defaultValue={currentUserId ?? ''} className={selectClassName}>
+                                <option value="">-- 自分 (作成者) --</option>
+                                {users.map((u) => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
 
                     {showJetFields ? (
                         <>

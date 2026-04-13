@@ -16,13 +16,20 @@ interface LeadSourceOption {
     label: string;
 }
 
+interface UserOption {
+    id: string;
+    name: string;
+}
+
 interface CompanyCreateFormProps {
     industries: IndustryOption[];
     leadSources: LeadSourceOption[];
+    users?: UserOption[];
+    currentUserId?: string;
     errorMessage?: string;
 }
 
-export function CompanyCreateForm({ industries, leadSources, errorMessage }: CompanyCreateFormProps) {
+export function CompanyCreateForm({ industries, leadSources, users = [], currentUserId, errorMessage }: CompanyCreateFormProps) {
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
@@ -96,6 +103,22 @@ export function CompanyCreateForm({ industries, leadSources, errorMessage }: Com
                         タグ
                         <Input name="tags" placeholder="エンタープライズ, インバウンド" />
                     </label>
+
+                    {users.length > 0 && (
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            担当者
+                            <select
+                                name="ownerUserId"
+                                defaultValue={currentUserId ?? ''}
+                                className="h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            >
+                                <option value="">-- 自分 (作成者) --</option>
+                                {users.map((u) => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                         住所

@@ -1,5 +1,5 @@
 import { db } from '@g-dx/database';
-import { contracts, userBusinessMemberships, userKpiTargets } from '@g-dx/database/schema';
+import { contracts, userBusinessMemberships, userKpiTargets, users } from '@g-dx/database/schema';
 import { and, eq, isNull, lte, gte, sql } from 'drizzle-orm';
 import type { BusinessScopeType } from '@g-dx/contracts';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
@@ -95,6 +95,11 @@ export async function getTeamKpiTargetSummaryByScope(
                     count: sql<number>`count(distinct ${userBusinessMemberships.userId})::int`,
                 })
                 .from(userBusinessMemberships)
+                .innerJoin(users, and(
+                    eq(userBusinessMemberships.userId, users.id),
+                    isNull(users.deletedAt),
+                    eq(users.status, 'active'),
+                ))
                 .where(
                     and(
                         eq(userBusinessMemberships.businessUnitId, businessUnit.id),

@@ -135,18 +135,22 @@ export type DealStageTransitionResponse = ApiSuccessResponse<{
 }>;
 
 export interface DealStageSummary {
-    stageKey: DealStageKey;
+    stageKey: string; // ステージキーはパイプライン固有の自由文字列 (例: 'lark_01_lead', 'jet_07_contract')
     stageName: string;
     count: number;
     totalAmount: number;
+    isClosedWon: boolean;
+    isClosedLost: boolean;
 }
 
 export interface DealNextActionItem {
     dealId: UUID;
     dealName: string;
     companyName: string;
-    stageKey: DealStageKey;
+    stageKey: string; // パイプライン固有のステージキー（表示用）
     stageName: string;
+    isClosedWon: boolean;
+    isClosedLost: boolean;
     amount: number | null;
     ownerName: string;
     ownerUserId: string;

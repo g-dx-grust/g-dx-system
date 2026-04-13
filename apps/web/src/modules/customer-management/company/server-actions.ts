@@ -22,6 +22,7 @@ interface CompanyCreateValues {
     address?: string;
     tags?: string[];
     leadSource?: string;
+    ownerUserId?: string;
 }
 
 type CompanyCreateExecutionResult =
@@ -71,6 +72,7 @@ function buildCompanyCreateValues(formData: FormData): CompanyCreateValues | nul
         address: readOptionalString(formData, 'address'),
         tags,
         leadSource: readOptionalString(formData, 'leadSource'),
+        ownerUserId: readOptionalString(formData, 'ownerUserId'),
     };
 }
 
@@ -85,6 +87,7 @@ async function executeCompanyCreate(values: CompanyCreateValues): Promise<Compan
             address: values.address,
             tags: values.tags ?? [],
             leadSource: values.leadSource,
+            ownerUserId: values.ownerUserId,
         });
 
         return {

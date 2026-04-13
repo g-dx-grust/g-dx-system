@@ -1,6 +1,9 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { BusinessScope } from '@g-dx/contracts';
+import { db } from '@g-dx/database';
+import { users, userBusinessMemberships } from '@g-dx/database/schema';
+import { and, eq, isNull } from 'drizzle-orm';
 import { Button } from '@/components/ui/button';
 import {
     listAcquisitionMethodOptions,
@@ -12,6 +15,7 @@ import { listCompanies } from '@/modules/customer-management/company/application
 import { getPipeline } from '@/modules/sales/deal/application/get-pipeline';
 import { listAllianceOptions } from '@/modules/sales/alliance/infrastructure/alliance-repository';
 import { DealCreateForm } from '@/modules/sales/deal/ui/deal-create-form';
+import { findBusinessUnitByScope } from '@/shared/server/business-unit';
 import { isAppError } from '@/shared/server/errors';
 import { assertPermission } from '@/shared/server/authorization';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
@@ -78,6 +82,23 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
         throw error;
     }
 
+    const businessUnit = await findBusinessUnitByScope(session.activeBusinessScope);
+    const allUsers = businessUnit
+        ? await db
+              .select({ id: users.id, name: users.displayName })
+              .from(users)
+              .innerJoin(userBusinessMemberships, eq(userBusinessMemberships.userId, users.id))
+              .where(
+                  and(
+                      eq(userBusinessMemberships.businessUnitId, businessUnit.id),
+                      eq(userBusinessMemberships.membershipStatus, 'active'),
+                      eq(users.status, 'active'),
+                      isNull(users.deletedAt),
+                  )
+              )
+        : [];
+    const userOptions = allUsers.map((u) => ({ id: u.id, name: u.name ?? '名前未設定' }));
+
     return (
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
@@ -98,6 +119,8 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
                 jetCreditStatuses={jetCreditStatuses}
                 jetStatus2Options={jetStatus2Options}
                 allianceOptions={allianceOptionsRaw.map((a) => ({ value: a.id, label: a.name }))}
+                users={userOptions}
+                currentUserId={session.user.id}
                 errorMessage={getErrorMessage(searchParams?.error)}
             />
         </div>

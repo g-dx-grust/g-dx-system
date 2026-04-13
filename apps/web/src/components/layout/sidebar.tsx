@@ -10,6 +10,7 @@ import {
     Building2,
     ChevronLeft,
     ChevronRight,
+    ClipboardList,
     FileText as JetContractIcon,
     History,
     MapPin,
@@ -59,6 +60,15 @@ const commonNavigation = [
     },
 ];
 
+const officeNavigation = [
+    {
+        name: '事務管理',
+        items: [
+            { name: '事務管理（契約・入金）', href: '/office/contracts', icon: ClipboardList },
+        ],
+    },
+];
+
 const jetNavigation = [
     {
         name: '施設事業管理',
@@ -73,14 +83,18 @@ interface SidebarProps {
     isCollapsed?: boolean;
     onToggle?: () => void;
     activeBusinessScope?: string;
+    userRole?: string;
 }
 
-export function Sidebar({ isCollapsed = false, onToggle, activeBusinessScope }: SidebarProps) {
+export function Sidebar({ isCollapsed = false, onToggle, activeBusinessScope, userRole }: SidebarProps) {
     const pathname = usePathname();
     const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
+    const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'ADMIN';
+
     const navigation = [
         ...commonNavigation,
+        ...(isAdmin ? officeNavigation : []),
         ...(activeBusinessScope === 'WATER_SAVING' ? jetNavigation : []),
     ];
 

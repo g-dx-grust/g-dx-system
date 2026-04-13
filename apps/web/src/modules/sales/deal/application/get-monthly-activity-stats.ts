@@ -19,7 +19,7 @@ export function getMonthlyActivityStatsCacheKey(
     return `gdx:dashboard:monthly-activity:${businessScope}:${year}:${month}`;
 }
 
-export async function getMonthlyActivityStats() {
+export async function getMonthlyActivityStats(overrideScope?: BusinessScopeType) {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
 
@@ -28,11 +28,12 @@ export async function getMonthlyActivityStats() {
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
-    const key = getMonthlyActivityStatsCacheKey(session.activeBusinessScope, year, month);
+    const scope = overrideScope ?? session.activeBusinessScope;
+    const key = getMonthlyActivityStatsCacheKey(scope, year, month);
 
     return withRedisCache(
         key,
         DASHBOARD_DATA_REVALIDATE_SECONDS,
-        () => repoGetStats(session.activeBusinessScope, year, month),
+        () => repoGetStats(scope, year, month),
     );
 }

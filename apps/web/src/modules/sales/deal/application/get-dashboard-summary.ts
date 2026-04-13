@@ -22,16 +22,17 @@ export function getDashboardSummaryCacheKey(businessScope: BusinessScopeType): s
     return `gdx:dashboard:summary:${businessScope}`;
 }
 
-export async function getDashboardSummary() {
+export async function getDashboardSummary(overrideScope?: BusinessScopeType) {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
 
     assertPermission(session, 'sales.deal.read');
 
-    const key = getDashboardSummaryCacheKey(session.activeBusinessScope);
+    const scope = overrideScope ?? session.activeBusinessScope;
+    const key = getDashboardSummaryCacheKey(scope);
     return withRedisCache(
         key,
         DASHBOARD_DATA_REVALIDATE_SECONDS,
-        () => getDashboardSummaryOptimized(session.activeBusinessScope),
+        () => getDashboardSummaryOptimized(scope),
     );
 }

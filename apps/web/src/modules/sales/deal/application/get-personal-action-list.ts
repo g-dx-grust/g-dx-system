@@ -23,6 +23,7 @@ export function getPersonalActionListCacheKey(
 
 export async function getPersonalActionList(options?: {
     userId?: string;
+    scope?: BusinessScopeType;
 }): Promise<PersonalNextActionItem[]> {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
@@ -31,10 +32,11 @@ export async function getPersonalActionList(options?: {
 
     const today = getTokyoTodayStr();
     const targetUserId = options?.userId ?? session.user.id;
-    const key = getPersonalActionListCacheKey(session.activeBusinessScope, targetUserId, today);
+    const scope = options?.scope ?? session.activeBusinessScope;
+    const key = getPersonalActionListCacheKey(scope, targetUserId, today);
 
     return withRedisCache(key, DASHBOARD_DATA_REVALIDATE_SECONDS, async () => {
-        const businessUnit = await findBusinessUnitByScope(session.activeBusinessScope);
+        const businessUnit = await findBusinessUnitByScope(scope);
         if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
         return getPersonalNextActions(targetUserId, businessUnit.id, today);
     });

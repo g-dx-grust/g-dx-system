@@ -1,6 +1,7 @@
 import { db } from '@g-dx/database';
 import { aiWeeklySummaries } from '@g-dx/database/schema';
 import { and, desc, eq } from 'drizzle-orm';
+import type { BusinessScopeType } from '@g-dx/contracts';
 import { AppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import { assertPermission } from '@/shared/server/authorization';
@@ -16,12 +17,13 @@ export interface AiWeeklySummaryData {
 }
 
 /** 最新の TEAM サマリーを返す。ない場合は null。 */
-export async function getTeamAiWeeklySummary(): Promise<AiWeeklySummaryData | null> {
+export async function getTeamAiWeeklySummary(overrideScope?: BusinessScopeType): Promise<AiWeeklySummaryData | null> {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
     assertPermission(session, 'dashboard.kpi.read');
 
-    const bu = await findBusinessUnitByScope(session.activeBusinessScope);
+    const scope = overrideScope ?? session.activeBusinessScope;
+    const bu = await findBusinessUnitByScope(scope);
     if (!bu) return null;
 
     const [row] = await db

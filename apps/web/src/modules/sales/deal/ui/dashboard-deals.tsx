@@ -33,25 +33,17 @@ interface DealDashboardProps {
     sectionsConfig?: DashboardSectionsConfig;
 }
 
-const STAGE_BADGE: Record<DealStageKey, string> = {
-    APO_ACQUIRED: 'bg-gray-100 text-gray-700',
-    NEGOTIATING: 'bg-gray-200 text-gray-700',
-    ALLIANCE: 'bg-gray-100 text-gray-600',
-    PENDING: 'bg-gray-100 text-gray-600',
-    APO_CANCELLED: 'bg-gray-100 text-gray-500',
-    LOST: 'bg-gray-200 text-gray-500',
-    CONTRACTED: 'bg-gray-800 text-white',
-};
+function getStageBadgeClass(isClosedWon: boolean, isClosedLost: boolean): string {
+    if (isClosedWon) return 'bg-gray-800 text-white';
+    if (isClosedLost) return 'bg-gray-200 text-gray-500';
+    return 'bg-gray-100 text-gray-700';
+}
 
-const STAGE_BAR_COLORS: Record<DealStageKey, string> = {
-    APO_ACQUIRED: '#475569',
-    NEGOTIATING: '#334155',
-    ALLIANCE: '#64748b',
-    PENDING: '#94a3b8',
-    APO_CANCELLED: '#cbd5e1',
-    LOST: '#e2e8f0',
-    CONTRACTED: '#1e293b',
-};
+function getStageBarColor(isClosedWon: boolean, isClosedLost: boolean): string {
+    if (isClosedWon) return '#1e293b';
+    if (isClosedLost) return '#e2e8f0';
+    return '#475569';
+}
 
 function getCurrentMonth(): string {
     const now = new Date();
@@ -90,7 +82,7 @@ export function DealDashboard({
         stageName: stage.stageName,
         count: stage.count,
         totalAmount: stage.totalAmount,
-        color: STAGE_BAR_COLORS[stage.stageKey],
+        color: getStageBarColor(stage.isClosedWon, stage.isClosedLost),
     }));
 
     const companyChartData = summary.byCompany.map((company) => ({
@@ -206,7 +198,7 @@ export function DealDashboard({
                                     <div className="flex items-center justify-between gap-3">
                                         <div className="space-y-1">
                                             <span
-                                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE[stage.stageKey]}`}
+                                                className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getStageBadgeClass(stage.isClosedWon, stage.isClosedLost)}`}
                                             >
                                                 {stage.stageName}
                                             </span>
@@ -333,7 +325,9 @@ function NextActionRow({
         dealName: string;
         companyName: string;
         stageName: string;
-        stageKey: DealStageKey;
+        stageKey: string;
+        isClosedWon: boolean;
+        isClosedLost: boolean;
         amount: number | null;
         ownerName: string;
         nextActionDate: string;
@@ -356,7 +350,7 @@ function NextActionRow({
                     </Link>
                 </div>
                 <span
-                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${STAGE_BADGE[item.stageKey]}`}
+                    className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getStageBadgeClass(item.isClosedWon, item.isClosedLost)}`}
                 >
                     {item.stageName}
                 </span>

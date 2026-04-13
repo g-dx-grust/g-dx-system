@@ -29,6 +29,7 @@ export type { TeamKpiTargetSummary };
 
 export async function getTeamKpiTargetSummary(
     targetMonth?: string,
+    overrideScope?: BusinessScopeType,
 ): Promise<TeamKpiTargetSummary> {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
@@ -42,11 +43,12 @@ export async function getTeamKpiTargetSummary(
     }
 
     const month = targetMonth ?? getCurrentMonth();
-    const key = getTeamKpiTargetSummaryCacheKey(session.activeBusinessScope, month);
+    const scope = overrideScope ?? session.activeBusinessScope;
+    const key = getTeamKpiTargetSummaryCacheKey(scope, month);
 
     return withRedisCache(
         key,
         DASHBOARD_DATA_REVALIDATE_SECONDS,
-        () => getTeamKpiTargetSummaryByScope(session.activeBusinessScope, month),
+        () => getTeamKpiTargetSummaryByScope(scope, month),
     );
 }

@@ -682,13 +682,6 @@ export async function getPipelineBoard(
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
-const ACTIVE_STAGES: readonly DealStageKey[] = ['APO_ACQUIRED', 'NEGOTIATING', 'ALLIANCE'];
-const STALLED_STAGES: readonly DealStageKey[] = ['PENDING', 'APO_CANCELLED', 'LOST'];
-const CONTRACTED_STAGES: readonly DealStageKey[] = ['CONTRACTED'];
-
-function buildTextListSql(values: readonly string[]) {
-    return sql.join(values.map((value) => sql`${value}`), sql`, `);
-}
 
 const TOKYO_DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
     timeZone: 'Asia/Tokyo',
@@ -926,9 +919,6 @@ async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<
     const tomorrowStr = `${tomorrowDate.getUTCFullYear()}-${String(tomorrowDate.getUTCMonth() + 1).padStart(2, '0')}-${String(tomorrowDate.getUTCDate()).padStart(2, '0')}`;
     const weekEndStr = getTokyoWeekEndStr(todayStr);
 
-    const activeStagesSql = buildTextListSql(ACTIVE_STAGES);
-    const contractedStagesSql = buildTextListSql(CONTRACTED_STAGES);
-
     const [stageRows, ownerRows, activeMembers, companyRows, nextActionDeals] = await Promise.all([
         db
             .select({
@@ -936,6 +926,8 @@ async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<
                 stageKey: pipelineStages.stageKey,
                 name: pipelineStages.name,
                 stageOrder: pipelineStages.stageOrder,
+                isClosedWon: pipelineStages.isClosedWon,
+                isClosedLost: pipelineStages.isClosedLost,
                 dealCount: sql<number>`count(${deals.id})::int`,
                 totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
             })
@@ -950,15 +942,15 @@ async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<
                 ),
             )
             .where(and(eq(pipelines.businessUnitId, businessUnit.id), eq(pipelines.isDefault, true)))
-            .groupBy(pipelineStages.id, pipelineStages.stageKey, pipelineStages.name, pipelineStages.stageOrder)
+            .groupBy(pipelineStages.id, pipelineStages.stageKey, pipelineStages.name, pipelineStages.stageOrder, pipelineStages.isClosedWon, pipelineStages.isClosedLost)
             .orderBy(pipelineStages.stageOrder),
         db
             .select({
                 ownerUserId: deals.ownerUserId,
                 ownerName: users.displayName,
                 totalDeals: sql<number>`count(${deals.id})::int`,
-                activeDeals: sql<number>`coalesce(sum(case when ${pipelineStages.stageKey} in (${activeStagesSql}) then 1 else 0 end), 0)::int`,
-                contractedDeals: sql<number>`coalesce(sum(case when ${pipelineStages.stageKey} in (${contractedStagesSql}) then 1 else 0 end), 0)::int`,
+                activeDeals: sql<number>`coalesce(sum(case when ${pipelineStages.isClosedWon} = false and ${pipelineStages.isClosedLost} = false then 1 else 0 end), 0)::int`,
+                contractedDeals: sql<number>`coalesce(sum(case when ${pipelineStages.isClosedWon} = true then 1 else 0 end), 0)::int`,
                 totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
             })
             .from(deals)
@@ -969,7 +961,11 @@ async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<
         db
             .select({ userId: userBusinessMemberships.userId, displayName: users.displayName })
             .from(userBusinessMemberships)
-            .innerJoin(users, eq(userBusinessMemberships.userId, users.id))
+            .innerJoin(users, and(
+                eq(userBusinessMemberships.userId, users.id),
+                isNull(users.deletedAt),
+                eq(users.status, 'active'),
+            ))
             .where(and(
                 eq(userBusinessMemberships.businessUnitId, businessUnit.id),
                 eq(userBusinessMemberships.membershipStatus, 'active'),
@@ -979,8 +975,8 @@ async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<
                 companyId: deals.companyId,
                 companyName: companies.displayName,
                 totalDeals: sql<number>`count(${deals.id})::int`,
-                activeDeals: sql<number>`coalesce(sum(case when ${pipelineStages.stageKey} in (${activeStagesSql}) then 1 else 0 end), 0)::int`,
-                totalAmount: sql<string>`coalesce(sum(case when ${pipelineStages.stageKey} in (${activeStagesSql}) then ${deals.amount} else 0 end), 0)`,
+                activeDeals: sql<number>`coalesce(sum(case when ${pipelineStages.isClosedWon} = false and ${pipelineStages.isClosedLost} = false then 1 else 0 end), 0)::int`,
+                totalAmount: sql<string>`coalesce(sum(case when ${pipelineStages.isClosedWon} = false and ${pipelineStages.isClosedLost} = false then ${deals.amount} else 0 end), 0)`,
             })
             .from(deals)
             .innerJoin(companies, eq(deals.companyId, companies.id))
@@ -1015,10 +1011,12 @@ async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<
 
     const stageMap = new Map(stageRows.map((stage) => [stage.id, stage]));
     const byStage: DealStageSummary[] = stageRows.map((stage) => ({
-        stageKey: stage.stageKey as DealStageKey,
+        stageKey: stage.stageKey,
         stageName: stage.name,
         count: stage.dealCount,
         totalAmount: Number(stage.totalAmount),
+        isClosedWon: stage.isClosedWon,
+        isClosedLost: stage.isClosedLost,
     }));
 
     let totalDeals = 0;
@@ -1032,40 +1030,32 @@ async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<
     for (const stage of byStage) {
         totalDeals += stage.count;
 
-        if (ACTIVE_STAGES.includes(stage.stageKey)) {
-            activeCount += stage.count;
-            activeAmount += stage.totalAmount;
-            continue;
-        }
-
-        if (CONTRACTED_STAGES.includes(stage.stageKey)) {
+        if (stage.isClosedWon) {
             contractedCount += stage.count;
             contractedAmount += stage.totalAmount;
-            continue;
-        }
-
-        if (STALLED_STAGES.includes(stage.stageKey)) {
+        } else if (stage.isClosedLost) {
             stalledCount += stage.count;
             stalledAmount += stage.totalAmount;
-            continue;
+        } else {
+            activeCount += stage.count;
+            activeAmount += stage.totalAmount;
         }
-
-        stalledCount += stage.count;
-        stalledAmount += stage.totalAmount;
     }
 
-    const ownerMap = new Map<string, { name: string; total: number; active: number; contracted: number; amount: number }>(
-        ownerRows.map((row) => [
-            row.ownerUserId,
-            {
-                name: row.ownerName ?? 'Unknown',
-                total: row.totalDeals,
-                active: row.activeDeals,
-                contracted: row.contractedDeals,
-                amount: Number(row.totalAmount),
-            },
-        ]),
-    );
+    const activeMemberIds = new Set(activeMembers.map((m) => m.userId));
+
+    // アクティブメンバーのみ ownerMap に含める（削除済み・非アクティブユーザーを除外）
+    const ownerMap = new Map<string, { name: string; total: number; active: number; contracted: number; amount: number }>();
+    for (const row of ownerRows) {
+        if (!activeMemberIds.has(row.ownerUserId)) continue;
+        ownerMap.set(row.ownerUserId, {
+            name: row.ownerName ?? 'Unknown',
+            total: row.totalDeals,
+            active: row.activeDeals,
+            contracted: row.contractedDeals,
+            amount: Number(row.totalAmount),
+        });
+    }
 
     // §6: 案件を持たないアクティブメンバーも一覧に含める
     for (const member of activeMembers) {
@@ -1127,8 +1117,10 @@ async function queryDashboardSummary(businessScope: BusinessScopeType): Promise<
             dealId: row.id,
             dealName: row.title,
             companyName: row.companyName,
-            stageKey: (stage?.stageKey ?? 'LOST') as DealStageKey,
+            stageKey: stage?.stageKey ?? '',
             stageName: stage?.name ?? '-',
+            isClosedWon: stage?.isClosedWon ?? false,
+            isClosedLost: stage?.isClosedLost ?? false,
             amount: row.amount !== null ? Number(row.amount) : null,
             ownerName: row.ownerName ?? '-',
             ownerUserId: row.ownerUserId ?? '',
@@ -1190,6 +1182,8 @@ export async function getDashboardSummaryOptimized(
                 stageKey: pipelineStages.stageKey,
                 name: pipelineStages.name,
                 stageOrder: pipelineStages.stageOrder,
+                isClosedWon: pipelineStages.isClosedWon,
+                isClosedLost: pipelineStages.isClosedLost,
                 dealCount: sql<number>`count(${deals.id})::int`,
                 totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
             })
@@ -1209,13 +1203,16 @@ export async function getDashboardSummaryOptimized(
                 pipelineStages.stageKey,
                 pipelineStages.name,
                 pipelineStages.stageOrder,
+                pipelineStages.isClosedWon,
+                pipelineStages.isClosedLost,
             )
             .orderBy(pipelineStages.stageOrder),
         db
             .select({
                 ownerUserId: deals.ownerUserId,
                 ownerName: users.displayName,
-                stageKey: pipelineStages.stageKey,
+                isClosedWon: pipelineStages.isClosedWon,
+                isClosedLost: pipelineStages.isClosedLost,
                 dealCount: sql<number>`count(*)::int`,
                 totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
             })
@@ -1223,12 +1220,13 @@ export async function getDashboardSummaryOptimized(
             .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
             .leftJoin(users, eq(deals.ownerUserId, users.id))
             .where(and(eq(deals.businessUnitId, businessUnit.id), isNull(deals.deletedAt)))
-            .groupBy(deals.ownerUserId, users.displayName, pipelineStages.stageKey),
+            .groupBy(deals.ownerUserId, users.displayName, pipelineStages.isClosedWon, pipelineStages.isClosedLost),
         db
             .select({
                 companyId: deals.companyId,
                 companyName: companies.displayName,
-                stageKey: pipelineStages.stageKey,
+                isClosedWon: pipelineStages.isClosedWon,
+                isClosedLost: pipelineStages.isClosedLost,
                 dealCount: sql<number>`count(*)::int`,
                 totalAmount: sql<string>`coalesce(sum(${deals.amount}), 0)`,
             })
@@ -1236,11 +1234,15 @@ export async function getDashboardSummaryOptimized(
             .innerJoin(companies, eq(deals.companyId, companies.id))
             .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
             .where(and(eq(deals.businessUnitId, businessUnit.id), isNull(deals.deletedAt)))
-            .groupBy(deals.companyId, companies.displayName, pipelineStages.stageKey),
+            .groupBy(deals.companyId, companies.displayName, pipelineStages.isClosedWon, pipelineStages.isClosedLost),
         db
             .select({ userId: userBusinessMemberships.userId, displayName: users.displayName })
             .from(userBusinessMemberships)
-            .innerJoin(users, eq(userBusinessMemberships.userId, users.id))
+            .innerJoin(users, and(
+                eq(userBusinessMemberships.userId, users.id),
+                isNull(users.deletedAt),
+                eq(users.status, 'active'),
+            ))
             .where(
                 and(
                     eq(userBusinessMemberships.businessUnitId, businessUnit.id),
@@ -1277,15 +1279,17 @@ export async function getDashboardSummaryOptimized(
     const stageMap = new Map(
         stageRows.map((stage) => [
             stage.id,
-            { stageKey: stage.stageKey, name: stage.name },
+            { stageKey: stage.stageKey, name: stage.name, isClosedWon: stage.isClosedWon, isClosedLost: stage.isClosedLost },
         ]),
     );
 
     const byStage: DealStageSummary[] = stageRows.map((stage) => ({
-        stageKey: stage.stageKey as DealStageKey,
+        stageKey: stage.stageKey,
         stageName: stage.name,
         count: Number(stage.dealCount ?? 0),
         totalAmount: Number(stage.totalAmount ?? 0),
+        isClosedWon: stage.isClosedWon,
+        isClosedLost: stage.isClosedLost,
     }));
 
     let totalDeals = 0;
@@ -1298,24 +1302,25 @@ export async function getDashboardSummaryOptimized(
 
     for (const stage of byStage) {
         totalDeals += stage.count;
-        if (ACTIVE_STAGES.includes(stage.stageKey)) {
-            activeCount += stage.count;
-            activeAmount += stage.totalAmount;
-            continue;
-        }
 
-        if (CONTRACTED_STAGES.includes(stage.stageKey)) {
+        if (stage.isClosedWon) {
             contractedCount += stage.count;
             contractedAmount += stage.totalAmount;
-            continue;
+        } else if (stage.isClosedLost) {
+            stalledCount += stage.count;
+            stalledAmount += stage.totalAmount;
+        } else {
+            activeCount += stage.count;
+            activeAmount += stage.totalAmount;
         }
-
-        stalledCount += stage.count;
-        stalledAmount += stage.totalAmount;
     }
 
+    const activeMemberIds = new Set(activeMembers.map((m) => m.userId));
+
+    // アクティブメンバーのみ ownerMap に含める（削除済み・非アクティブユーザーを除外）
     const ownerMap = new Map<string, { name: string; total: number; active: number; contracted: number; amount: number }>();
     for (const row of ownerRows) {
+        if (!activeMemberIds.has(row.ownerUserId)) continue;
         const entry = ownerMap.get(row.ownerUserId) ?? {
             name: row.ownerName ?? 'Unknown',
             total: 0,
@@ -1325,12 +1330,11 @@ export async function getDashboardSummaryOptimized(
         };
         const dealCount = Number(row.dealCount ?? 0);
         const totalAmount = Number(row.totalAmount ?? 0);
-        const stageKey = row.stageKey as DealStageKey;
 
         entry.total += dealCount;
         entry.amount += totalAmount;
-        if (ACTIVE_STAGES.includes(stageKey)) entry.active += dealCount;
-        if (CONTRACTED_STAGES.includes(stageKey)) entry.contracted += dealCount;
+        if (!row.isClosedWon && !row.isClosedLost) entry.active += dealCount;
+        if (row.isClosedWon) entry.contracted += dealCount;
 
         ownerMap.set(row.ownerUserId, entry);
     }
@@ -1367,10 +1371,9 @@ export async function getDashboardSummaryOptimized(
             amount: 0,
         };
         const dealCount = Number(row.dealCount ?? 0);
-        const stageKey = row.stageKey as DealStageKey;
 
         entry.total += dealCount;
-        if (ACTIVE_STAGES.includes(stageKey)) {
+        if (!row.isClosedWon && !row.isClosedLost) {
             entry.active += dealCount;
             entry.amount += Number(row.totalAmount ?? 0);
         }
@@ -1420,8 +1423,10 @@ export async function getDashboardSummaryOptimized(
             dealId: row.id,
             dealName: row.title,
             companyName: row.companyName,
-            stageKey: (stage?.stageKey ?? 'LOST') as DealStageKey,
+            stageKey: stage?.stageKey ?? '',
             stageName: stage?.name ?? '-',
+            isClosedWon: stage?.isClosedWon ?? false,
+            isClosedLost: stage?.isClosedLost ?? false,
             amount: row.amount !== null ? Number(row.amount) : null,
             ownerName: row.ownerName ?? '-',
             ownerUserId: row.ownerUserId ?? '',

@@ -114,6 +114,7 @@ async function fetchPersonalDashboardData(
 export async function getPersonalDashboardData(options?: {
     targetMonth?: string;
     userId?: string;
+    scope?: BusinessScopeType;
 }): Promise<PersonalDashboardData> {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');
@@ -122,11 +123,12 @@ export async function getPersonalDashboardData(options?: {
 
     const month = options?.targetMonth ?? getCurrentMonth();
     const targetUserId = options?.userId ?? session.user.id;
-    const key = getPersonalDashboardDataCacheKey(session.activeBusinessScope, targetUserId, month);
+    const scope = options?.scope ?? session.activeBusinessScope;
+    const key = getPersonalDashboardDataCacheKey(scope, targetUserId, month);
 
     return withRedisCache(
         key,
         DASHBOARD_DATA_REVALIDATE_SECONDS,
-        () => fetchPersonalDashboardData(session.activeBusinessScope, targetUserId, month),
+        () => fetchPersonalDashboardData(scope, targetUserId, month),
     );
 }

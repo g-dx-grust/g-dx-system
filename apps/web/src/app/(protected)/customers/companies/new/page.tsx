@@ -1,8 +1,12 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { db } from '@g-dx/database';
+import { users, userBusinessMemberships } from '@g-dx/database/schema';
+import { and, eq, isNull } from 'drizzle-orm';
 import { Button } from '@/components/ui/button';
 import { listIndustryOptions, listLeadSourceOptions } from '@/modules/master/infrastructure/form-master-repository';
 import { CompanyCreateForm } from '@/modules/customer-management/company/ui/company-create-form';
+import { findBusinessUnitByScope } from '@/shared/server/business-unit';
 import { assertPermission } from '@/shared/server/authorization';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 
@@ -40,6 +44,23 @@ export default async function NewCompanyPage({ searchParams }: NewCompanyPagePro
         listLeadSourceOptions(),
     ]);
 
+    const businessUnit = await findBusinessUnitByScope(session.activeBusinessScope);
+    const allUsers = businessUnit
+        ? await db
+              .select({ id: users.id, name: users.displayName })
+              .from(users)
+              .innerJoin(userBusinessMemberships, eq(userBusinessMemberships.userId, users.id))
+              .where(
+                  and(
+                      eq(userBusinessMemberships.businessUnitId, businessUnit.id),
+                      eq(userBusinessMemberships.membershipStatus, 'active'),
+                      eq(users.status, 'active'),
+                      isNull(users.deletedAt),
+                  )
+              )
+        : [];
+    const userOptions = allUsers.map((u) => ({ id: u.id, name: u.name ?? '名前未設定' }));
+
     return (
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
@@ -54,6 +75,8 @@ export default async function NewCompanyPage({ searchParams }: NewCompanyPagePro
             <CompanyCreateForm
                 industries={industries}
                 leadSources={leadSources}
+                users={userOptions}
+                currentUserId={session.user.id}
                 errorMessage={getErrorMessage(searchParams?.error)}
             />
         </div>

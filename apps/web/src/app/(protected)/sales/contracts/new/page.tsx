@@ -93,6 +93,7 @@ export default async function NewContractPage({ searchParams }: NewContractPageP
             <ContractCreateForm
                 companies={companies.data.map((c) => ({ id: c.id, name: c.name }))}
                 users={userOptions}
+                currentUserId={session.user.id}
                 errorMessage={getErrorMessage(searchParams?.error)}
                 defaultValues={defaultValues}
             />

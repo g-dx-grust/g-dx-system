@@ -99,7 +99,7 @@ export async function createDealAction(formData: FormData) {
             expectedCloseDate: readString(formData, 'expectedCloseDate'),
             nextActionDate: readString(formData, 'nextActionDate') ?? null,
             nextActionContent: readString(formData, 'nextActionContent') ?? null,
-            ownerUserId: session.user.id,
+            ownerUserId: readString(formData, 'ownerUserId') ?? session.user.id,
             source: readString(formData, 'source'),
             memo: readString(formData, 'memo'),
         });

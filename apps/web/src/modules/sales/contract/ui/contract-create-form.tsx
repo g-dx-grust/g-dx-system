@@ -19,6 +19,7 @@ interface UserOption {
 interface ContractCreateFormProps {
     companies: CompanyOption[];
     users?: UserOption[];
+    currentUserId?: string;
     errorMessage?: string;
     defaultValues?: {
         dealId?: string;
@@ -52,7 +53,7 @@ const LICENSE_PLAN_OPTIONS = [
 
 const selectClass = 'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
-export function ContractCreateForm({ companies, users = [], errorMessage, defaultValues }: ContractCreateFormProps) {
+export function ContractCreateForm({ companies, users = [], currentUserId, errorMessage, defaultValues }: ContractCreateFormProps) {
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
@@ -105,6 +106,18 @@ export function ContractCreateForm({ companies, users = [], errorMessage, defaul
                     </label>
 
                     {/* 担当者セクション */}
+                    {users.length > 0 && (
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            担当者（オーナー）
+                            <select name="ownerUserId" defaultValue={currentUserId ?? ''} className={selectClass}>
+                                <option value="">-- 自分 (作成者) --</option>
+                                {users.map((u) => (
+                                    <option key={u.id} value={u.id}>{u.name}</option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
+
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         FS担当者
                         <select name="fsInChargeUserId" className={selectClass}>

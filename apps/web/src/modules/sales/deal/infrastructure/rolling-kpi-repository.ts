@@ -39,6 +39,7 @@ async function getTeamPeriodMetrics(
     type NewVisitRow = { activity_type: string; cnt: number };
 
     // 1. Activities from deal_activities (CALL, VISIT, ONLINE) — all users in BU
+    //    VISIT/ONLINE は meeting_count の合計（GREATEST で 0 旧データも補正）、他は件数
     const activityRows = await db.execute<ActivityRow>(sql`
         SELECT
             da.activity_type,
@@ -51,8 +52,8 @@ async function getTeamPeriodMetrics(
                 AND d2.created_at::date < da.activity_date
             ) THEN 'existing' ELSE 'new' END AS segment,
             CASE
-                WHEN da.activity_type = 'VISIT'
-                    THEN SUM(COALESCE(da.meeting_count, 1))::int
+                WHEN da.activity_type IN ('VISIT', 'ONLINE')
+                    THEN SUM(GREATEST(da.meeting_count, 1))::int
                 ELSE COUNT(*)::int
             END AS cnt
         FROM deal_activities da
@@ -67,8 +68,8 @@ async function getTeamPeriodMetrics(
         SELECT
             da.activity_type,
             CASE
-                WHEN da.activity_type = 'VISIT'
-                    THEN SUM(COALESCE(da.meeting_count, 1))::int
+                WHEN da.activity_type IN ('VISIT', 'ONLINE')
+                    THEN SUM(GREATEST(da.meeting_count, 1))::int
                 ELSE COUNT(*)::int
             END AS cnt
         FROM deal_activities da

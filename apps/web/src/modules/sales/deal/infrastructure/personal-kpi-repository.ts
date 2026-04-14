@@ -378,7 +378,7 @@ async function getPersonalPeriodMetrics(
 
     // 1. Activities from deal_activities (CALL, VISIT, ONLINE)
     //    Segment: at activity_date, were there other deals for the same company?
-    //    For VISIT activities, sum meeting_count; for others count records.
+    //    For VISIT/ONLINE sum meeting_count (GREATEST で 0 旧データも補正); for others count records.
     const activityRows = await db.execute<ActivityRow>(sql`
         SELECT
             da.activity_type,
@@ -390,8 +390,8 @@ async function getPersonalPeriodMetrics(
                 AND d2.id != da.deal_id
                 AND d2.created_at::date < da.activity_date
             ) THEN 'existing' ELSE 'new' END AS segment,
-            CASE WHEN da.activity_type = 'VISIT'
-                THEN SUM(COALESCE(da.meeting_count, 1))::int
+            CASE WHEN da.activity_type IN ('VISIT', 'ONLINE')
+                THEN SUM(GREATEST(da.meeting_count, 1))::int
                 ELSE COUNT(*)::int
             END AS cnt
         FROM deal_activities da
@@ -407,8 +407,8 @@ async function getPersonalPeriodMetrics(
         SELECT
             da.activity_type,
             CASE
-                WHEN da.activity_type = 'VISIT'
-                    THEN SUM(COALESCE(da.meeting_count, 1))::int
+                WHEN da.activity_type IN ('VISIT', 'ONLINE')
+                    THEN SUM(GREATEST(da.meeting_count, 1))::int
                 ELSE COUNT(*)::int
             END AS cnt
         FROM deal_activities da

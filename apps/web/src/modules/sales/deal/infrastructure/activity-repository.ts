@@ -227,7 +227,8 @@ export async function getMonthlyActivityStats(businessScope: BusinessScopeType, 
             userId: dealActivities.userId, userName: users.displayName,
             activityType: dealActivities.activityType,
             count: sql<number>`count(*)::int`,
-            meetingSum: sql<number>`sum(${dealActivities.meetingCount})::int`,
+            // GREATEST(meeting_count, 1) で 0 やデフォルト値が混在する旧データも正しくカウント
+            meetingSum: sql<number>`sum(GREATEST(${dealActivities.meetingCount}, 1))::int`,
         })
         .from(dealActivities)
         .innerJoin(users, eq(dealActivities.userId, users.id))
@@ -241,9 +242,15 @@ export async function getMonthlyActivityStats(businessScope: BusinessScopeType, 
     const userMap = new Map<string, MonthlyActivityStat>();
     for (const row of rows) {
         const entry = userMap.get(row.userId) ?? { userId: row.userId, userName: row.userName ?? 'Unknown', visitCount: 0, onlineCount: 0, totalCount: 0 };
-        if (row.activityType === 'VISIT') entry.visitCount += (row.meetingSum ?? row.count);
-        else if (row.activityType === 'ONLINE') entry.onlineCount += row.count;
-        entry.totalCount += row.count;
+        if (row.activityType === 'VISIT') {
+            entry.visitCount += row.meetingSum;
+            entry.totalCount += row.meetingSum;
+        } else if (row.activityType === 'ONLINE') {
+            entry.onlineCount += row.meetingSum;
+            entry.totalCount += row.meetingSum;
+        } else {
+            entry.totalCount += row.count;
+        }
         userMap.set(row.userId, entry);
     }
     return Array.from(userMap.values()).sort((a, b) => b.totalCount - a.totalCount);

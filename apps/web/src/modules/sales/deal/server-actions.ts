@@ -98,6 +98,7 @@ export async function createDealAction(formData: FormData) {
             amount: amount !== undefined && !isNaN(amount) ? amount : undefined,
             expectedCloseDate: readString(formData, 'expectedCloseDate'),
             nextActionDate: readString(formData, 'nextActionDate') ?? null,
+            nextActionTime: readString(formData, 'nextActionTime') ?? null,
             nextActionContent: readString(formData, 'nextActionContent') ?? null,
             ownerUserId: readString(formData, 'ownerUserId') ?? session.user.id,
             source: readString(formData, 'source'),
@@ -139,6 +140,7 @@ export async function updateDealAction(formData: FormData) {
             memo: readString(formData, 'memo') ?? null,
             acquisitionMethod: readString(formData, 'acquisitionMethod') ?? null,
             nextActionDate: readString(formData, 'nextActionDate') ?? null,
+            nextActionTime: readString(formData, 'nextActionTime') ?? null,
             nextActionContent: readString(formData, 'nextActionContent') ?? null,
         });
     } catch (error) {

@@ -133,7 +133,7 @@ const ALLIANCE_TYPE_LABELS: Record<AllianceType, string> = {
 const selectClassName =
     'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
-const SOURCE_OPTIONS = [
+const DEAL_TYPE_OPTIONS = [
     'G-DX導入支援（フルカスタム開発）',
     'G-DX導入支援（Lark×業界パッケージ）',
     'G-DX導入支援（Lark構築）',
@@ -142,6 +142,7 @@ const SOURCE_OPTIONS = [
     'JET導入',
     'JET×Lark',
 ] as const;
+
 
 export function DealDetailView({
     deal,
@@ -266,7 +267,7 @@ export function DealDetailView({
                                 <InfoItem label="クローズ予定" value={deal.expectedCloseDate ?? '-'} />
                                 <InfoItem label="ソース" value={deal.source ?? '-'} />
                                 <InfoItem label="獲得方法" value={deal.acquisitionMethod ?? '-'} />
-                                <InfoItem label="次回アクション日" value={deal.nextActionDate ?? '-'} />
+                                <InfoItem label="次回アクション日時" value={deal.nextActionDate ? `${deal.nextActionDate}${deal.nextActionTime ? ' ' + deal.nextActionTime : ''}` : '-'} />
                                 {deal.nextActionContent ? (
                                     <InfoItem label="次回アクション内容" value={deal.nextActionContent} className="sm:col-span-2" />
                                 ) : null}
@@ -326,7 +327,12 @@ export function DealDetailView({
 
                                 <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                                     案件名
-                                    <Input name="name" defaultValue={deal.name} />
+                                    <select name="name" defaultValue={deal.name} className={selectClassName}>
+                                        <option value="" disabled>-- 案件種別を選択 --</option>
+                                        {DEAL_TYPE_OPTIONS.map((opt) => (
+                                            <option key={opt} value={opt}>{opt}</option>
+                                        ))}
+                                    </select>
                                 </label>
 
                                 {users.length > 0 ? (
@@ -365,12 +371,7 @@ export function DealDetailView({
 
                                 <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                                     ソース
-                                    <select name="source" defaultValue={deal.source ?? ''} className={selectClassName}>
-                                        <option value="">-- ソースを選択 --</option>
-                                        {SOURCE_OPTIONS.map((opt) => (
-                                            <option key={opt} value={opt}>{opt}</option>
-                                        ))}
-                                    </select>
+                                    <Input name="source" defaultValue={deal.source ?? ''} />
                                 </label>
 
                                 <label className="grid gap-2 text-sm font-medium text-gray-700">
@@ -379,13 +380,22 @@ export function DealDetailView({
                                 </label>
 
                                 <label className="grid gap-2 text-sm font-medium text-gray-700">
-                                    次回アクション日
-                                    <Input
-                                        id="deal-next-action-date"
-                                        name="nextActionDate"
-                                        type="date"
-                                        defaultValue={deal.nextActionDate ?? ''}
-                                    />
+                                    次回アクション日時
+                                    <div className="flex gap-2">
+                                        <Input
+                                            id="deal-next-action-date"
+                                            name="nextActionDate"
+                                            type="date"
+                                            defaultValue={deal.nextActionDate ?? ''}
+                                            className="flex-1"
+                                        />
+                                        <Input
+                                            name="nextActionTime"
+                                            type="time"
+                                            defaultValue={deal.nextActionTime ?? ''}
+                                            className="w-32"
+                                        />
+                                    </div>
                                 </label>
 
                                 <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">

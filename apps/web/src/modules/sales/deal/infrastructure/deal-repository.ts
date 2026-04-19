@@ -137,6 +137,7 @@ export async function getDealDetail(dealId: string, businessScope: BusinessScope
             sourceCode: deals.sourceCode,
             acquisitionMethod: deals.acquisitionMethod,
             nextActionDate: deals.nextActionDate,
+            nextActionTime: deals.nextActionTime,
             nextActionContent: deals.nextActionContent,
             larkChatId: deals.larkChatId,
             larkCalendarId: deals.larkCalendarId,
@@ -185,6 +186,7 @@ export async function getDealDetail(dealId: string, businessScope: BusinessScope
         memo: attributes.memo ?? null,
         acquisitionMethod: row.acquisitionMethod ?? null,
         nextActionDate: row.nextActionDate ?? null,
+        nextActionTime: row.nextActionTime ?? null,
         nextActionContent: row.nextActionContent ?? null,
         larkChatId: row.larkChatId ?? null,
         larkCalendarId: row.larkCalendarId ?? null,
@@ -291,6 +293,7 @@ export async function createDeal(input: CreateDealInput): Promise<CreatedDeal> {
                 currencyCode: 'JPY',
                 expectedCloseDate: input.expectedCloseDate ?? null,
                 nextActionDate: input.nextActionDate ?? null,
+                nextActionTime: input.nextActionTime ?? null,
                 nextActionContent: input.nextActionContent ?? null,
                 wonAt,
                 lostAt,
@@ -329,6 +332,24 @@ export async function createDeal(input: CreateDealInput): Promise<CreatedDeal> {
     });
 
     await syncDealNextActionTaskForDeal(result.id, input.actorUserId);
+
+    if (input.nextActionDate && input.nextActionContent) {
+        getDealLarkContext(result.id).then((dealCtx) => {
+            if (!dealCtx?.nextActionDate || !dealCtx.nextActionContent) return;
+            const calendarId = dealCtx.larkCalendarId ?? 'primary';
+            const params = buildNextActionCalendarParams({
+                calendarId,
+                companyName: dealCtx.companyName,
+                dealName: dealCtx.title,
+                nextActionContent: dealCtx.nextActionContent,
+                nextActionDate: dealCtx.nextActionDate,
+                nextActionTime: dealCtx.nextActionTime,
+                assigneeName: dealCtx.ownerName,
+                attendeeOpenId: dealCtx.ownerLarkOpenId,
+            });
+            return createCalendarEvent(params);
+        }).catch((err) => console.error('[Lark] calendar event (create deal) failed:', err));
+    }
 
     return {
         id: result.id,
@@ -385,6 +406,7 @@ export async function updateDeal(input: UpdateDealInput): Promise<UpdatedDeal> {
                 ...(input.memo !== undefined && { dealAttributes: nextAttributes }),
                 ...(input.acquisitionMethod !== undefined && { acquisitionMethod: input.acquisitionMethod }),
                 ...(input.nextActionDate !== undefined && { nextActionDate: input.nextActionDate }),
+                ...(input.nextActionTime !== undefined && { nextActionTime: input.nextActionTime }),
                 ...(input.nextActionContent !== undefined && { nextActionContent: input.nextActionContent }),
                 updatedAt,
                 updatedByUserId: input.actorUserId,
@@ -426,7 +448,7 @@ export async function updateDeal(input: UpdateDealInput): Promise<UpdatedDeal> {
         await syncDealNextActionTaskForDeal(result.id, input.actorUserId);
     }
 
-    const nextActionUpdated = input.nextActionDate !== undefined || input.nextActionContent !== undefined;
+    const nextActionUpdated = input.nextActionDate !== undefined || input.nextActionTime !== undefined || input.nextActionContent !== undefined;
     if (nextActionUpdated) {
         getDealLarkContext(result.id).then((dealCtx) => {
             if (!dealCtx?.nextActionDate || !dealCtx.nextActionContent) return;
@@ -437,7 +459,9 @@ export async function updateDeal(input: UpdateDealInput): Promise<UpdatedDeal> {
                 dealName: dealCtx.title,
                 nextActionContent: dealCtx.nextActionContent,
                 nextActionDate: dealCtx.nextActionDate,
+                nextActionTime: dealCtx.nextActionTime,
                 assigneeName: dealCtx.ownerName,
+                attendeeOpenId: dealCtx.ownerLarkOpenId,
             });
             return createCalendarEvent(params);
         }).catch((err) => console.error('[Lark] calendar event (update deal) failed:', err));
@@ -1523,9 +1547,11 @@ export interface DealLarkContext {
     larkChatId: string | null;
     larkCalendarId: string | null;
     nextActionDate: string | null;
+    nextActionTime: string | null;
     nextActionContent: string | null;
     companyName: string;
     ownerName: string;
+    ownerLarkOpenId: string | null;
     stageName: string;
 }
 
@@ -1537,9 +1563,11 @@ export async function getDealLarkContext(dealId: string): Promise<DealLarkContex
             larkChatId: deals.larkChatId,
             larkCalendarId: deals.larkCalendarId,
             nextActionDate: deals.nextActionDate,
+            nextActionTime: deals.nextActionTime,
             nextActionContent: deals.nextActionContent,
             companyName: companies.displayName,
             ownerName: users.displayName,
+            ownerLarkOpenId: users.larkOpenId,
             stageName: pipelineStages.name,
         })
         .from(deals)
@@ -1556,9 +1584,11 @@ export async function getDealLarkContext(dealId: string): Promise<DealLarkContex
         larkChatId: row.larkChatId ?? null,
         larkCalendarId: row.larkCalendarId ?? null,
         nextActionDate: row.nextActionDate ?? null,
+        nextActionTime: row.nextActionTime ?? null,
         nextActionContent: row.nextActionContent ?? null,
         companyName: row.companyName,
         ownerName: row.ownerName ?? 'Unknown',
+        ownerLarkOpenId: row.ownerLarkOpenId ?? null,
         stageName: row.stageName,
     };
 }

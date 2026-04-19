@@ -63,6 +63,7 @@ export interface CreateDealRequest {
     amount?: number;
     expectedCloseDate?: ISODateOnlyString;
     nextActionDate?: ISODateOnlyString | null;
+    nextActionTime?: string | null;
     nextActionContent?: string | null;
     ownerUserId: UUID;
     source?: string;
@@ -95,6 +96,7 @@ export interface DealDetail {
     memo: string | null;
     acquisitionMethod: string | null;
     nextActionDate: string | null;
+    nextActionTime: string | null;
     nextActionContent: string | null;
     larkChatId: string | null;
     larkCalendarId: string | null;
@@ -114,6 +116,7 @@ export interface UpdateDealRequest {
     memo?: string | null;
     acquisitionMethod?: string | null;
     nextActionDate?: string | null;
+    nextActionTime?: string | null;
     nextActionContent?: string | null;
 }
 

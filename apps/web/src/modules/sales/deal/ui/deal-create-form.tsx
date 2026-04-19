@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { SubmitButton } from '@/components/ui/submit-button';
+import { SearchableSelect } from '@/components/ui/searchable-select';
 import { createDealAction } from '@/modules/sales/deal/server-actions';
 
 interface CompanyOption {
@@ -43,7 +44,7 @@ interface DealCreateFormProps {
 const selectClassName =
     'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
-const SOURCE_OPTIONS = [
+const DEAL_TYPE_OPTIONS = [
     'G-DX導入支援（フルカスタム開発）',
     'G-DX導入支援（Lark×業界パッケージ）',
     'G-DX導入支援（Lark構築）',
@@ -67,6 +68,7 @@ export function DealCreateForm({
     errorMessage,
 }: DealCreateFormProps) {
     const defaultStage = stages[0]?.key;
+    const companyOptions = companies.map((c) => ({ value: c.id, label: c.name }));
 
     return (
         <Card className="border-gray-200 shadow-sm">
@@ -85,24 +87,23 @@ export function DealCreateForm({
                 <form action={createDealAction} className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                         <span>案件名 <span className="text-red-500">*</span></span>
-                        <Input name="name" required placeholder="例: 大手製造業への Lark サポート提案" />
-                    </label>
-
-                    <label className="grid gap-2 text-sm font-medium text-gray-700">
-                        <span>会社 <span className="text-red-500">*</span></span>
-                        <select
-                            name="companyId"
-                            required
-                            className={selectClassName}
-                        >
-                            <option value="">-- 会社を選択 --</option>
-                            {companies.map((company) => (
-                                <option key={company.id} value={company.id}>
-                                    {company.name}
-                                </option>
+                        <select name="name" required defaultValue="" className={selectClassName}>
+                            <option value="" disabled>-- 案件種別を選択 --</option>
+                            {DEAL_TYPE_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
                             ))}
                         </select>
                     </label>
+
+                    <div className="grid gap-2 text-sm font-medium text-gray-700">
+                        <span>会社 <span className="text-red-500">*</span></span>
+                        <SearchableSelect
+                            name="companyId"
+                            options={companyOptions}
+                            placeholder="-- 会社を選択 --"
+                            required
+                        />
+                    </div>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         <span>ステージ <span className="text-red-500">*</span></span>
@@ -133,8 +134,11 @@ export function DealCreateForm({
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
-                        次回アクション日
-                        <Input name="nextActionDate" type="date" />
+                        次回アクション日時
+                        <div className="flex gap-2">
+                            <Input name="nextActionDate" type="date" className="flex-1" />
+                            <Input name="nextActionTime" type="time" className="w-32" />
+                        </div>
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
@@ -212,12 +216,7 @@ export function DealCreateForm({
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                         ソース
-                        <select name="source" defaultValue="" className={selectClassName}>
-                            <option value="">-- ソースを選択 --</option>
-                            {SOURCE_OPTIONS.map((opt) => (
-                                <option key={opt} value={opt}>{opt}</option>
-                            ))}
-                        </select>
+                        <Input name="source" placeholder="例: インバウンド、紹介、広告など" />
                     </label>
 
                     {allianceOptions.length > 0 ? (

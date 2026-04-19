@@ -28,6 +28,7 @@ export interface CreateDealInput {
     amount?: number;
     expectedCloseDate?: string | null;
     nextActionDate?: string | null;
+    nextActionTime?: string | null;
     nextActionContent?: string | null;
     ownerUserId: UUID;
     source?: string;
@@ -54,6 +55,7 @@ export interface UpdateDealInput {
     memo?: string | null;
     acquisitionMethod?: string | null;
     nextActionDate?: string | null;
+    nextActionTime?: string | null;
     nextActionContent?: string | null;
     businessScope: BusinessScopeType;
     actorUserId: UUID;

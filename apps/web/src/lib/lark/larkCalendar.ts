@@ -57,9 +57,9 @@ export async function createCalendarEvent(params: CreateCalendarEventParams): Pr
 }
 
 /**
- * 次回アクション日（YYYY-MM-DD）と会社名・案件名からカレンダーイベントのパラメータを生成する
- * 開始: nextActionDate の 10:00 JST = 01:00 UTC
- * 終了: nextActionDate の 11:00 JST = 02:00 UTC
+ * 次回アクション日時からカレンダーイベントのパラメータを生成する
+ * nextActionTime が指定された場合はその JST 時刻を使用、未指定時は 10:00 JST (01:00 UTC) をデフォルトとする
+ * 終了時刻は開始の 1 時間後
  */
 export function buildNextActionCalendarParams(params: {
     calendarId: string;
@@ -67,16 +67,39 @@ export function buildNextActionCalendarParams(params: {
     dealName: string;
     nextActionContent: string;
     nextActionDate: string; // YYYY-MM-DD
+    nextActionTime?: string | null; // HH:MM (JST)
     assigneeName: string;
+    attendeeOpenId?: string | null;
 }): CreateCalendarEventParams {
-    const startTime = `${params.nextActionDate}T01:00:00Z`; // 10:00 JST
-    const endTime = `${params.nextActionDate}T02:00:00Z`;   // 11:00 JST
+    let startTime: string;
+    let endTime: string;
 
-    return {
+    if (params.nextActionTime) {
+        const [hStr, mStr] = params.nextActionTime.split(':');
+        const jstHours = parseInt(hStr, 10);
+        const jstMinutes = parseInt(mStr, 10);
+        // JST → UTC: JST は UTC+9 なので 9 時間引く
+        const startDate = new Date(`${params.nextActionDate}T00:00:00Z`);
+        startDate.setUTCHours(jstHours - 9, jstMinutes, 0, 0);
+        const endDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+        startTime = startDate.toISOString();
+        endTime = endDate.toISOString();
+    } else {
+        startTime = `${params.nextActionDate}T01:00:00Z`; // 10:00 JST
+        endTime = `${params.nextActionDate}T02:00:00Z`;   // 11:00 JST
+    }
+
+    const result: CreateCalendarEventParams = {
         calendarId: params.calendarId,
         summary: `【${params.companyName}】${params.nextActionContent}`,
         description: `案件名: ${params.dealName}\n担当者: ${params.assigneeName}\nG-DX System から自動作成`,
         startTime,
         endTime,
     };
+
+    if (params.attendeeOpenId) {
+        result.attendees = [params.attendeeOpenId];
+    }
+
+    return result;
 }

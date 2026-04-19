@@ -77,6 +77,7 @@ export const deals = pgTable('deals', {
     jetCreditStatus: text('jet_credit_status').references(() => masterJetCreditStatus.creditProgressCode),
     jetStatus2: text('jet_status2').references(() => masterJetStatus2.status2Code),
     nextActionDate: date('next_action_date'),
+    nextActionTime: text('next_action_time'), // HH:MM (JST)
     nextActionContent: text('next_action_content'),
     larkChatId: text('lark_chat_id'),
     larkCalendarId: text('lark_calendar_id'),

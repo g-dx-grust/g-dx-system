@@ -194,7 +194,9 @@ function RollingKpiTable({ blocks }: { blocks: PersonalRollingKpiBlock[] }) {
 
 export function PersonalKpiProgress({ data, className, suppressTargetAlert = false }: PersonalKpiProgressProps) {
     const contractItem = data.kpiItems.find((item) => item.key === 'contractCount');
-    const activityItems = data.kpiItems.filter((item) => item.key !== 'contractCount');
+    const activityItems = data.kpiItems.filter(
+        (item) => item.key !== 'contractCount' && item.key !== 'callCount',
+    );
     const weeksInMonth = getWeeksInMonth(data.targetMonth);
     const thisMonthMetrics = getRollingMetrics(data, 'thisMonth');
     const thisWeekMetrics = getRollingMetrics(data, 'thisWeek');

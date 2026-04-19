@@ -3,6 +3,8 @@ import {
     auditLogs,
     businessUnits,
     companies,
+    companyBusinessProfiles,
+    contactBusinessProfiles,
     contacts,
     dealActivities,
     dealStageHistory,
@@ -212,6 +214,40 @@ export async function getDealNextActionSnapshot(dealId: string): Promise<{
 export async function createDeal(input: CreateDealInput): Promise<CreatedDeal> {
     const businessUnit = await findBusinessUnitByScope(input.businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
+
+    const [visibleCompany] = await db
+        .select({ id: companies.id })
+        .from(companyBusinessProfiles)
+        .innerJoin(companies, eq(companyBusinessProfiles.companyId, companies.id))
+        .where(
+            and(
+                eq(companyBusinessProfiles.companyId, input.companyId),
+                eq(companyBusinessProfiles.businessUnitId, businessUnit.id),
+            ),
+        )
+        .limit(1);
+
+    if (!visibleCompany) {
+        throw new AppError('NOT_FOUND', 'Company was not found in the active business scope.');
+    }
+
+    if (input.primaryContactId) {
+        const [visibleContact] = await db
+            .select({ id: contacts.id })
+            .from(contactBusinessProfiles)
+            .innerJoin(contacts, eq(contactBusinessProfiles.contactId, contacts.id))
+            .where(
+                and(
+                    eq(contactBusinessProfiles.contactId, input.primaryContactId),
+                    eq(contactBusinessProfiles.businessUnitId, businessUnit.id),
+                ),
+            )
+            .limit(1);
+
+        if (!visibleContact) {
+            throw new AppError('NOT_FOUND', 'Contact was not found in the active business scope.');
+        }
+    }
 
     const [stage] = await db
         .select({

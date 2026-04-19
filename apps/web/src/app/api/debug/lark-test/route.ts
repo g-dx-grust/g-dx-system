@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantAccessToken } from '@/lib/lark/larkClient';
 import { sendGroupMessage } from '@/lib/lark/larkMessaging';
+import { isStrictLocalDevelopmentRequest } from '@/shared/server/request-guards';
 
 /**
  * ローカル開発用 Lark 疎通確認エンドポイント
@@ -13,8 +14,8 @@ import { sendGroupMessage } from '@/lib/lark/larkMessaging';
  *     → 指定チャットにメッセージ送信
  */
 export async function GET(req: NextRequest) {
-    if (process.env.APP_ENV === 'production') {
-        return NextResponse.json({ error: 'Not available in production' }, { status: 403 });
+    if (!isStrictLocalDevelopmentRequest(req)) {
+        return NextResponse.json({ error: 'Not Found' }, { status: 404 });
     }
 
     const chatId = req.nextUrl.searchParams.get('chatId');

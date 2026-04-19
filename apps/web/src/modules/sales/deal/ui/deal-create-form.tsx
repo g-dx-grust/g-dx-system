@@ -43,6 +43,16 @@ interface DealCreateFormProps {
 const selectClassName =
     'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
+const SOURCE_OPTIONS = [
+    'G-DX導入支援（フルカスタム開発）',
+    'G-DX導入支援（Lark×業界パッケージ）',
+    'G-DX導入支援（Lark構築）',
+    'G-DX導入支援（伴走メイン）',
+    '節水商材',
+    'JET導入',
+    'JET×Lark',
+] as const;
+
 export function DealCreateForm({
     companies,
     stages,
@@ -74,12 +84,12 @@ export function DealCreateForm({
 
                 <form action={createDealAction} className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
-                        案件名 <span className="text-red-500">*</span>
+                        <span>案件名 <span className="text-red-500">*</span></span>
                         <Input name="name" required placeholder="例: 大手製造業への Lark サポート提案" />
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
-                        会社 <span className="text-red-500">*</span>
+                        <span>会社 <span className="text-red-500">*</span></span>
                         <select
                             name="companyId"
                             required
@@ -95,7 +105,7 @@ export function DealCreateForm({
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
-                        ステージ <span className="text-red-500">*</span>
+                        <span>ステージ <span className="text-red-500">*</span></span>
                         <select
                             name="stage"
                             required
@@ -202,7 +212,12 @@ export function DealCreateForm({
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                         ソース
-                        <Input name="source" placeholder="例: インバウンド、紹介、広告など" />
+                        <select name="source" defaultValue="" className={selectClassName}>
+                            <option value="">-- ソースを選択 --</option>
+                            {SOURCE_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt}>{opt}</option>
+                            ))}
+                        </select>
                     </label>
 
                     {allianceOptions.length > 0 ? (

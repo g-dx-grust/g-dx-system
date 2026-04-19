@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendDashboardAlertNotification } from '@/modules/sales/deal/infrastructure/dashboard-alert-lark-notification';
+import { requireCronAuthorization } from '@/shared/server/request-guards';
 
 export async function GET(req: NextRequest) {
-    const authHeader = req.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authFailure = requireCronAuthorization(req);
+    if (authFailure) {
+        return authFailure;
     }
 
     try {

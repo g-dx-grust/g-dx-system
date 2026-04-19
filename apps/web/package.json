@@ -7,7 +7,7 @@
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
-        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "typecheck": "node -e \"require('fs').rmSync('.next/types', { recursive: true, force: true })\" && tsc -p tsconfig.json --noEmit",
         "test": "tsx --test \"src/__tests__/**/*.test.ts\""
     },
     "dependencies": {

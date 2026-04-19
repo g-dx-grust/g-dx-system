@@ -1,3 +1,7 @@
+'use client';
+
+import { useState } from 'react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { PersonalDashboardData, PersonalNextActionItem } from '@g-dx/contracts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PersonalKpiProgress } from './personal-kpi-progress';
@@ -17,38 +21,53 @@ interface MemberSectionProps {
 }
 
 function MemberSection({ member, suppressTargetAlert }: MemberSectionProps) {
+    const [expanded, setExpanded] = useState(false);
+
     return (
         <section className="space-y-4">
-            {/* メンバーヘッダー */}
-            <div className="flex items-center gap-3">
+            <button
+                onClick={() => setExpanded((v) => !v)}
+                className="flex w-full items-center gap-3 text-left"
+            >
                 <div className="h-px flex-1 bg-gray-200" />
-                <h3 className="shrink-0 text-sm font-semibold text-gray-700">{member.userName}</h3>
+                <span className="flex shrink-0 items-center gap-1 text-sm font-semibold text-gray-700">
+                    {member.userName}
+                    {expanded ? (
+                        <ChevronUp className="h-3.5 w-3.5 text-gray-400" />
+                    ) : (
+                        <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+                    )}
+                </span>
                 <div className="h-px flex-1 bg-gray-200" />
-            </div>
+            </button>
 
-            {member.dashboardData ? (
+            {expanded && (
                 <>
-                    <PersonalKpiProgress
-                        data={member.dashboardData}
-                        suppressTargetAlert={suppressTargetAlert}
-                    />
+                    {member.dashboardData ? (
+                        <>
+                            <PersonalKpiProgress
+                                data={member.dashboardData}
+                                suppressTargetAlert={suppressTargetAlert}
+                            />
 
-                    <PersonalCompanyActionHighlights
-                        memberName={member.userName}
-                        groups={member.dashboardData.lastWeekCompanyActions}
-                    />
+                            <PersonalCompanyActionHighlights
+                                memberName={member.userName}
+                                groups={member.dashboardData.lastWeekCompanyActions}
+                            />
+                        </>
+                    ) : (
+                        <Card className="border-gray-200 shadow-sm">
+                            <CardContent className="pt-6">
+                                <p className="text-sm text-gray-500">
+                                    KPI権限がないため、このメンバーの個人KPIは表示できません。
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    <PersonalActionList items={member.actionItems} />
                 </>
-            ) : (
-                <Card className="border-gray-200 shadow-sm">
-                    <CardContent className="pt-6">
-                        <p className="text-sm text-gray-500">
-                            KPI権限がないため、このメンバーの個人KPIは表示できません。
-                        </p>
-                    </CardContent>
-                </Card>
             )}
-
-            <PersonalActionList items={member.actionItems} />
         </section>
     );
 }

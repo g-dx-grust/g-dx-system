@@ -13,6 +13,7 @@ import type {
 } from '@g-dx/contracts';
 
 import { getDashboardSummary } from '@/modules/sales/deal/application/get-dashboard-summary';
+import { getExcludedMemberIds } from '@/modules/sales/deal/application/get-activity-member-ids';
 import { getMonthlyActivityStats } from '@/modules/sales/deal/application/get-monthly-activity-stats';
 import { getPersonalActionList } from '@/modules/sales/deal/application/get-personal-action-list';
 import { getPersonalDashboardData } from '@/modules/sales/deal/application/get-personal-dashboard-data';
@@ -356,6 +357,15 @@ export default async function ActivityDashboardPage({
             }),
         );
         allMembersData = memberDataResults;
+
+        // SUPER_ADMIN・TECH ロールを持つユーザーを除外
+        const excludedIds = isAllTab
+            ? new Set([
+                  ...(await getExcludedMemberIds(scopeA)),
+                  ...(await getExcludedMemberIds(scopeB)),
+              ])
+            : await getExcludedMemberIds(singleScope);
+        allMembersData = allMembersData.filter((m) => !excludedIds.has(m.userId));
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');
         if (

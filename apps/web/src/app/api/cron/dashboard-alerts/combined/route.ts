@@ -10,6 +10,7 @@ import {
     sendGroupMessage,
     type DashboardAlertMessageItem,
 } from '@/lib/lark/larkMessaging';
+import { requireCronAuthorization } from '@/shared/server/request-guards';
 
 /**
  * 毎朝 8:55 JST (UTC 23:55 前日) に実行される cron
@@ -18,10 +19,9 @@ import {
  * vercel.json: "55 23 * * *"
  */
 export async function GET(req: NextRequest) {
-    const authHeader = req.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authFailure = requireCronAuthorization(req);
+    if (authFailure) {
+        return authFailure;
     }
 
     // チャット ID: DB 設定 → 環境変数の順で取得

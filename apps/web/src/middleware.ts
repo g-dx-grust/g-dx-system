@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
-const SESSION_COOKIE_NAME = 'gdx_session';
-const PROTECTED_PREFIXES = ['/dashboard', '/customers', '/sales', '/calls', '/settings'];
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME || 'gdx_session';
+const PROTECTED_PREFIXES = ['/admin', '/dashboard', '/customers', '/sales', '/calls', '/settings', '/jet', '/office'];
 const AUTH_PREFIXES = ['/login', '/auth/callback', '/auth/local-login'];
 
 function matchesPrefix(pathname: string, prefixes: string[]): boolean {
@@ -26,5 +26,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/dashboard/:path*', '/customers/:path*', '/sales/:path*', '/calls/:path*', '/settings/:path*', '/login', '/auth/callback', '/auth/local-login'],
+    matcher: ['/admin/:path*', '/dashboard/:path*', '/customers/:path*', '/sales/:path*', '/calls/:path*', '/settings/:path*', '/jet/:path*', '/office/:path*', '/login', '/auth/callback', '/auth/local-login'],
 };

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDealsWithTodayNextAction } from '@/modules/sales/deal/infrastructure/deal-repository';
 import { sendGroupMessage, buildDailyAlertMessage } from '@/lib/lark/larkMessaging';
+import { requireCronAuthorization } from '@/shared/server/request-guards';
 
 /**
  * 毎朝9時（JST）に実行されるcronジョブ
@@ -9,11 +10,9 @@ import { sendGroupMessage, buildDailyAlertMessage } from '@/lib/lark/larkMessagi
  * vercel.json で "0 0 * * *"（UTC 0時 = JST 9時）にスケジュールされる
  */
 export async function GET(req: NextRequest) {
-    // cronエンドポイントをCRON_SECRETで保護
-    const authHeader = req.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authFailure = requireCronAuthorization(req);
+    if (authFailure) {
+        return authFailure;
     }
 
     const todayJst = new Date(Date.now() + 9 * 60 * 60 * 1000)

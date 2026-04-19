@@ -1,6 +1,13 @@
 import { db } from '@g-dx/database';
-import { companies, companyBusinessProfiles, contacts, deals, pipelineStages } from '@g-dx/database/schema';
-import { and, eq, ilike, isNull, or, sql } from 'drizzle-orm';
+import {
+    companies,
+    companyBusinessProfiles,
+    contactBusinessProfiles,
+    contacts,
+    deals,
+    pipelineStages,
+} from '@g-dx/database/schema';
+import { and, eq, ilike, isNull, or } from 'drizzle-orm';
 import type { BusinessScopeType, SearchResultItem } from '@g-dx/contracts';
 import { findBusinessUnitByScope } from '@/shared/server/business-unit';
 
@@ -25,6 +32,10 @@ export async function globalSearch(
     const businessUnit = await findBusinessUnitByScope(businessScope);
     const businessUnitId = businessUnit?.id;
 
+    if (!businessUnitId) {
+        return [];
+    }
+
     const [companyRows, contactRows, dealRows] = await Promise.all([
         db
             .select({ id: companies.id, name: companies.displayName })
@@ -32,7 +43,7 @@ export async function globalSearch(
             .innerJoin(companies, eq(companyBusinessProfiles.companyId, companies.id))
             .where(
                 and(
-                    businessUnitId ? eq(companyBusinessProfiles.businessUnitId, businessUnitId) : sql`1 = 1`,
+                    eq(companyBusinessProfiles.businessUnitId, businessUnitId),
                     or(
                         ilike(companies.displayName, `%${q}%`),
                         ilike(companies.legalName, `%${q}%`)
@@ -42,32 +53,34 @@ export async function globalSearch(
             .limit(limit),
         db
             .select({ id: contacts.id, fullName: contacts.fullName, email: contacts.email })
-            .from(contacts)
+            .from(contactBusinessProfiles)
+            .innerJoin(contacts, eq(contactBusinessProfiles.contactId, contacts.id))
             .where(
-                or(
-                    ilike(contacts.fullName, `%${q}%`),
-                    ilike(contacts.email, `%${q}%`)
+                and(
+                    eq(contactBusinessProfiles.businessUnitId, businessUnitId),
+                    or(
+                        ilike(contacts.fullName, `%${q}%`),
+                        ilike(contacts.email, `%${q}%`)
+                    )
                 )
             )
             .limit(limit),
-        businessUnitId
-            ? db
-                .select({
-                    id: deals.id,
-                    title: deals.title,
-                    stageKey: pipelineStages.stageKey,
-                })
-                .from(deals)
-                .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
-                .where(
-                    and(
-                        eq(deals.businessUnitId, businessUnitId),
-                        isNull(deals.deletedAt),
-                        ilike(deals.title, `%${q}%`)
-                    )
+        db
+            .select({
+                id: deals.id,
+                title: deals.title,
+                stageKey: pipelineStages.stageKey,
+            })
+            .from(deals)
+            .innerJoin(pipelineStages, eq(deals.currentStageId, pipelineStages.id))
+            .where(
+                and(
+                    eq(deals.businessUnitId, businessUnitId),
+                    isNull(deals.deletedAt),
+                    ilike(deals.title, `%${q}%`)
                 )
-                .limit(limit)
-            : Promise.resolve([]),
+            )
+            .limit(limit),
     ]);
 
     const results: SearchResultItem[] = [];

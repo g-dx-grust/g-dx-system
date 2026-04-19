@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { requireCronAuthorization } from '@/shared/server/request-guards';
 import { db } from '@g-dx/database';
 import { getDashboardAlertLarkChatId } from '@/modules/admin/infrastructure/app-settings-repository';
 import { sendGroupMessage } from '@/lib/lark/larkMessaging';
@@ -448,10 +449,9 @@ ${memberLines}`;
 // ─── メインハンドラ ───────────────────────────────────────────────────────────
 
 export async function GET(req: NextRequest) {
-    const authHeader = req.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const authFailure = requireCronAuthorization(req);
+    if (authFailure) {
+        return authFailure;
     }
 
     const { startDate, endDate } = getLastWeekRange();

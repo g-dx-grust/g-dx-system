@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 import { cache } from 'react';
+import { createHmac, timingSafeEqual } from 'crypto';
 import {
     BusinessScope,
     PermissionKey,
@@ -24,6 +25,12 @@ import { isBusinessScopeType } from '@/shared/constants/business-scopes';
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 8;
 const ACTIVE_SCOPE_COOKIE_NAME = 'gdx_active_scope';
+
+interface SessionTokenPayload {
+    sub: string;
+    exp: number;
+    v: 1;
+}
 
 export interface BusinessMembershipSummary {
     code: BusinessScopeType;
@@ -58,8 +65,8 @@ function getSessionMaxAge(): number {
     return SESSION_MAX_AGE_SECONDS;
 }
 
-function getSessionExpiryIso(): string {
-    return new Date(Date.now() + getSessionMaxAge() * 1000).toISOString();
+function getSessionExpiryIso(expiryUnixSeconds: number): string {
+    return new Date(expiryUnixSeconds * 1000).toISOString();
 }
 
 function getActiveScopeCookieName(): string {
@@ -68,6 +75,64 @@ function getActiveScopeCookieName(): string {
 
 function dedupePermissions<T extends string>(values: T[]): T[] {
     return [...new Set(values)];
+}
+
+function signSessionTokenPayload(payload: string): string {
+    return createHmac('sha256', appConfig.auth.sessionSecret)
+        .update(payload)
+        .digest('base64url');
+}
+
+function createSessionToken(userId: string): string {
+    const payload: SessionTokenPayload = {
+        sub: userId,
+        exp: Math.floor(Date.now() / 1000) + getSessionMaxAge(),
+        v: 1,
+    };
+    const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+    return `${encodedPayload}.${signSessionTokenPayload(encodedPayload)}`;
+}
+
+function parseSessionToken(token: string): SessionTokenPayload | null {
+    const [encodedPayload, encodedSignature, ...rest] = token.split('.');
+    if (!encodedPayload || !encodedSignature || rest.length > 0) {
+        return null;
+    }
+
+    let actualSignature: Buffer;
+    let expectedSignature: Buffer;
+    let decodedPayload: SessionTokenPayload;
+
+    try {
+        actualSignature = Buffer.from(encodedSignature, 'base64url');
+        expectedSignature = Buffer.from(signSessionTokenPayload(encodedPayload), 'base64url');
+        decodedPayload = JSON.parse(
+            Buffer.from(encodedPayload, 'base64url').toString('utf8')
+        ) as SessionTokenPayload;
+    } catch {
+        return null;
+    }
+
+    if (
+        actualSignature.length !== expectedSignature.length ||
+        !timingSafeEqual(actualSignature, expectedSignature)
+    ) {
+        return null;
+    }
+
+    if (
+        decodedPayload.v !== 1 ||
+        typeof decodedPayload.sub !== 'string' ||
+        typeof decodedPayload.exp !== 'number'
+    ) {
+        return null;
+    }
+
+    if (decodedPayload.exp <= Math.floor(Date.now() / 1000)) {
+        return null;
+    }
+
+    return decodedPayload;
 }
 
 function mapPermissionKeysToModules(permissionKeys: PermissionKey[]): SessionPermissionModules {
@@ -142,7 +207,7 @@ export function getSessionCookieConfigs(userId: string, activeBusinessScope: Bus
     };
 
     return [
-        { name: getSessionCookieName(), value: userId, httpOnly: true, ...base },
+        { name: getSessionCookieName(), value: createSessionToken(userId), httpOnly: true, ...base },
         { name: getActiveScopeCookieName(), value: activeBusinessScope, httpOnly: false, ...base },
     ];
 }
@@ -179,11 +244,14 @@ export async function setActiveBusinessScopeCookie(activeBusinessScope: Business
 
 const getAuthenticatedAppSessionCached = cache(async (): Promise<AuthenticatedAppSession | null> => {
     const cookieStore = cookies();
-    const userId = cookieStore.get(getSessionCookieName())?.value;
+    const rawSessionToken = cookieStore.get(getSessionCookieName())?.value;
+    const sessionToken = rawSessionToken ? parseSessionToken(rawSessionToken) : null;
 
-    if (!userId) {
+    if (!sessionToken) {
         return null;
     }
+
+    const userId = sessionToken.sub;
 
     const [user] = await db
         .select({
@@ -284,7 +352,7 @@ const getAuthenticatedAppSessionCached = cache(async (): Promise<AuthenticatedAp
         },
         activeBusinessScope,
         businessMemberships,
-        expiresAt: getSessionExpiryIso(),
+        expiresAt: getSessionExpiryIso(sessionToken.exp),
     };
 });
 

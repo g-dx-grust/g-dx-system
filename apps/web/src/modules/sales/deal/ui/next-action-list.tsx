@@ -1,10 +1,43 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { DealNextActionItem } from '@g-dx/contracts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface NextActionListProps {
     title: string;
     items: DealNextActionItem[];
+}
+
+function LastActionCell({ item }: { item: DealNextActionItem }) {
+    const [expanded, setExpanded] = useState(false);
+    const summary = item.lastActivitySummary ?? '-';
+    const isLong = summary.length > 40;
+
+    return (
+        <td className="px-4 py-3">
+            <div className={expanded ? '' : 'line-clamp-2 text-gray-700'}>
+                {summary}
+            </div>
+            {item.lastActivityDate && (
+                <div className="mt-0.5 text-xs text-gray-500">{item.lastActivityDate}</div>
+            )}
+            {isLong && (
+                <button
+                    onClick={() => setExpanded((v) => !v)}
+                    className="mt-1 flex items-center gap-0.5 text-xs text-gray-400 hover:text-gray-600"
+                >
+                    {expanded ? (
+                        <><ChevronUp className="h-3 w-3" />閉じる</>
+                    ) : (
+                        <><ChevronDown className="h-3 w-3" />もっと見る</>
+                    )}
+                </button>
+            )}
+        </td>
+    );
 }
 
 export function NextActionList({ title, items }: NextActionListProps) {
@@ -78,12 +111,7 @@ export function NextActionList({ title, items }: NextActionListProps) {
                                         <div className="text-gray-900">{item.nextActionContent ?? '-'}</div>
                                         <div className="mt-0.5 text-xs text-gray-500">{item.nextActionDate}</div>
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="text-gray-700">{item.lastActivitySummary ?? '-'}</div>
-                                        {item.lastActivityDate && (
-                                            <div className="mt-0.5 text-xs text-gray-500">{item.lastActivityDate}</div>
-                                        )}
-                                    </td>
+                                    <LastActionCell item={item} />
                                 </tr>
                             ))}
                         </tbody>

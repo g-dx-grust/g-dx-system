@@ -1,6 +1,15 @@
 import { db } from '@g-dx/database';
 import { auditLogs } from '@g-dx/database/schema';
-import { businessUnits, companies, contacts, contractActivities, contracts, deals, users } from '@g-dx/database/schema';
+import {
+    businessUnits,
+    companies,
+    companyBusinessProfiles,
+    contacts,
+    contractActivities,
+    contracts,
+    deals,
+    users,
+} from '@g-dx/database/schema';
 import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import type {
@@ -263,11 +272,61 @@ export async function createContract(input: CreateContractInput): Promise<{ id: 
     const now = new Date();
 
     await db.transaction(async (tx) => {
+        const [visibleCompany] = await tx
+            .select({ id: companies.id })
+            .from(companyBusinessProfiles)
+            .innerJoin(companies, eq(companyBusinessProfiles.companyId, companies.id))
+            .where(
+                and(
+                    eq(companyBusinessProfiles.companyId, input.companyId),
+                    eq(companyBusinessProfiles.businessUnitId, businessUnit.id),
+                ),
+            )
+            .limit(1);
+
+        if (!visibleCompany) {
+            throw new AppError('NOT_FOUND', 'Company was not found in the active business scope.');
+        }
+
+        let primaryContactId: string | null = null;
+
+        if (input.dealId) {
+            const [linkedDeal] = await tx
+                .select({
+                    id: deals.id,
+                    companyId: deals.companyId,
+                    primaryContactId: deals.primaryContactId,
+                })
+                .from(deals)
+                .where(
+                    and(
+                        eq(deals.id, input.dealId),
+                        eq(deals.businessUnitId, businessUnit.id),
+                        isNull(deals.deletedAt),
+                    ),
+                )
+                .limit(1);
+
+            if (!linkedDeal) {
+                throw new AppError('NOT_FOUND', 'Deal was not found in the active business scope.');
+            }
+
+            if (linkedDeal.companyId !== input.companyId) {
+                throw new AppError(
+                    'VALIDATION_ERROR',
+                    'The selected company does not match the linked deal.',
+                );
+            }
+
+            primaryContactId = linkedDeal.primaryContactId ?? null;
+        }
+
         await tx.insert(contracts).values({
             id,
             businessUnitId: businessUnit.id,
             dealId: input.dealId ?? null,
             companyId: input.companyId,
+            primaryContactId,
             ownerUserId: input.ownerUserId,
             title: input.title.trim(),
             contractNumber: input.contractNumber ?? null,

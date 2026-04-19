@@ -54,6 +54,11 @@ const LICENSE_PLAN_OPTIONS = [
 const selectClass = 'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
 export function ContractCreateForm({ companies, users = [], currentUserId, errorMessage, defaultValues }: ContractCreateFormProps) {
+    const defaultCompany = defaultValues?.companyId
+        ? companies.find((company) => company.id === defaultValues.companyId)
+        : undefined;
+    const shouldLockCompany = Boolean(defaultValues?.dealId && defaultCompany);
+
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
@@ -76,15 +81,24 @@ export function ContractCreateForm({ companies, users = [], currentUserId, error
                         <Input name="title" required placeholder="〇〇社 Lark導入サポート契約" defaultValue={defaultValues?.title ?? ''} />
                     </label>
 
-                    <label className="grid gap-2 text-sm font-medium text-gray-700">
-                        会社 <span className="text-red-500">*</span>
-                        <select name="companyId" required className={selectClass} defaultValue={defaultValues?.companyId ?? ''}>
-                            <option value="">-- 会社を選択 --</option>
-                            {companies.map((c) => (
-                                <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                        </select>
-                    </label>
+                    {shouldLockCompany ? (
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            会社 <span className="text-red-500">*</span>
+                            <input type="hidden" name="companyId" value={defaultCompany!.id} />
+                            <Input value={defaultCompany!.name} readOnly />
+                            <span className="text-xs font-normal text-gray-500">案件に紐づく会社をそのまま使用します。</span>
+                        </label>
+                    ) : (
+                        <label className="grid gap-2 text-sm font-medium text-gray-700">
+                            会社 <span className="text-red-500">*</span>
+                            <select name="companyId" required className={selectClass} defaultValue={defaultValues?.companyId ?? ''}>
+                                <option value="">-- 会社を選択 --</option>
+                                {companies.map((c) => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                ))}
+                            </select>
+                        </label>
+                    )}
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         ステータス

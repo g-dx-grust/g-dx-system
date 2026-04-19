@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation';
 import { LoginCard } from '@/modules/auth/ui/login-card';
+import { getAuthenticatedAppSession } from '@/shared/server/session';
 
 interface LoginPageProps {
     searchParams?: {
@@ -6,7 +8,12 @@ interface LoginPageProps {
     };
 }
 
-export default function LoginPage({ searchParams }: LoginPageProps) {
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+    const session = await getAuthenticatedAppSession();
+    if (session) {
+        redirect('/dashboard/deals');
+    }
+
     return (
         <div className="relative min-h-screen overflow-hidden bg-[#f4efe6]">
             <div className="pointer-events-none absolute inset-0">

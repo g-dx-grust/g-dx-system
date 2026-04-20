@@ -133,6 +133,8 @@ function mergeTeamKpiSummaries(
             newNegotiationTarget: a.totals.newNegotiationTarget + b.totals.newNegotiationTarget,
             contractTarget: a.totals.contractTarget + b.totals.contractTarget,
             revenueTarget: a.totals.revenueTarget + b.totals.revenueTarget,
+            kmContactTarget: a.totals.kmContactTarget + b.totals.kmContactTarget,
+            onlineTarget: a.totals.onlineTarget + b.totals.onlineTarget,
         },
         revenueActual: a.revenueActual + b.revenueActual,
     };
@@ -405,13 +407,14 @@ export default async function ActivityDashboardPage({
                 rollingKpiData={rollingKpiData}
                 title="チームKPI"
                 description="月次KPI / 実績"
+                businessScope={isAllTab ? undefined : singleScope}
             />
 
             {!isAllTab ? <AiSummaryCard summary={teamAiSummary} label="チーム" /> : null}
 
-            <SalesKpiDashboard rollingKpiData={rollingKpiData} />
+            <SalesKpiDashboard rollingKpiData={rollingKpiData} businessScope={isAllTab ? undefined : singleScope} />
 
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="space-y-4">
                 <NextActionList
                     title="今日のネクストアクション"
                     items={summary.nextActionsToday}

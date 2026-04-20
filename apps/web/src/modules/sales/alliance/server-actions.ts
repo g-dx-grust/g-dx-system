@@ -7,7 +7,9 @@ import { updateAlliance } from '@/modules/sales/alliance/application/update-alli
 import { linkDealToAlliance, unlinkDealFromAlliance } from '@/modules/sales/alliance/application/link-deal';
 import { createAllianceActivity } from '@/modules/sales/alliance/application/create-alliance-activity';
 import { updateAllianceActivity } from '@/modules/sales/alliance/application/update-alliance-activity';
-import { isAppError } from '@/shared/server/errors';
+import { updateMeeting } from '@/modules/sales/meeting/application/update-meeting';
+import { AppError, isAppError } from '@/shared/server/errors';
+import { getAuthenticatedAppSession } from '@/shared/server/session';
 import type { AllianceActivityType, AllianceReferralType, AllianceStatus, AllianceType } from '@g-dx/contracts';
 
 function readString(formData: FormData, key: string): string | undefined {
@@ -33,6 +35,16 @@ export async function createAllianceAction(formData: FormData) {
             relationshipStatus: (readString(formData, 'relationshipStatus') as AllianceStatus | undefined) ?? 'PROSPECT',
             notes: readString(formData, 'notes'),
         });
+
+        const fromMeetingId = readString(formData, 'fromMeeting');
+        if (fromMeetingId) {
+            await updateMeeting(fromMeetingId, {
+                convertedAllianceId: result.id,
+                convertedAt: new Date(),
+            }).catch(() => {});
+            revalidatePath(`/sales/meetings/${fromMeetingId}`);
+        }
+
         revalidatePath('/sales/alliances');
         redirect(`/sales/alliances/${result.id}?created=1`);
     } catch (error) {
@@ -179,6 +191,21 @@ export async function updateAllianceActivityAction(formData: FormData) {
 
     revalidatePath(`/sales/alliances/${allianceId}`);
     redirect(`/sales/alliances/${allianceId}?activityUpdated=1`);
+}
+
+export async function createAllianceQuickAction(name: string): Promise<{ id: string; label: string }> {
+    const session = await getAuthenticatedAppSession();
+    if (!session) throw new AppError('UNAUTHORIZED');
+
+    const result = await createAlliance({
+        name,
+        allianceType: 'COMPANY',
+        relationshipStatus: 'PROSPECT',
+    });
+
+    revalidatePath('/sales/meetings/new');
+
+    return { id: result.id, label: name };
 }
 
 export async function linkAllianceToDealFromDealPageAction(formData: FormData) {

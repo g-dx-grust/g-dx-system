@@ -349,6 +349,7 @@ export interface DealActivityItem {
     negotiationOutcome: NegotiationOutcome | null;
     competitorInfo: string | null;
     larkMeetingUrl: string | null;
+    isKmContact: boolean;
     createdAt: string;
     updatedAt?: string;
 }
@@ -364,6 +365,7 @@ export interface UpdateDealActivityRequest {
     negotiationOutcome?: NegotiationOutcome | null;
     competitorInfo?: string | null;
     larkMeetingUrl?: string | null;
+    isKmContact?: boolean;
     nextActionDate?: string | null;
     nextActionContent?: string | null;
 }
@@ -380,6 +382,7 @@ export interface CreateDealActivityRequest {
     negotiationOutcome?: NegotiationOutcome;
     competitorInfo?: string;
     larkMeetingUrl?: string;
+    isKmContact?: boolean;
 }
 
 export type DashboardAlertType =
@@ -527,6 +530,8 @@ export interface UserKpiTarget {
     newNegotiationTarget: number;
     contractTarget: number;
     revenueTarget: number;
+    kmContactTarget: number;
+    onlineTarget: number;
 }
 
 export interface PersonalKpiItem {
@@ -535,7 +540,9 @@ export interface PersonalKpiItem {
         | 'newVisitCount'
         | 'appointmentCount'
         | 'newNegotiationCount'
-        | 'contractCount';
+        | 'contractCount'
+        | 'kmContactCount'
+        | 'onlineCount';
     label: string;
     actual: number;
     target: number;
@@ -543,6 +550,7 @@ export interface PersonalKpiItem {
 }
 
 export interface PersonalDashboardData {
+    businessScope: BusinessScopeType;
     targetMonth: string;
     periodLabel: string;
     kpiItems: PersonalKpiItem[];
@@ -580,6 +588,7 @@ export type RollingKpiMetricKey =
     | 'visitCount'
     | 'onlineCount'
     | 'newVisitCount'
+    | 'kmContactCount'
     | 'appointmentCount'
     | 'negotiationCount'
     | 'contractCount';
@@ -695,6 +704,68 @@ export interface CreateAllianceActivityRequest {
     nextActionContent?: string;
 }
 
+// ─── Meeting ──────────────────────────────────────────────────────────────────
+
+export type MeetingActivityType = 'VISIT' | 'ONLINE' | 'CALL' | 'OTHER';
+export type MeetingCounterpartyType = 'COMPANY' | 'ALLIANCE' | 'NONE';
+
+export interface MeetingItem {
+    id: string;
+    businessScope: BusinessScopeType;
+    ownerUserId: string;
+    ownerName: string | null;
+
+    counterpartyType: MeetingCounterpartyType;
+    companyId: string | null;
+    companyName: string | null;
+    allianceId: string | null;
+    allianceName: string | null;
+    contactName: string | null;
+    contactRole: string | null;
+
+    meetingDate: string;
+    activityType: MeetingActivityType;
+    purpose: string | null;
+    summary: string | null;
+    nextActionDate: string | null;
+    nextActionContent: string | null;
+
+    convertedDealId: string | null;
+    convertedAllianceId: string | null;
+    convertedAt: string | null;
+
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface CreateMeetingRequest {
+    businessScope: BusinessScopeType;
+    ownerUserId?: string;
+    counterpartyType: MeetingCounterpartyType;
+    companyId?: string;
+    allianceId?: string;
+    contactName?: string;
+    contactRole?: string;
+    meetingDate: string;
+    activityType: MeetingActivityType;
+    purpose?: string;
+    summary?: string;
+    nextActionDate?: string;
+    nextActionContent?: string;
+}
+
+export interface UpdateMeetingRequest extends Partial<Omit<CreateMeetingRequest, 'businessScope'>> {
+    id: string;
+}
+
+export interface MeetingListFilters {
+    dateFrom?: string;
+    dateTo?: string;
+    ownerUserId?: string;
+    activityType?: MeetingActivityType;
+    counterpartyType?: MeetingCounterpartyType;
+}
+
 export interface SaveKpiTargetInput {
     targetMonth: string;
     callTarget: number;
@@ -705,4 +776,6 @@ export interface SaveKpiTargetInput {
     newNegotiationTarget: number;
     contractTarget: number;
     revenueTarget: number;
+    kmContactTarget: number;
+    onlineTarget: number;
 }

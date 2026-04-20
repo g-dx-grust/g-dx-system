@@ -27,6 +27,13 @@ interface UserOption {
     name: string;
 }
 
+interface DealDefaults {
+    companyId?: string;
+    memo?: string;
+    nextActionDate?: string;
+    nextActionContent?: string;
+}
+
 interface DealCreateFormProps {
     companies: CompanyOption[];
     stages: StageOption[];
@@ -39,6 +46,8 @@ interface DealCreateFormProps {
     users?: UserOption[];
     currentUserId?: string;
     errorMessage?: string;
+    defaults?: DealDefaults;
+    fromMeetingId?: string;
 }
 
 const selectClassName =
@@ -66,6 +75,8 @@ export function DealCreateForm({
     users = [],
     currentUserId,
     errorMessage,
+    defaults,
+    fromMeetingId,
 }: DealCreateFormProps) {
     const defaultStage = stages[0]?.key;
     const companyOptions = companies.map((c) => ({ value: c.id, label: c.name }));
@@ -85,6 +96,9 @@ export function DealCreateForm({
                 ) : null}
 
                 <form action={createDealAction} className="grid gap-4 md:grid-cols-2">
+                    {fromMeetingId ? (
+                        <input type="hidden" name="fromMeeting" value={fromMeetingId} />
+                    ) : null}
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                         <span>案件名 <span className="text-red-500">*</span></span>
                         <select name="name" required defaultValue="" className={selectClassName}>
@@ -102,6 +116,7 @@ export function DealCreateForm({
                             options={companyOptions}
                             placeholder="-- 会社を選択 --"
                             required
+                            defaultValue={defaults?.companyId}
                         />
                     </div>
 
@@ -136,14 +151,14 @@ export function DealCreateForm({
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         次回アクション日時
                         <div className="flex gap-2">
-                            <Input name="nextActionDate" type="date" className="flex-1" />
+                            <Input name="nextActionDate" type="date" className="flex-1" defaultValue={defaults?.nextActionDate} />
                             <Input name="nextActionTime" type="time" className="w-32" />
                         </div>
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                         次回アクション内容
-                        <Input name="nextActionContent" placeholder="提案書を送付、訪問予定など" />
+                        <Input name="nextActionContent" placeholder="提案書を送付、訪問予定など" defaultValue={defaults?.nextActionContent} />
                     </label>
 
                     {users.length > 0 && (
@@ -238,6 +253,7 @@ export function DealCreateForm({
                             rows={4}
                             className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             placeholder="案件に関するメモを入力..."
+                            defaultValue={defaults?.memo}
                         />
                     </label>
 

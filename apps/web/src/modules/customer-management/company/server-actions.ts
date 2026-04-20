@@ -306,3 +306,16 @@ export async function updateCompanyAction(formData: FormData) {
     revalidatePath(`/customers/companies/${companyId}`);
     redirect(`/customers/companies/${companyId}?updated=1`);
 }
+
+export async function createCompanyQuickAction(name: string): Promise<{ id: string; label: string }> {
+    const session = await getAuthenticatedAppSession();
+    if (!session) throw new AppError('UNAUTHORIZED');
+
+    assertPermission(session, 'customer.company.create');
+
+    const company = await createCompany({ name });
+
+    revalidatePath('/sales/meetings/new');
+
+    return { id: company.id, label: company.name };
+}

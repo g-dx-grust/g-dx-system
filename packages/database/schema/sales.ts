@@ -204,6 +204,7 @@ export const dealActivities = pgTable('deal_activities', {
     isNegotiation: boolean('is_negotiation').notNull().default(false),
     negotiationOutcome: text('negotiation_outcome'), // HIGH | MEDIUM | LOW | NONE
     competitorInfo: text('competitor_info'),
+    isKmContact: boolean('is_km_contact').notNull().default(false),
     larkMeetingUrl: text('lark_meeting_url'),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
@@ -266,6 +267,43 @@ export const allianceDealLinks = pgTable('alliance_deal_links', {
     dealIdx: index('alliance_deal_links_deal_idx').on(table.dealId),
 }));
 
+// ─── 面談（商談・アライアンスと独立した初回コンタクト等の記録） ─────────────────
+export const meetings = pgTable('meetings', {
+    id: uuid('id').primaryKey().defaultRandom(),
+    businessUnitId: uuid('business_unit_id').notNull().references(() => businessUnits.id),
+    ownerUserId: uuid('owner_user_id').notNull().references(() => users.id),
+
+    counterpartyType: text('counterparty_type').notNull().default('NONE'),
+    companyId: uuid('company_id').references(() => companies.id),
+    allianceId: uuid('alliance_id').references(() => alliances.id),
+    contactName: text('contact_name'),
+    contactRole: text('contact_role'),
+
+    meetingDate: timestamp('meeting_date', { withTimezone: true }).notNull(),
+    activityType: text('activity_type').notNull(),
+    purpose: text('purpose'),
+    summary: text('summary'),
+    nextActionDate: date('next_action_date'),
+    nextActionContent: text('next_action_content'),
+
+    convertedDealId: uuid('converted_deal_id').references(() => deals.id),
+    convertedAllianceId: uuid('converted_alliance_id').references(() => alliances.id),
+    convertedAt: timestamp('converted_at', { withTimezone: true }),
+
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+    createdByUserId: uuid('created_by_user_id').references(() => users.id),
+    updatedByUserId: uuid('updated_by_user_id').references(() => users.id),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+}, (table) => ({
+    businessUnitIdx: index('meetings_business_unit_idx').on(table.businessUnitId),
+    ownerUserIdx: index('meetings_owner_user_idx').on(table.ownerUserId),
+    meetingDateIdx: index('meetings_meeting_date_idx').on(table.meetingDate),
+    companyIdx: index('meetings_company_idx').on(table.companyId),
+    allianceIdx: index('meetings_alliance_idx').on(table.allianceId),
+    deletedAtIdx: index('meetings_deleted_at_idx').on(table.deletedAt),
+}));
+
 // ─── 個人 KPI 目標 ───────────────────────────────────────────────────────────
 export const userKpiTargets = pgTable('user_kpi_targets', {
     id: uuid('id').primaryKey().defaultRandom(),
@@ -280,6 +318,8 @@ export const userKpiTargets = pgTable('user_kpi_targets', {
     newNegotiationTarget: integer('new_negotiation_target').default(0).notNull(),
     contractTarget: integer('contract_target').default(0).notNull(),
     revenueTarget: numeric('revenue_target', { precision: 18, scale: 2 }).default('0').notNull(),
+    kmContactTarget: integer('km_contact_target').default(0).notNull(),
+    onlineTarget: integer('online_target').default(0).notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => ({

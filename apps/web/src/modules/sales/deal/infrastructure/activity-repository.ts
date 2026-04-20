@@ -1,6 +1,6 @@
 import { db } from '@g-dx/database';
-import { dealActivities, users } from '@g-dx/database/schema';
-import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
+import { dealActivities, meetings, users } from '@g-dx/database/schema';
+import { and, desc, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import type {
     BusinessScopeType,
     DealActivityItem,
@@ -72,6 +72,7 @@ export async function listDealActivities(dealId: string): Promise<DealActivityIt
             negotiationOutcome: dealActivities.negotiationOutcome,
             competitorInfo: dealActivities.competitorInfo,
             larkMeetingUrl: dealActivities.larkMeetingUrl,
+            isKmContact: dealActivities.isKmContact,
             createdAt: dealActivities.createdAt,
         })
         .from(dealActivities)
@@ -89,6 +90,7 @@ export async function listDealActivities(dealId: string): Promise<DealActivityIt
         negotiationOutcome: (r.negotiationOutcome as NegotiationOutcome | null) ?? null,
         competitorInfo: r.competitorInfo ?? null,
         larkMeetingUrl: r.larkMeetingUrl ?? null,
+        isKmContact: r.isKmContact ?? false,
         createdAt: r.createdAt.toISOString(),
     }));
 }
@@ -106,6 +108,7 @@ export async function createDealActivity(input: {
     negotiationOutcome?: NegotiationOutcome;
     competitorInfo?: string;
     larkMeetingUrl?: string;
+    isKmContact?: boolean;
 }): Promise<void> {
     const businessUnit = await findBusinessUnitByScope(input.businessScope);
     if (!businessUnit) throw new AppError('BUSINESS_SCOPE_FORBIDDEN');
@@ -127,6 +130,7 @@ export async function createDealActivity(input: {
         negotiationOutcome: negotiationMetadata.negotiationOutcome,
         competitorInfo: negotiationMetadata.competitorInfo,
         larkMeetingUrl: input.larkMeetingUrl ?? null,
+        isKmContact: input.isKmContact ?? false,
     });
 
     // Lark通知＋カレンダー: 活動ログ記録 (fire-and-forget)
@@ -179,6 +183,7 @@ export async function updateDealActivity(input: {
     negotiationOutcome?: NegotiationOutcome | null;
     competitorInfo?: string | null;
     larkMeetingUrl?: string | null;
+    isKmContact?: boolean;
 }): Promise<void> {
     // Verify the activity belongs to the given deal
     const [existing] = await db
@@ -202,6 +207,7 @@ export async function updateDealActivity(input: {
             ...(input.negotiationOutcome !== undefined && { negotiationOutcome: input.negotiationOutcome }),
             ...(input.competitorInfo !== undefined && { competitorInfo: input.competitorInfo }),
             ...(input.larkMeetingUrl !== undefined && { larkMeetingUrl: input.larkMeetingUrl }),
+            ...(input.isKmContact !== undefined && { isKmContact: input.isKmContact }),
             updatedAt: new Date(),
         })
         .where(and(eq(dealActivities.id, input.activityId), eq(dealActivities.dealId, input.dealId)));
@@ -213,6 +219,8 @@ export interface MonthlyActivityStat {
     visitCount: number;
     onlineCount: number;
     totalCount: number;
+    meetingVisitCount: number;
+    meetingOnlineCount: number;
 }
 
 export async function getMonthlyActivityStats(businessScope: BusinessScopeType, year: number, month: number): Promise<MonthlyActivityStat[]> {
@@ -241,7 +249,7 @@ export async function getMonthlyActivityStats(businessScope: BusinessScopeType, 
 
     const userMap = new Map<string, MonthlyActivityStat>();
     for (const row of rows) {
-        const entry = userMap.get(row.userId) ?? { userId: row.userId, userName: row.userName ?? 'Unknown', visitCount: 0, onlineCount: 0, totalCount: 0 };
+        const entry = userMap.get(row.userId) ?? { userId: row.userId, userName: row.userName ?? 'Unknown', visitCount: 0, onlineCount: 0, totalCount: 0, meetingVisitCount: 0, meetingOnlineCount: 0 };
         if (row.activityType === 'VISIT') {
             entry.visitCount += row.meetingSum;
             entry.totalCount += row.meetingSum;
@@ -253,5 +261,41 @@ export async function getMonthlyActivityStats(businessScope: BusinessScopeType, 
         }
         userMap.set(row.userId, entry);
     }
+
+    // meetings テーブルの面談（VISIT/ONLINE）を合算
+    const meetingRows = await db
+        .select({
+            userId: meetings.ownerUserId,
+            userName: users.displayName,
+            activityType: meetings.activityType,
+            count: sql<number>`count(*)::int`,
+        })
+        .from(meetings)
+        .innerJoin(users, eq(meetings.ownerUserId, users.id))
+        .where(and(
+            eq(meetings.businessUnitId, businessUnit.id),
+            isNull(meetings.deletedAt),
+            gte(meetings.meetingDate, new Date(startDate + 'T00:00:00Z')),
+            lte(meetings.meetingDate, new Date(endDate + 'T23:59:59Z')),
+        ))
+        .groupBy(meetings.ownerUserId, users.displayName, meetings.activityType);
+
+    for (const row of meetingRows) {
+        const cnt = row.count;
+        const entry = userMap.get(row.userId) ?? { userId: row.userId, userName: row.userName ?? 'Unknown', visitCount: 0, onlineCount: 0, totalCount: 0, meetingVisitCount: 0, meetingOnlineCount: 0 };
+        if (row.activityType === 'VISIT') {
+            entry.visitCount += cnt;
+            entry.totalCount += cnt;
+            entry.meetingVisitCount += cnt;
+        } else if (row.activityType === 'ONLINE') {
+            entry.onlineCount += cnt;
+            entry.totalCount += cnt;
+            entry.meetingOnlineCount += cnt;
+        } else {
+            entry.totalCount += cnt;
+        }
+        userMap.set(row.userId, entry);
+    }
+
     return Array.from(userMap.values()).sort((a, b) => b.totalCount - a.totalCount);
 }

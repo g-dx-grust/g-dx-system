@@ -20,6 +20,7 @@ export async function createDealActivity(input: {
     negotiationOutcome?: NegotiationOutcome;
     competitorInfo?: string;
     larkMeetingUrl?: string;
+    isKmContact?: boolean;
 }) {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');

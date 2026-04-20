@@ -1,16 +1,22 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { SalesRollingKpiGrid, KpiSegmentedCounts } from '@g-dx/contracts';
+import type { BusinessScopeType, SalesRollingKpiGrid, KpiSegmentedCounts } from '@g-dx/contracts';
 
 interface SalesKpiDashboardProps {
     rollingKpiData: SalesRollingKpiGrid;
+    businessScope?: BusinessScopeType;
 }
 
-const KPI_ROWS: { key: string; label: string }[] = [
-    { key: 'visitCount', label: '訪問数' },
-    { key: 'onlineCount', label: 'オンライン商談数' },
+const GDX_KPI_ROWS: { key: string; label: string }[] = [
+    { key: 'visitCount', label: '面会数' },
     { key: 'appointmentCount', label: 'アポイント数' },
-    { key: 'negotiationCount', label: '商談化数' },
+    { key: 'negotiationCount', label: '商談数' },
     { key: 'contractCount', label: '契約数' },
+];
+
+const JET_KPI_ROWS: { key: string; label: string }[] = [
+    { key: 'callCount', label: 'コール数' },
+    { key: 'kmContactCount', label: 'KM接触数' },
+    { key: 'onlineCount', label: 'WEB商談数' },
 ];
 
 function SegmentedCell({ counts }: { counts: KpiSegmentedCounts }) {
@@ -29,7 +35,8 @@ function SegmentedCell({ counts }: { counts: KpiSegmentedCounts }) {
     );
 }
 
-export function SalesKpiDashboard({ rollingKpiData }: SalesKpiDashboardProps) {
+export function SalesKpiDashboard({ rollingKpiData, businessScope }: SalesKpiDashboardProps) {
+    const kpiRows = businessScope === 'WATER_SAVING' ? JET_KPI_ROWS : GDX_KPI_ROWS;
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
@@ -60,7 +67,7 @@ export function SalesKpiDashboard({ rollingKpiData }: SalesKpiDashboardProps) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {KPI_ROWS.map((row) => (
+                            {kpiRows.map((row) => (
                                 <tr key={row.key} className="hover:bg-gray-50">
                                     <td className="sticky left-0 bg-white px-3 py-2.5 font-medium text-gray-700 whitespace-nowrap md:px-4 md:py-3">
                                         {row.label}

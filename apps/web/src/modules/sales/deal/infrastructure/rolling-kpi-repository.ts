@@ -1,9 +1,10 @@
 import { db } from '@g-dx/database';
-import { pipelineStages, pipelines } from '@g-dx/database/schema';
-import { and, eq, sql } from 'drizzle-orm';
+import { meetings, pipelineStages, pipelines } from '@g-dx/database/schema';
+import { and, eq, gte, isNull, lte, sql } from 'drizzle-orm';
 import type { BusinessScopeType, KpiSegmentedCounts, RollingKpiMetricKey, SalesRollingKpiColumn, SalesRollingKpiGrid } from '@g-dx/contracts';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
 import { getRollingPeriodBounds, ALL_ROLLING_PERIODS, type RollingPeriodBounds } from './rolling-period';
+import { hasJetKpiColumns } from './kpi-target-columns';
 
 function emptySegmented(): KpiSegmentedCounts {
     return { total: 0, bySegment: { new: 0, existing: 0 } };
@@ -15,6 +16,7 @@ function emptyMetrics(): Record<RollingKpiMetricKey, KpiSegmentedCounts> {
         visitCount: emptySegmented(),
         onlineCount: emptySegmented(),
         newVisitCount: emptySegmented(),
+        kmContactCount: emptySegmented(),
         appointmentCount: emptySegmented(),
         negotiationCount: emptySegmented(),
         contractCount: emptySegmented(),
@@ -100,6 +102,67 @@ async function getTeamPeriodMetrics(
         const cnt = Number(row.cnt);
         metrics.newVisitCount.total += cnt;
         metrics.newVisitCount.bySegment.new += cnt;
+    }
+
+    // 1c. meetings テーブルの面談（VISIT/ONLINE）を合算
+    // meetings には visit_category がないため一律「新規」扱いとする
+    const meetingActivityRows = await db
+        .select({
+            activityType: meetings.activityType,
+            cnt: sql<number>`count(*)::int`,
+        })
+        .from(meetings)
+        .where(
+            and(
+                eq(meetings.businessUnitId, businessUnitId),
+                isNull(meetings.deletedAt),
+                gte(meetings.meetingDate, new Date(startDate + 'T00:00:00Z')),
+                lte(meetings.meetingDate, new Date(endDate + 'T23:59:59Z')),
+            ),
+        )
+        .groupBy(meetings.activityType);
+
+    for (const row of meetingActivityRows) {
+        const cnt = Number(row.cnt);
+        if (row.activityType === 'VISIT') {
+            metrics.visitCount.total += cnt;
+            metrics.visitCount.bySegment.new += cnt;
+            metrics.newVisitCount.total += cnt;
+            metrics.newVisitCount.bySegment.new += cnt;
+        } else if (row.activityType === 'ONLINE') {
+            metrics.onlineCount.total += cnt;
+            metrics.onlineCount.bySegment.new += cnt;
+        }
+    }
+
+    // 1b. KM接触数（is_km_contact = true のアクティビティ）
+    const jetColumnsReady = await hasJetKpiColumns();
+    if (jetColumnsReady) {
+        const kmContactRows = await db.execute<{ segment: string; cnt: number }>(sql`
+            SELECT
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM deals d2
+                    WHERE d2.company_id = d.company_id
+                    AND d2.business_unit_id = ${businessUnitId}
+                    AND d2.deleted_at IS NULL
+                    AND d2.id != da.deal_id
+                    AND d2.created_at::date < da.activity_date
+                ) THEN 'existing' ELSE 'new' END AS segment,
+                COUNT(*)::int AS cnt
+            FROM deal_activities da
+            JOIN deals d ON da.deal_id = d.id
+            WHERE da.business_unit_id = ${businessUnitId}
+            AND da.is_km_contact = true
+            AND da.activity_date >= ${startDate}
+            AND da.activity_date <= ${endDate}
+            GROUP BY 1
+        `);
+        for (const row of kmContactRows.rows) {
+            const seg = row.segment as 'new' | 'existing';
+            const cnt = Number(row.cnt);
+            metrics.kmContactCount.total += cnt;
+            metrics.kmContactCount.bySegment[seg] += cnt;
+        }
     }
 
     // 2. Call logs (all users in BU)

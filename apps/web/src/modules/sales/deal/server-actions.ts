@@ -21,6 +21,7 @@ import { redisDelete } from '@/shared/server/redis-cache';
 import { getTokyoTodayStr } from '@/shared/server/date-jst';
 import { getDealNextActionSnapshot } from '@/modules/sales/deal/infrastructure/deal-repository';
 import { linkDealToAlliance } from '@/modules/sales/alliance/application/link-deal';
+import { updateMeeting } from '@/modules/sales/meeting/application/update-meeting';
 import { isAppError } from '@/shared/server/errors';
 import { getAuthenticatedAppSession } from '@/shared/server/session';
 import type {
@@ -107,6 +108,15 @@ export async function createDealAction(formData: FormData) {
 
         if (allianceId) {
             await linkDealToAlliance({ allianceId, dealId: result.id, referralType: 'INTRODUCER' }).catch(() => {});
+        }
+
+        const fromMeetingId = readString(formData, 'fromMeeting');
+        if (fromMeetingId) {
+            await updateMeeting(fromMeetingId, {
+                convertedDealId: result.id,
+                convertedAt: new Date(),
+            }).catch(() => {});
+            revalidatePath(`/sales/meetings/${fromMeetingId}`);
         }
 
         revalidatePath('/sales/deals');
@@ -226,6 +236,8 @@ export async function createDealActivityAction(formData: FormData) {
     const nextActionDate = readString(formData, 'nextActionDate') ?? null;
     const nextActionContent = readString(formData, 'nextActionContent') ?? null;
 
+    const isKmContact = formData.get('isKmContact') === 'on';
+
     try {
         await createDealActivity({
             dealId,
@@ -239,6 +251,7 @@ export async function createDealActivityAction(formData: FormData) {
             negotiationOutcome,
             competitorInfo: readString(formData, 'competitorInfo'),
             larkMeetingUrl: readString(formData, 'larkMeetingUrl'),
+            isKmContact,
         });
         if (nextActionDate !== null || nextActionContent !== null) {
             await updateDeal(dealId, { nextActionDate, nextActionContent });
@@ -328,6 +341,8 @@ export async function updateDealActivityAction(formData: FormData) {
             ? (negotiationOutcomeRaw as NegotiationOutcome)
             : null;
 
+    const isKmContactUpdate = formData.get('isKmContact') === 'on';
+
     try {
         await updateDealActivity({
             activityId,
@@ -342,6 +357,7 @@ export async function updateDealActivityAction(formData: FormData) {
             negotiationOutcome,
             competitorInfo: readString(formData, 'competitorInfo') ?? null,
             larkMeetingUrl: readString(formData, 'larkMeetingUrl') ?? null,
+            isKmContact: isKmContactUpdate,
         });
     } catch (error) {
         if (isAppError(error, 'UNAUTHORIZED')) redirect('/login');

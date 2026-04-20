@@ -50,6 +50,12 @@ function getThisWeekMetricTotal(
             return thisWeekMetrics.negotiationCount.bySegment.new;
         case 'contractCount':
             return thisWeekMetrics.contractCount.total;
+        case 'callCount':
+            return thisWeekMetrics.callCount.total;
+        case 'kmContactCount':
+            return thisWeekMetrics.kmContactCount.total;
+        case 'onlineCount':
+            return thisWeekMetrics.onlineCount.total;
         default:
             return 0;
     }
@@ -104,20 +110,30 @@ function SummaryBlock({
     );
 }
 
-const ROLLING_METRIC_LABELS: Record<string, string> = {
-    visitCount: '訪問数',
-    onlineCount: 'オンライン商談数',
+const GDX_ROLLING_METRIC_LABELS: Record<string, string> = {
+    visitCount: '面会数',
     appointmentCount: 'アポイント数',
-    negotiationCount: '商談化数',
+    negotiationCount: '商談数',
     contractCount: '契約数',
 };
 
-const ROLLING_METRIC_KEYS = [
+const GDX_ROLLING_METRIC_KEYS = [
     'visitCount',
-    'onlineCount',
     'appointmentCount',
     'negotiationCount',
     'contractCount',
+] as const;
+
+const JET_ROLLING_METRIC_LABELS: Record<string, string> = {
+    callCount: 'コール数',
+    kmContactCount: 'KM接触数',
+    onlineCount: 'WEB商談数',
+};
+
+const JET_ROLLING_METRIC_KEYS = [
+    'callCount',
+    'kmContactCount',
+    'onlineCount',
 ] as const;
 
 function SegmentedCell({ counts }: { counts: KpiSegmentedCounts }) {
@@ -136,8 +152,11 @@ function SegmentedCell({ counts }: { counts: KpiSegmentedCounts }) {
     );
 }
 
-function RollingKpiTable({ blocks }: { blocks: PersonalRollingKpiBlock[] }) {
+function RollingKpiTable({ blocks, isJet }: { blocks: PersonalRollingKpiBlock[]; isJet: boolean }) {
     if (blocks.length === 0) return null;
+
+    const metricKeys = isJet ? JET_ROLLING_METRIC_KEYS : GDX_ROLLING_METRIC_KEYS;
+    const metricLabels = isJet ? JET_ROLLING_METRIC_LABELS : GDX_ROLLING_METRIC_LABELS;
 
     return (
         <div>
@@ -168,10 +187,10 @@ function RollingKpiTable({ blocks }: { blocks: PersonalRollingKpiBlock[] }) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {ROLLING_METRIC_KEYS.map((key) => (
+                        {metricKeys.map((key) => (
                             <tr key={key} className="hover:bg-gray-50">
                                 <td className="sticky left-0 bg-white px-3 py-2.5 font-medium text-gray-700 whitespace-nowrap">
-                                    {ROLLING_METRIC_LABELS[key]}
+                                    {metricLabels[key]}
                                 </td>
                                 {blocks.map((block) => (
                                     <td key={block.period} className="px-3 py-2.5">
@@ -193,10 +212,11 @@ function RollingKpiTable({ blocks }: { blocks: PersonalRollingKpiBlock[] }) {
 }
 
 export function PersonalKpiProgress({ data, className, suppressTargetAlert = false }: PersonalKpiProgressProps) {
-    const contractItem = data.kpiItems.find((item) => item.key === 'contractCount');
-    const activityItems = data.kpiItems.filter(
-        (item) => item.key !== 'contractCount' && item.key !== 'callCount',
-    );
+    const isJet = data.businessScope === 'WATER_SAVING';
+    const contractItem = isJet ? null : data.kpiItems.find((item) => item.key === 'contractCount');
+    const activityItems = isJet
+        ? data.kpiItems
+        : data.kpiItems.filter((item) => item.key !== 'contractCount' && item.key !== 'callCount');
     const weeksInMonth = getWeeksInMonth(data.targetMonth);
     const thisMonthMetrics = getRollingMetrics(data, 'thisMonth');
     const thisWeekMetrics = getRollingMetrics(data, 'thisWeek');
@@ -303,7 +323,7 @@ export function PersonalKpiProgress({ data, className, suppressTargetAlert = fal
                                         <p className="mt-2 text-xs text-gray-500">
                                             今週実績 {thisWeekActual.toLocaleString()}件
                                         </p>
-                                        {showMeetingBreakdown ? (
+                                                        {showMeetingBreakdown && !isJet ? (
                                             <p className="mt-1 text-xs text-gray-500">
                                                 全面会 今月 {getTotalMeetingCount(thisMonthMetrics).toLocaleString()}件 / 今週 {getTotalMeetingCount(thisWeekMetrics).toLocaleString()}件
                                             </p>
@@ -320,7 +340,7 @@ export function PersonalKpiProgress({ data, className, suppressTargetAlert = fal
                         </div>
                     </div>
 
-                    <RollingKpiTable blocks={data.rollingKpis} />
+                    <RollingKpiTable blocks={data.rollingKpis} isJet={isJet} />
                 </CardContent>
             </Card>
         </div>

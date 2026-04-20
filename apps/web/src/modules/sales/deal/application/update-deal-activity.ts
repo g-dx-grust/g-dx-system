@@ -22,6 +22,7 @@ export async function updateDealActivity(input: {
     negotiationOutcome?: NegotiationOutcome | null;
     competitorInfo?: string | null;
     larkMeetingUrl?: string | null;
+    isKmContact?: boolean;
 }) {
     const session = await getAuthenticatedAppSession();
     if (!session) throw new AppError('UNAUTHORIZED');

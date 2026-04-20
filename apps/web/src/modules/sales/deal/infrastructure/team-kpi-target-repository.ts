@@ -4,7 +4,7 @@ import { and, eq, isNull, lte, gte, sql } from 'drizzle-orm';
 import type { BusinessScopeType } from '@g-dx/contracts';
 import { findBusinessUnitByScope } from '@/modules/sales/shared/infrastructure/sales-shared';
 import { AppError } from '@/shared/server/errors';
-import { hasSegmentTargetColumns } from './kpi-target-columns';
+import { hasSegmentTargetColumns, hasJetKpiColumns } from './kpi-target-columns';
 
 export interface TeamKpiTargetSummary {
     targetMonth: string;
@@ -19,6 +19,8 @@ export interface TeamKpiTargetSummary {
         newNegotiationTarget: number;
         contractTarget: number;
         revenueTarget: number;
+        kmContactTarget: number;
+        onlineTarget: number;
     };
     revenueActual: number;
 }
@@ -40,6 +42,7 @@ export async function getTeamKpiTargetSummaryByScope(
 
     const { startDate, endDate } = getMonthBounds(targetMonth);
     const supportsSegmentTargets = await hasSegmentTargetColumns();
+    const jetColumnsReady = await hasJetKpiColumns();
 
     const [targetTotalsRow, activeMemberRow, configuredMemberRow, revenueActualRow] =
         await Promise.all([
@@ -59,6 +62,10 @@ export async function getTeamKpiTargetSummaryByScope(
                           contractTarget:
                               sql<number>`coalesce(sum(${userKpiTargets.contractTarget}), 0)::int`,
                           revenueTarget: sql<string>`coalesce(sum(${userKpiTargets.revenueTarget}), 0)`,
+                          ...(jetColumnsReady && {
+                              kmContactTarget: sql<number>`coalesce(sum(${userKpiTargets.kmContactTarget}), 0)::int`,
+                              onlineTarget: sql<number>`coalesce(sum(${userKpiTargets.onlineTarget}), 0)::int`,
+                          }),
                       })
                       .from(userKpiTargets)
                       .where(
@@ -145,6 +152,8 @@ export async function getTeamKpiTargetSummaryByScope(
             newNegotiationTarget: Number(targetTotalsRow[0]?.newNegotiationTarget ?? 0),
             contractTarget: Number(targetTotalsRow[0]?.contractTarget ?? 0),
             revenueTarget: parseFloat(targetTotalsRow[0]?.revenueTarget ?? '0'),
+            kmContactTarget: Number((targetTotalsRow[0] as any)?.kmContactTarget ?? 0),
+            onlineTarget: Number((targetTotalsRow[0] as any)?.onlineTarget ?? 0),
         },
         revenueActual: parseFloat(revenueActualRow[0]?.total ?? '0'),
     };

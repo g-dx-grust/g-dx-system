@@ -46,6 +46,10 @@ export type PermissionKey =
     | 'sales.alliance.read'
     | 'sales.alliance.create'
     | 'sales.alliance.update'
+    | 'sales.meeting.read'
+    | 'sales.meeting.create'
+    | 'sales.meeting.update'
+    | 'sales.meeting.delete'
     | 'office.contract.manage';
 
 export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, PermissionLevelType>> = {
@@ -95,6 +99,10 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'Y',
         'sales.alliance.update': 'Y',
+        'sales.meeting.read': 'Y',
+        'sales.meeting.create': 'Y',
+        'sales.meeting.update': 'Y',
+        'sales.meeting.delete': 'Y',
         'office.contract.manage': 'Y',
     },
     [Role.ADMIN]: {
@@ -143,6 +151,10 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'Y',
         'sales.alliance.update': 'Y',
+        'sales.meeting.read': 'Y',
+        'sales.meeting.create': 'Y',
+        'sales.meeting.update': 'Y',
+        'sales.meeting.delete': 'Y',
         'office.contract.manage': 'Y',
     },
     [Role.MANAGER]: {
@@ -191,6 +203,10 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'Y',
         'sales.alliance.update': 'Y',
+        'sales.meeting.read': 'Y',
+        'sales.meeting.create': 'Y',
+        'sales.meeting.update': 'Y',
+        'sales.meeting.delete': 'C',
         'office.contract.manage': 'N',
     },
     [Role.OPERATOR]: {
@@ -239,6 +255,10 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'Y',
         'sales.alliance.update': 'Y',
+        'sales.meeting.read': 'Y',
+        'sales.meeting.create': 'Y',
+        'sales.meeting.update': 'C',
+        'sales.meeting.delete': 'N',
         'office.contract.manage': 'N',
     },
     [Role.VIEWER]: {
@@ -287,6 +307,10 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'Y',
         'sales.alliance.create': 'N',
         'sales.alliance.update': 'N',
+        'sales.meeting.read': 'Y',
+        'sales.meeting.create': 'N',
+        'sales.meeting.update': 'N',
+        'sales.meeting.delete': 'N',
         'office.contract.manage': 'N',
     },
     [Role.IS_MEMBER]: {
@@ -335,6 +359,10 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'N',
         'sales.alliance.create': 'N',
         'sales.alliance.update': 'N',
+        'sales.meeting.read': 'N',
+        'sales.meeting.create': 'N',
+        'sales.meeting.update': 'N',
+        'sales.meeting.delete': 'N',
         'office.contract.manage': 'N',
     },
     [Role.TECH]: {
@@ -383,6 +411,10 @@ export const RolePermissionMatrix: Record<RoleType, Record<PermissionKey, Permis
         'sales.alliance.read': 'N',
         'sales.alliance.create': 'N',
         'sales.alliance.update': 'N',
+        'sales.meeting.read': 'N',
+        'sales.meeting.create': 'N',
+        'sales.meeting.update': 'N',
+        'sales.meeting.delete': 'N',
         'office.contract.manage': 'N',
     },
 };

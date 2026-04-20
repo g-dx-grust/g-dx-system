@@ -14,6 +14,7 @@ import {
 import { listCompanies } from '@/modules/customer-management/company/application/list-companies';
 import { getPipeline } from '@/modules/sales/deal/application/get-pipeline';
 import { listAllianceOptions } from '@/modules/sales/alliance/infrastructure/alliance-repository';
+import { getMeeting } from '@/modules/sales/meeting/application/get-meeting';
 import { DealCreateForm } from '@/modules/sales/deal/ui/deal-create-form';
 import { findBusinessUnitByScope } from '@/shared/server/business-unit';
 import { isAppError } from '@/shared/server/errors';
@@ -23,6 +24,7 @@ import { getAuthenticatedAppSession } from '@/shared/server/session';
 interface NewDealPageProps {
     searchParams?: {
         error?: string;
+        fromMeeting?: string;
     };
 }
 
@@ -99,6 +101,21 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
         : [];
     const userOptions = allUsers.map((u) => ({ id: u.id, name: u.name ?? '名前未設定' }));
 
+    // fromMeeting: 面談からの変換時にプリフィル
+    let dealDefaults: { companyId?: string; memo?: string; nextActionDate?: string; nextActionContent?: string } | undefined;
+    const fromMeetingId = searchParams?.fromMeeting;
+    if (fromMeetingId) {
+        const meeting = await getMeeting(fromMeetingId).catch(() => null);
+        if (meeting) {
+            dealDefaults = {
+                companyId: meeting.companyId ?? undefined,
+                memo: meeting.summary ?? undefined,
+                nextActionDate: meeting.nextActionDate ?? undefined,
+                nextActionContent: meeting.nextActionContent ?? undefined,
+            };
+        }
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex items-end justify-between gap-4">
@@ -122,6 +139,8 @@ export default async function NewDealPage({ searchParams }: NewDealPageProps) {
                 users={userOptions}
                 currentUserId={session.user.id}
                 errorMessage={getErrorMessage(searchParams?.error)}
+                defaults={dealDefaults}
+                fromMeetingId={fromMeetingId}
             />
         </div>
     );

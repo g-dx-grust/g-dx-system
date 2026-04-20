@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Check, Search } from 'lucide-react';
+import { ChevronDown, Check, Search, Plus, Loader2 } from 'lucide-react';
 
 interface SearchableSelectOption {
     value: string;
@@ -14,18 +14,22 @@ interface SearchableSelectProps {
     placeholder?: string;
     required?: boolean;
     defaultValue?: string;
+    onCreate?: (query: string) => Promise<{ id: string; label: string }>;
 }
 
 export function SearchableSelect({
     name,
-    options,
+    options: initialOptions,
     placeholder = '-- 選択 --',
     required = false,
     defaultValue = '',
+    onCreate,
 }: SearchableSelectProps) {
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [selected, setSelected] = useState(defaultValue);
+    const [options, setOptions] = useState(initialOptions);
+    const [creating, setCreating] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const searchRef = useRef<HTMLInputElement>(null);
 
@@ -52,6 +56,21 @@ export function SearchableSelect({
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
+
+    async function handleCreate() {
+        if (!onCreate || !search.trim() || creating) return;
+        setCreating(true);
+        try {
+            const created = await onCreate(search.trim());
+            setOptions((prev) => [...prev, { value: created.id, label: created.label }]);
+            setSelected(created.id);
+            setOpen(false);
+        } catch {
+            // silent — caller shows error via redirect/toast
+        } finally {
+            setCreating(false);
+        }
+    }
 
     return (
         <div ref={containerRef} className="relative">
@@ -87,21 +106,54 @@ export function SearchableSelect({
                         >
                             {placeholder}
                         </li>
-                        {filtered.length === 0 ? (
+                        {filtered.length === 0 && onCreate && search.trim() ? (
+                            <li>
+                                <button
+                                    type="button"
+                                    onClick={handleCreate}
+                                    disabled={creating}
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 disabled:opacity-50"
+                                >
+                                    {creating
+                                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                                        : <Plus className="h-4 w-4" />
+                                    }
+                                    {creating ? '作成中...' : `＋ 新規作成「${search.trim()}」`}
+                                </button>
+                            </li>
+                        ) : filtered.length === 0 ? (
                             <li className="px-3 py-2 text-sm text-gray-400">該当なし</li>
                         ) : (
-                            filtered.map((opt) => (
-                                <li
-                                    key={opt.value}
-                                    className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-gray-900 hover:bg-gray-50"
-                                    onClick={() => { setSelected(opt.value); setOpen(false); }}
-                                >
-                                    {opt.label}
-                                    {selected === opt.value && (
-                                        <Check className="h-4 w-4 text-blue-600" />
-                                    )}
-                                </li>
-                            ))
+                            <>
+                                {filtered.map((opt) => (
+                                    <li
+                                        key={opt.value}
+                                        className="flex cursor-pointer items-center justify-between px-3 py-2 text-sm text-gray-900 hover:bg-gray-50"
+                                        onClick={() => { setSelected(opt.value); setOpen(false); }}
+                                    >
+                                        {opt.label}
+                                        {selected === opt.value && (
+                                            <Check className="h-4 w-4 text-blue-600" />
+                                        )}
+                                    </li>
+                                ))}
+                                {onCreate && search.trim() && (
+                                    <li>
+                                        <button
+                                            type="button"
+                                            onClick={handleCreate}
+                                            disabled={creating}
+                                            className="flex w-full items-center gap-2 border-t border-gray-100 px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 disabled:opacity-50"
+                                        >
+                                            {creating
+                                                ? <Loader2 className="h-4 w-4 animate-spin" />
+                                                : <Plus className="h-4 w-4" />
+                                            }
+                                            {creating ? '作成中...' : `＋ 新規作成「${search.trim()}」`}
+                                        </button>
+                                    </li>
+                                )}
+                            </>
                         )}
                     </ul>
                 </div>

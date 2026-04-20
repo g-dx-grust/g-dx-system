@@ -38,6 +38,8 @@ export async function saveKpiTargetAction(formData: FormData) {
         newNegotiationTarget: readInt(formData, 'newNegotiationTarget'),
         contractTarget: readInt(formData, 'contractTarget'),
         revenueTarget: readFloat(formData, 'revenueTarget'),
+        kmContactTarget: readInt(formData, 'kmContactTarget'),
+        onlineTarget: readInt(formData, 'onlineTarget'),
     };
 
     try {

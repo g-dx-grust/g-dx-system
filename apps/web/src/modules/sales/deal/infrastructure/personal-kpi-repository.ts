@@ -3,6 +3,7 @@ import {
     dealActivities,
     dealStageHistory,
     deals,
+    meetings,
     pipelineStages,
     pipelines,
     contracts,
@@ -23,7 +24,7 @@ import type {
     UserKpiTarget,
 } from '@g-dx/contracts';
 import { getRollingPeriodBounds, ALL_ROLLING_PERIODS, type RollingPeriodBounds } from './rolling-period';
-import { hasSegmentTargetColumns } from './kpi-target-columns';
+import { hasSegmentTargetColumns, hasJetKpiColumns } from './kpi-target-columns';
 import { listPersonalDealNextActionTasks } from '@/modules/tasks/infrastructure/deal-next-action-task-repository';
 import { getTokyoWeekEndStr } from '@/shared/server/date-jst';
 
@@ -42,6 +43,7 @@ export async function upsertKpiTarget(
     input: SaveKpiTargetInput,
 ): Promise<void> {
     const supportsSegmentTargets = await hasSegmentTargetColumns();
+    const jetColumnsReady = await hasJetKpiColumns();
     const baseValues = {
         userId,
         businessUnitId,
@@ -66,24 +68,34 @@ export async function upsertKpiTarget(
     };
 
     if (supportsSegmentTargets) {
+        const segmentValues = {
+            ...baseValues,
+            newVisitTarget: input.newVisitTarget,
+            newNegotiationTarget: input.newNegotiationTarget,
+            ...(jetColumnsReady && {
+                kmContactTarget: input.kmContactTarget,
+                onlineTarget: input.onlineTarget,
+            }),
+        };
+        const segmentSet = {
+            ...baseSet,
+            newVisitTarget: input.newVisitTarget,
+            newNegotiationTarget: input.newNegotiationTarget,
+            ...(jetColumnsReady && {
+                kmContactTarget: input.kmContactTarget,
+                onlineTarget: input.onlineTarget,
+            }),
+        };
         await db
             .insert(userKpiTargets)
-            .values({
-                ...baseValues,
-                newVisitTarget: input.newVisitTarget,
-                newNegotiationTarget: input.newNegotiationTarget,
-            })
+            .values(segmentValues)
             .onConflictDoUpdate({
                 target: [
                     userKpiTargets.userId,
                     userKpiTargets.businessUnitId,
                     userKpiTargets.targetMonth,
                 ],
-                set: {
-                    ...baseSet,
-                    newVisitTarget: input.newVisitTarget,
-                    newNegotiationTarget: input.newNegotiationTarget,
-                },
+                set: segmentSet,
             });
         return;
     }
@@ -112,6 +124,7 @@ export async function getKpiTargetRow(
         eq(userKpiTargets.targetMonth, targetMonth),
     );
     const supportsSegmentTargets = await hasSegmentTargetColumns();
+    const jetColumnsReady = await hasJetKpiColumns();
 
     if (supportsSegmentTargets) {
         const [row] = await db
@@ -133,6 +146,8 @@ export async function getKpiTargetRow(
             newNegotiationTarget: row.newNegotiationTarget,
             contractTarget: row.contractTarget,
             revenueTarget: parseFloat(row.revenueTarget ?? '0'),
+            kmContactTarget: jetColumnsReady ? (row.kmContactTarget ?? 0) : 0,
+            onlineTarget: jetColumnsReady ? (row.onlineTarget ?? 0) : 0,
         };
     }
 
@@ -165,12 +180,15 @@ export async function getKpiTargetRow(
         newNegotiationTarget: row.negotiationTarget,
         contractTarget: row.contractTarget,
         revenueTarget: parseFloat(row.revenueTarget ?? '0'),
+        kmContactTarget: 0,
+        onlineTarget: 0,
     };
 }
 
 interface PersonalActuals {
     callCount: number;
     visitCount: number;
+    kmContactCount: number;
     appointmentCount: number;
     negotiationCount: number;
     contractCount: number;
@@ -184,7 +202,9 @@ export async function getPersonalActuals(
 ): Promise<PersonalActuals> {
     const { startDate, endDate } = getMonthBounds(targetMonth);
 
-    const [activityCounts, callLogCount, negoStages, contractedStages, apoStages, revenueResult] = await Promise.all([
+    const jetColumnsExist = await hasJetKpiColumns();
+
+    const [activityCounts, callLogCount, negoStages, contractedStages, apoStages, revenueResult, kmContactResult] = await Promise.all([
         // 1. コール数・訪問数（dealActivities から ＝ 手動ログ）
         db
             .select({
@@ -265,6 +285,22 @@ export async function getPersonalActuals(
                     isNull(contracts.deletedAt),
                 ),
             ),
+
+        // 7. KM接触数（is_km_contact = true のアクティビティ）
+        jetColumnsExist
+            ? db
+                .select({ cnt: sql<number>`count(*)::int` })
+                .from(dealActivities)
+                .where(
+                    and(
+                        eq(dealActivities.userId, userId),
+                        eq(dealActivities.businessUnitId, businessUnitId),
+                        gte(dealActivities.activityDate, startDate),
+                        lte(dealActivities.activityDate, endDate),
+                        eq(dealActivities.isKmContact, true),
+                    ),
+                )
+            : Promise.resolve([{ cnt: 0 }]),
     ]);
 
     // 活動カウント集計（手動ログ）
@@ -276,6 +312,23 @@ export async function getPersonalActuals(
     }
     // コールシステム経由の架電数を加算（二重カウントなし: 別入力経路）
     const callCount = activityCallCount + (callLogCount[0]?.cnt ?? 0);
+
+    // meetings テーブルの面談（VISIT/ONLINE）を加算
+    const meetingVisitCount = await db
+        .select({ cnt: sql<number>`count(*)::int` })
+        .from(meetings)
+        .where(
+            and(
+                eq(meetings.ownerUserId, userId),
+                eq(meetings.businessUnitId, businessUnitId),
+                isNull(meetings.deletedAt),
+                gte(meetings.meetingDate, new Date(startDate + 'T00:00:00Z')),
+                lte(meetings.meetingDate, new Date(endDate + 'T23:59:59Z')),
+                sql`${meetings.activityType} IN ('VISIT', 'ONLINE')`,
+            ),
+        )
+        .then(([r]) => Number(r?.cnt ?? 0));
+    visitCount += meetingVisitCount;
 
     // アポイント数・商談化数・契約数を並列取得
     const [appointmentCount, negotiationCount, contractCount] = await Promise.all([
@@ -336,8 +389,9 @@ export async function getPersonalActuals(
     ]);
 
     const revenueTotal = parseFloat(revenueResult[0]?.total ?? '0');
+    const kmContactCount = Number(kmContactResult[0]?.cnt ?? 0);
 
-    return { callCount, visitCount, appointmentCount, negotiationCount, contractCount, revenueTotal };
+    return { callCount, visitCount, kmContactCount, appointmentCount, negotiationCount, contractCount, revenueTotal };
 }
 
 // ─── Rolling KPI（期間別実績 新規／既存分類付き）────────────────────────────
@@ -352,6 +406,7 @@ function emptyMetrics(): Record<RollingKpiMetricKey, KpiSegmentedCounts> {
         visitCount: emptySegmented(),
         onlineCount: emptySegmented(),
         newVisitCount: emptySegmented(),
+        kmContactCount: emptySegmented(),
         appointmentCount: emptySegmented(),
         negotiationCount: emptySegmented(),
         contractCount: emptySegmented(),
@@ -440,6 +495,69 @@ async function getPersonalPeriodMetrics(
         const cnt = Number(row.cnt);
         metrics.newVisitCount.total += cnt;
         metrics.newVisitCount.bySegment.new += cnt;
+    }
+
+    // 1c. meetings テーブルの面談（VISIT/ONLINE）を合算
+    // meetings には visit_category がないため一律「新規」扱いとする
+    const personalMeetingRows = await db
+        .select({
+            activityType: meetings.activityType,
+            cnt: sql<number>`count(*)::int`,
+        })
+        .from(meetings)
+        .where(
+            and(
+                eq(meetings.ownerUserId, userId),
+                eq(meetings.businessUnitId, businessUnitId),
+                isNull(meetings.deletedAt),
+                gte(meetings.meetingDate, new Date(startDate + 'T00:00:00Z')),
+                lte(meetings.meetingDate, new Date(endDate + 'T23:59:59Z')),
+            ),
+        )
+        .groupBy(meetings.activityType);
+
+    for (const row of personalMeetingRows) {
+        const cnt = Number(row.cnt);
+        if (row.activityType === 'VISIT') {
+            metrics.visitCount.total += cnt;
+            metrics.visitCount.bySegment.new += cnt;
+            metrics.newVisitCount.total += cnt;
+            metrics.newVisitCount.bySegment.new += cnt;
+        } else if (row.activityType === 'ONLINE') {
+            metrics.onlineCount.total += cnt;
+            metrics.onlineCount.bySegment.new += cnt;
+        }
+    }
+
+    // 1b. KM接触数（is_km_contact = true のアクティビティ）
+    const jetColumnsReady = await hasJetKpiColumns();
+    if (jetColumnsReady) {
+        const kmContactRows = await db.execute<{ segment: string; cnt: number }>(sql`
+            SELECT
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM deals d2
+                    WHERE d2.company_id = d.company_id
+                    AND d2.business_unit_id = ${businessUnitId}
+                    AND d2.deleted_at IS NULL
+                    AND d2.id != da.deal_id
+                    AND d2.created_at::date < da.activity_date
+                ) THEN 'existing' ELSE 'new' END AS segment,
+                COUNT(*)::int AS cnt
+            FROM deal_activities da
+            JOIN deals d ON da.deal_id = d.id
+            WHERE da.user_id = ${userId}
+            AND da.business_unit_id = ${businessUnitId}
+            AND da.is_km_contact = true
+            AND da.activity_date >= ${startDate}
+            AND da.activity_date <= ${endDate}
+            GROUP BY 1
+        `);
+        for (const row of kmContactRows.rows) {
+            const seg = row.segment as 'new' | 'existing';
+            const cnt = Number(row.cnt);
+            metrics.kmContactCount.total += cnt;
+            metrics.kmContactCount.bySegment[seg] += cnt;
+        }
     }
 
     // 2. Call logs (callLogs has companyId directly)

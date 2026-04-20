@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { DealActivityItem, DealActivityType } from '@g-dx/contracts';
+import type { BusinessScopeType, DealActivityItem, DealActivityType } from '@g-dx/contracts';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { SubmitButton } from '@/components/ui/submit-button';
@@ -20,12 +20,15 @@ interface ActivityFormProps {
     compact?: boolean;
     editActivity?: DealActivityItem | null;
     onClose?: () => void;
+    businessScope?: BusinessScopeType;
 }
 
-export function ActivityForm({ dealId, compact = false, editActivity, onClose }: ActivityFormProps) {
+export function ActivityForm({ dealId, compact = false, editActivity, onClose, businessScope }: ActivityFormProps) {
     const isEdit = !!editActivity;
+    const isJet = businessScope === 'WATER_SAVING';
     const [activityType, setActivityType] = useState<DealActivityType>(editActivity?.activityType ?? 'VISIT');
     const [isNegotiation, setIsNegotiation] = useState(editActivity?.isNegotiation ?? false);
+    const [isKmContact, setIsKmContact] = useState(editActivity?.isKmContact ?? false);
     const showMeetingFields = isMeetingActivityType(activityType);
     const fieldLabelClassName = compact
         ? 'grid gap-1 text-xs font-medium text-gray-600'
@@ -201,6 +204,24 @@ export function ActivityForm({ dealId, compact = false, editActivity, onClose }:
                     商談として記録
                 </label>
             )}
+            {isJet ? (
+                <label
+                    className={
+                        compact
+                            ? 'flex items-center gap-2 text-xs font-medium text-gray-600'
+                            : 'flex items-center gap-2 text-xs text-gray-600 md:col-span-4'
+                    }
+                >
+                    <input
+                        type="checkbox"
+                        name="isKmContact"
+                        checked={isKmContact}
+                        onChange={(event) => setIsKmContact(event.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    キーマン（KM）接触として記録
+                </label>
+            ) : null}
             <label className={summaryLabelClassName}>
                 内容
                 <textarea

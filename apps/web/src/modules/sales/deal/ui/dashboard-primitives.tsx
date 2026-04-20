@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import type { SalesRollingKpiGrid } from '@g-dx/contracts';
+import type { BusinessScopeType, SalesRollingKpiGrid } from '@g-dx/contracts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import type { TeamKpiTargetSummary } from '../application/get-team-kpi-target-summary';
@@ -108,6 +108,7 @@ interface TeamTargetOverviewProps {
     title?: string;
     description?: string;
     className?: string;
+    businessScope?: BusinessScopeType;
 }
 
 interface TeamMetricCard {
@@ -126,6 +127,7 @@ export function TeamTargetOverview({
     title = 'チームKPIと進捗',
     description = '月次KPI / 実績',
     className,
+    businessScope,
 }: TeamTargetOverviewProps) {
     const thisMonthMetrics = rollingKpiData?.find(
         (item) => item.period === 'thisMonth',
@@ -135,41 +137,79 @@ export function TeamTargetOverview({
             ? `${summary.membersWithTargetsCount} / ${summary.activeMemberCount}名が入力済み`
             : '対象メンバーは未設定です';
 
-    const metricCards: TeamMetricCard[] = [
-        {
-            key: 'newVisitTarget',
-            title: '新規面会数',
-            description: '新規面会目標',
-            target: summary.totals.newVisitTarget,
-            actual: thisMonthMetrics?.newVisitCount.total ?? null,
-            unit: '件',
-        },
-        {
-            key: 'newNegotiationTarget',
-            title: '新規商談数',
-            description: '新規商談目標',
-            target: summary.totals.newNegotiationTarget,
-            actual: thisMonthMetrics?.negotiationCount.bySegment.new ?? null,
-            unit: '件',
-        },
-        {
-            key: 'contractTarget',
-            title: '契約数',
-            description: '契約目標',
-            target: summary.totals.contractTarget,
-            actual: thisMonthMetrics?.contractCount.total ?? null,
-            unit: '件',
-        },
-        {
-            key: 'revenueTarget',
-            title: '売上',
-            description: '月次売上目標',
-            target: summary.totals.revenueTarget,
-            actual: summary.revenueActual,
-            unit: '円',
-            isRevenue: true,
-        },
-    ];
+    const isJet = businessScope === 'WATER_SAVING';
+
+    const metricCards: TeamMetricCard[] = isJet
+        ? [
+              {
+                  key: 'callTarget',
+                  title: 'コール数',
+                  description: 'コール目標',
+                  target: summary.totals.callTarget,
+                  actual: thisMonthMetrics?.callCount.total ?? null,
+                  unit: '件',
+              },
+              {
+                  key: 'kmContactTarget',
+                  title: 'KM接触数',
+                  description: 'キーマン接触目標',
+                  target: summary.totals.kmContactTarget,
+                  actual: thisMonthMetrics?.kmContactCount.total ?? null,
+                  unit: '件',
+              },
+              {
+                  key: 'onlineTarget',
+                  title: 'WEB商談数',
+                  description: 'WEB商談目標',
+                  target: summary.totals.onlineTarget,
+                  actual: thisMonthMetrics?.onlineCount.total ?? null,
+                  unit: '件',
+              },
+              {
+                  key: 'revenueTarget',
+                  title: '売上',
+                  description: '月次売上目標',
+                  target: summary.totals.revenueTarget,
+                  actual: summary.revenueActual,
+                  unit: '円',
+                  isRevenue: true,
+              },
+          ]
+        : [
+              {
+                  key: 'newVisitTarget',
+                  title: '新規面会数',
+                  description: '新規面会目標',
+                  target: summary.totals.newVisitTarget,
+                  actual: thisMonthMetrics?.newVisitCount.total ?? null,
+                  unit: '件',
+              },
+              {
+                  key: 'newNegotiationTarget',
+                  title: '新規商談数',
+                  description: '新規商談目標',
+                  target: summary.totals.newNegotiationTarget,
+                  actual: thisMonthMetrics?.negotiationCount.bySegment.new ?? null,
+                  unit: '件',
+              },
+              {
+                  key: 'contractTarget',
+                  title: '契約数',
+                  description: '契約目標',
+                  target: summary.totals.contractTarget,
+                  actual: thisMonthMetrics?.contractCount.total ?? null,
+                  unit: '件',
+              },
+              {
+                  key: 'revenueTarget',
+                  title: '売上',
+                  description: '月次売上目標',
+                  target: summary.totals.revenueTarget,
+                  actual: summary.revenueActual,
+                  unit: '円',
+                  isRevenue: true,
+              },
+          ];
 
     return (
         <Card className={cn('border-gray-200 bg-white shadow-sm', className)}>

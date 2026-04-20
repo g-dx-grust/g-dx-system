@@ -29,12 +29,18 @@ function buildPeriodLabel(targetMonth: string): string {
     return `${year}年${month}月`;
 }
 
-const KPI_ITEM_DEFS: Array<{ key: PersonalKpiItem['key']; label: string }> = [
+const GDX_KPI_ITEM_DEFS: Array<{ key: PersonalKpiItem['key']; label: string }> = [
     { key: 'callCount', label: 'コール数' },
     { key: 'newVisitCount', label: '新規面会数' },
     { key: 'appointmentCount', label: 'アポイント数' },
     { key: 'newNegotiationCount', label: '新規商談数' },
     { key: 'contractCount', label: '成約数' },
+];
+
+const JET_KPI_ITEM_DEFS: Array<{ key: PersonalKpiItem['key']; label: string }> = [
+    { key: 'callCount', label: 'コール数' },
+    { key: 'kmContactCount', label: 'KM接触数' },
+    { key: 'onlineCount', label: 'WEB商談数' },
 ];
 
 export function getPersonalDashboardDataCacheKey(
@@ -65,6 +71,9 @@ async function fetchPersonalDashboardData(
         (block) => block.period === 'thisMonth',
     )?.metrics;
 
+    const isJet = businessScope === 'WATER_SAVING';
+    const kpiItemDefs = isJet ? JET_KPI_ITEM_DEFS : GDX_KPI_ITEM_DEFS;
+
     const actualsMap: Record<PersonalKpiItem['key'], number> = {
         callCount: actuals.callCount,
         newVisitCount: thisMonthMetrics?.newVisitCount.total ?? 0,
@@ -72,6 +81,8 @@ async function fetchPersonalDashboardData(
         newNegotiationCount:
             thisMonthMetrics?.negotiationCount.bySegment.new ?? 0,
         contractCount: actuals.contractCount,
+        kmContactCount: actuals.kmContactCount,
+        onlineCount: thisMonthMetrics?.onlineCount.total ?? 0,
     };
 
     const targetMap: Record<PersonalKpiItem['key'], number> = {
@@ -83,9 +94,11 @@ async function fetchPersonalDashboardData(
             target?.negotiationTarget ??
             0,
         contractCount: target?.contractTarget ?? 0,
+        kmContactCount: target?.kmContactTarget ?? 0,
+        onlineCount: target?.onlineTarget ?? 0,
     };
 
-    const kpiItems: PersonalKpiItem[] = KPI_ITEM_DEFS.map(({ key, label }) => {
+    const kpiItems: PersonalKpiItem[] = kpiItemDefs.map(({ key, label }) => {
         const actual = actualsMap[key];
         const targetValue = targetMap[key];
         const achievementPct =
@@ -99,6 +112,7 @@ async function fetchPersonalDashboardData(
         revenueTarget > 0 ? Math.round((revenueActual / revenueTarget) * 100) : 0;
 
     return {
+        businessScope,
         targetMonth: month,
         periodLabel: buildPeriodLabel(month),
         kpiItems,

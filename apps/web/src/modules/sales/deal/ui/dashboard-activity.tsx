@@ -12,6 +12,8 @@ interface MonthlyActivityStat {
     visitCount: number;
     onlineCount: number;
     totalCount: number;
+    meetingVisitCount?: number;
+    meetingOnlineCount?: number;
 }
 
 interface ActivityDashboardProps {
@@ -151,6 +153,11 @@ export function ActivityDashboard({
                                                 訪問 {stat?.visitCount ?? 0}件 / オンライン{' '}
                                                 {stat?.onlineCount ?? 0}件
                                             </p>
+                                            {(stat?.meetingVisitCount ?? 0) > 0 || (stat?.meetingOnlineCount ?? 0) > 0 ? (
+                                                <p className="text-xs text-gray-400">
+                                                    内訳 面談: 訪問 {stat?.meetingVisitCount ?? 0} / オンライン {stat?.meetingOnlineCount ?? 0}
+                                                </p>
+                                            ) : null}
                                         </section>
                                     );
                                 })}
@@ -206,6 +213,11 @@ export function ActivityDashboard({
                                                             訪問 {stat?.visitCount ?? 0}件 / オンライン{' '}
                                                             {stat?.onlineCount ?? 0}件
                                                         </p>
+                                                        {(stat?.meetingVisitCount ?? 0) > 0 || (stat?.meetingOnlineCount ?? 0) > 0 ? (
+                                                            <p className="mt-0.5 text-xs text-gray-400">
+                                                                面談: 訪問 {stat?.meetingVisitCount ?? 0} / オンライン {stat?.meetingOnlineCount ?? 0}
+                                                            </p>
+                                                        ) : null}
                                                     </td>
                                                     <td className="px-4 py-3 text-gray-600">
                                                         {formatDashboardAmount(owner.totalAmount)}

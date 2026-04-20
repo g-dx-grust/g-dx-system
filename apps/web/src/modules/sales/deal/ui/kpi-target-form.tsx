@@ -29,11 +29,10 @@ interface KpiFieldGroup {
     fields: KpiField[];
 }
 
-const KPI_FIELD_GROUPS: KpiFieldGroup[] = [
+const GDX_KPI_FIELD_GROUPS: KpiFieldGroup[] = [
     {
         title: '重点確認項目',
-        description:
-            '月次KPI入力',
+        description: '月次KPI入力',
         fields: [
             {
                 name: 'newVisitTarget',
@@ -76,6 +75,40 @@ const KPI_FIELD_GROUPS: KpiFieldGroup[] = [
     },
 ];
 
+const JET_KPI_FIELD_GROUPS: KpiFieldGroup[] = [
+    {
+        title: '重点確認項目',
+        description: '月次KPI入力',
+        fields: [
+            {
+                name: 'callTarget',
+                label: 'コール数',
+                placeholder: '例 100',
+                helper: 'コール目標',
+            },
+            {
+                name: 'kmContactTarget',
+                label: 'KM接触数',
+                placeholder: '例 20',
+                helper: 'キーマン接触目標',
+            },
+            {
+                name: 'onlineTarget',
+                label: 'WEB商談数',
+                placeholder: '例 10',
+                helper: 'WEB商談目標',
+            },
+            {
+                name: 'revenueTarget',
+                label: '売上',
+                placeholder: '例 5000000',
+                helper: '売上目標',
+                isRevenue: true,
+            },
+        ],
+    },
+];
+
 function getDefaultValue(target: UserKpiTarget | null, field: string): string {
     if (!target) return '';
     const map: Record<string, number> = {
@@ -87,6 +120,8 @@ function getDefaultValue(target: UserKpiTarget | null, field: string): string {
         newNegotiationTarget: target.newNegotiationTarget,
         contractTarget: target.contractTarget,
         revenueTarget: target.revenueTarget,
+        kmContactTarget: target.kmContactTarget,
+        onlineTarget: target.onlineTarget,
     };
     const value = map[field];
     return value !== undefined && value > 0 ? String(value) : '';
@@ -98,6 +133,8 @@ export function KpiTargetForm({
     businessScope,
     canManageBusinessGoals,
 }: KpiTargetFormProps) {
+    const isJet = businessScope === 'WATER_SAVING';
+    const kpiFieldGroups = isJet ? JET_KPI_FIELD_GROUPS : GDX_KPI_FIELD_GROUPS;
     const searchParams = useSearchParams();
     const saved = searchParams.get('saved') === '1';
     const hasError = searchParams.get('error') !== null;
@@ -166,7 +203,7 @@ export function KpiTargetForm({
                         />
                     </div>
 
-                    {KPI_FIELD_GROUPS.map((group) => (
+                    {kpiFieldGroups.map((group) => (
                         <section key={group.title} className="space-y-4">
                             <div>
                                 <h3 className="text-sm font-semibold text-gray-900">

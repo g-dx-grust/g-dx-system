@@ -8,7 +8,18 @@ import { createAllianceAction } from '@/modules/sales/alliance/server-actions';
 const selectClassName =
     'h-10 rounded-md border border-gray-300 px-3 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 
-export function AllianceCreateForm() {
+interface AllianceDefaults {
+    contactPersonName?: string;
+    contactPersonRole?: string;
+    notes?: string;
+}
+
+interface AllianceCreateFormProps {
+    defaults?: AllianceDefaults;
+    fromMeetingId?: string;
+}
+
+export function AllianceCreateForm({ defaults, fromMeetingId }: AllianceCreateFormProps = {}) {
     return (
         <Card className="border-gray-200 shadow-sm">
             <CardHeader>
@@ -16,6 +27,9 @@ export function AllianceCreateForm() {
             </CardHeader>
             <CardContent>
                 <form action={createAllianceAction} className="grid gap-4 md:grid-cols-2">
+                    {fromMeetingId ? (
+                        <input type="hidden" name="fromMeeting" value={fromMeetingId} />
+                    ) : null}
                     <label className="grid gap-2 text-sm font-medium text-gray-700 md:col-span-2">
                         名前 <span className="text-red-500">*</span>
                         <Input name="name" required placeholder="例: 株式会社パートナー or 山田 太郎" />
@@ -44,12 +58,12 @@ export function AllianceCreateForm() {
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         担当者名
-                        <Input name="contactPersonName" placeholder="例: 山田 太郎" />
+                        <Input name="contactPersonName" placeholder="例: 山田 太郎" defaultValue={defaults?.contactPersonName} />
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
                         役職
-                        <Input name="contactPersonRole" placeholder="例: 営業部長" />
+                        <Input name="contactPersonRole" placeholder="例: 営業部長" defaultValue={defaults?.contactPersonRole} />
                     </label>
 
                     <label className="grid gap-2 text-sm font-medium text-gray-700">
@@ -79,6 +93,7 @@ export function AllianceCreateForm() {
                             rows={3}
                             className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             placeholder="その他メモ..."
+                            defaultValue={defaults?.notes}
                         />
                     </label>
 

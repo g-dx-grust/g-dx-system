@@ -11,18 +11,17 @@ interface NextActionListProps {
     items: DealNextActionItem[];
 }
 
-function LastActionCell({ item }: { item: DealNextActionItem }) {
+function ExpandableCell({ text, date }: { text: string; date?: string | null }) {
     const [expanded, setExpanded] = useState(false);
-    const summary = item.lastActivitySummary ?? '-';
-    const isLong = summary.length > 40;
+    const isLong = text.length > 40;
 
     return (
         <td className="px-4 py-3">
-            <div className={expanded ? '' : 'line-clamp-2 text-gray-700'}>
-                {summary}
+            <div className={expanded ? 'text-gray-700' : 'line-clamp-2 text-gray-700'}>
+                {text}
             </div>
-            {item.lastActivityDate && (
-                <div className="mt-0.5 text-xs text-gray-500">{item.lastActivityDate}</div>
+            {date && (
+                <div className="mt-0.5 text-xs text-gray-500">{date}</div>
             )}
             {isLong && (
                 <button
@@ -88,11 +87,11 @@ export function NextActionList({ title, items }: NextActionListProps) {
                 <div className="hidden overflow-x-auto md:block">
                     <table className="w-full text-sm">
                         <thead>
-                            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium uppercase tracking-wide text-gray-500">
-                                <th className="px-4 py-3">会社名</th>
-                                <th className="px-4 py-3">担当者</th>
-                                <th className="px-4 py-3">次回アクション</th>
-                                <th className="px-4 py-3">前回アクション</th>
+                            <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs font-medium text-gray-500">
+                                <th className="w-[22%] whitespace-nowrap px-4 py-3">会社名</th>
+                                <th className="w-[10%] whitespace-nowrap px-4 py-3">担当者</th>
+                                <th className="w-[34%] whitespace-nowrap px-4 py-3">次回アクション</th>
+                                <th className="w-[34%] whitespace-nowrap px-4 py-3">前回アクション</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -104,14 +103,17 @@ export function NextActionList({ title, items }: NextActionListProps) {
                                         </Link>
                                         <div className="mt-0.5 text-xs text-gray-500">{item.dealName}</div>
                                     </td>
-                                    <td className="px-4 py-3 text-gray-700">
+                                    <td className="whitespace-nowrap px-4 py-3 text-gray-700">
                                         {item.ownerName}
                                     </td>
-                                    <td className="px-4 py-3">
-                                        <div className="text-gray-900">{item.nextActionContent ?? '-'}</div>
-                                        <div className="mt-0.5 text-xs text-gray-500">{item.nextActionDate}</div>
-                                    </td>
-                                    <LastActionCell item={item} />
+                                    <ExpandableCell
+                                        text={item.nextActionContent ?? '-'}
+                                        date={item.nextActionDate}
+                                    />
+                                    <ExpandableCell
+                                        text={item.lastActivitySummary ?? '-'}
+                                        date={item.lastActivityDate}
+                                    />
                                 </tr>
                             ))}
                         </tbody>

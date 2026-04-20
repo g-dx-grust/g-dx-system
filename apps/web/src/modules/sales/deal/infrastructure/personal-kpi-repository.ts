@@ -324,7 +324,7 @@ export async function getPersonalActuals(
                 isNull(meetings.deletedAt),
                 gte(meetings.meetingDate, new Date(startDate + 'T00:00:00Z')),
                 lte(meetings.meetingDate, new Date(endDate + 'T23:59:59Z')),
-                sql`${meetings.activityType} IN ('VISIT', 'ONLINE')`,
+                inArray(meetings.activityType, ['VISIT', 'ONLINE']),
             ),
         )
         .then(([r]) => Number(r?.cnt ?? 0));

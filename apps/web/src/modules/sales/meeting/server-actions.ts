@@ -37,6 +37,9 @@ function parseMeetingDate(raw: string | undefined): Date | null {
 }
 
 export async function createMeetingAction(formData: FormData) {
+    const session = await getAuthenticatedAppSession();
+    if (!session) redirect('/login');
+
     const counterpartyType = (readString(formData, 'counterpartyType') ?? 'NONE') as MeetingCounterpartyType;
     const activityType = readString(formData, 'activityType') as MeetingActivityType | undefined;
     const meetingDateRaw = readString(formData, 'meetingDate');
@@ -46,7 +49,7 @@ export async function createMeetingAction(formData: FormData) {
         redirect('/sales/meetings/new?error=validation');
     }
 
-    const ownerUserId = readString(formData, 'ownerUserId');
+    const ownerUserId = readString(formData, 'ownerUserId') ?? session.user.id;
     const companyId = counterpartyType === 'COMPANY' ? readString(formData, 'companyId') : undefined;
     const allianceId = counterpartyType === 'ALLIANCE' ? readString(formData, 'allianceId') : undefined;
 
@@ -60,7 +63,7 @@ export async function createMeetingAction(formData: FormData) {
     let result;
     try {
         result = await createMeeting({
-            ownerUserId: ownerUserId!,
+            ownerUserId,
             counterpartyType,
             companyId: companyId ?? null,
             allianceId: allianceId ?? null,

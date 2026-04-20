@@ -313,7 +313,7 @@ export default async function ActivityDashboardPage({
                 if (isAllTab) {
                     // 両スコープの action items をマージ
                     const [dashboardData, actionsA, actionsB] = await Promise.all([
-                        canReadPersonalKpi
+                        (canReadPersonalKpi || isAdminOrAbove)
                             ? getPersonalDashboardData({
                                   userId: member.userId,
                                   scope: scopeA,
@@ -339,7 +339,7 @@ export default async function ActivityDashboardPage({
                     } satisfies MemberActivityData;
                 } else {
                     const [dashboardData, actionItems] = await Promise.all([
-                        canReadPersonalKpi
+                        (canReadPersonalKpi || isAdminOrAbove)
                             ? getPersonalDashboardData({
                                   userId: member.userId,
                                   scope: singleScope,

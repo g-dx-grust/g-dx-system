@@ -19,6 +19,7 @@ export async function createDeal(input: CreateDealRequest) {
         amount: input.amount,
         expectedCloseDate: input.expectedCloseDate,
         nextActionDate: input.nextActionDate,
+        nextActionTime: input.nextActionTime,
         nextActionContent: input.nextActionContent,
         ownerUserId: input.ownerUserId,
         source: input.source,

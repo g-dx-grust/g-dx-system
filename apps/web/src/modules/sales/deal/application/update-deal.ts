@@ -21,6 +21,7 @@ export async function updateDeal(dealId: string, input: UpdateDealRequest) {
         memo: input.memo,
         acquisitionMethod: input.acquisitionMethod,
         nextActionDate: input.nextActionDate,
+        nextActionTime: input.nextActionTime,
         nextActionContent: input.nextActionContent,
         businessScope: session.activeBusinessScope,
         actorUserId: session.user.id,

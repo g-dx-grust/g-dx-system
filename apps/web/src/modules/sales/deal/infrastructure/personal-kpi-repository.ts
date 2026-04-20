@@ -128,7 +128,23 @@ export async function getKpiTargetRow(
 
     if (supportsSegmentTargets) {
         const [row] = await db
-            .select()
+            .select({
+                userId: userKpiTargets.userId,
+                businessUnitId: userKpiTargets.businessUnitId,
+                targetMonth: userKpiTargets.targetMonth,
+                callTarget: userKpiTargets.callTarget,
+                visitTarget: userKpiTargets.visitTarget,
+                newVisitTarget: userKpiTargets.newVisitTarget,
+                appointmentTarget: userKpiTargets.appointmentTarget,
+                negotiationTarget: userKpiTargets.negotiationTarget,
+                newNegotiationTarget: userKpiTargets.newNegotiationTarget,
+                contractTarget: userKpiTargets.contractTarget,
+                revenueTarget: userKpiTargets.revenueTarget,
+                ...(jetColumnsReady && {
+                    kmContactTarget: userKpiTargets.kmContactTarget,
+                    onlineTarget: userKpiTargets.onlineTarget,
+                }),
+            })
             .from(userKpiTargets)
             .where(whereClause)
             .limit(1);
